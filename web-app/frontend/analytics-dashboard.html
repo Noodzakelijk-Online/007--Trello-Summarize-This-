@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summarize This - Analytics Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <link rel="stylesheet" href="analytics-dashboard.css">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="logo">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics Dashboard</span>
+                </div>
+                <nav class="nav-tabs">
+                    <button class="nav-tab active" data-tab="overview">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Overview
+                    </button>
+                    <button class="nav-tab" data-tab="users">
+                        <i class="fas fa-users"></i>
+                        Users
+                    </button>
+                    <button class="nav-tab" data-tab="features">
+                        <i class="fas fa-puzzle-piece"></i>
+                        Features
+                    </button>
+                    <button class="nav-tab" data-tab="revenue">
+                        <i class="fas fa-dollar-sign"></i>
+                        Revenue
+                    </button>
+                    <button class="nav-tab" data-tab="churn">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Churn Risk
+                    </button>
+                </nav>
+            </div>
+            <div class="header-right">
+                <div class="time-range-selector">
+                    <select id="timeRange">
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d" selected>Last 30 days</option>
+                        <option value="90d">Last 90 days</option>
+                        <option value="1y">Last year</option>
+                    </select>
+                </div>
+                <button class="refresh-btn" id="refreshData">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <div class="user-menu">
+                    <img src="https://via.placeholder.com/32x32/4f46e5/ffffff?text=A" alt="Admin" class="user-avatar">
+                    <span>Admin</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Content -->
+    <main class="dashboard">
+        <!-- Overview Tab -->
+        <div class="tab-content active" id="overview-tab">
+            <!-- KPI Cards -->
+            <section class="kpi-section">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3>Total Revenue</h3>
+                            <i class="fas fa-dollar-sign kpi-icon revenue"></i>
+                        </div>
+                        <div class="kpi-value" id="totalRevenue">$0</div>
+                        <div class="kpi-change positive" id="revenueChange">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3>Active Users</h3>
+                            <i class="fas fa-users kpi-icon users"></i>
+                        </div>
+                        <div class="kpi-value" id="activeUsers">0</div>
+                        <div class="kpi-change positive" id="usersChange">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3>Credits Used</h3>
+                            <i class="fas fa-coins kpi-icon credits"></i>
+                        </div>
+                        <div class="kpi-value" id="creditsUsed">0</div>
+                        <div class="kpi-change positive" id="creditsChange">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="kpi-card">
+                        <div class="kpi-header">
+                            <h3>Conversion Rate</h3>
+                            <i class="fas fa-percentage kpi-icon conversion"></i>
+                        </div>
+                        <div class="kpi-value" id="conversionRate">0%</div>
+                        <div class="kpi-change positive" id="conversionChange">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>0%</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="charts-grid">
+                    <!-- Revenue Chart -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3>Revenue Trend</h3>
+                            <div class="chart-controls">
+                                <button class="chart-control active" data-metric="revenue">Revenue</button>
+                                <button class="chart-control" data-metric="users">Users</button>
+                                <button class="chart-control" data-metric="credits">Credits</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Feature Usage Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Feature Usage</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="featureChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- User Segments Chart -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>User Segments</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="segmentsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Real-time Activity Feed -->
+            <section class="activity-section">
+                <div class="activity-card">
+                    <div class="activity-header">
+                        <h3>Real-time Activity</h3>
+                        <div class="activity-status">
+                            <div class="status-indicator live"></div>
+                            <span>Live</span>
+                        </div>
+                    </div>
+                    <div class="activity-feed" id="activityFeed">
+                        <!-- Activity items will be populated by JavaScript -->
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-content" id="users-tab">
+            <section class="users-section">
+                <div class="section-header">
+                    <h2>User Analytics</h2>
+                    <div class="section-controls">
+                        <button class="btn-secondary" id="exportUsers">
+                            <i class="fas fa-download"></i>
+                            Export Data
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="users-grid">
+                    <!-- User Behavior Heatmap -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3>User Journey Heatmap</h3>
+                            <div class="chart-info">
+                                <i class="fas fa-info-circle"></i>
+                                <span>Shows user interaction patterns across features</span>
+                            </div>
+                        </div>
+                        <div class="heatmap-container" id="userHeatmap">
+                            <!-- Heatmap will be generated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Cohort Analysis -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Cohort Retention</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="cohortChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- User Lifetime Value -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Customer Lifetime Value</h3>
+                        </div>
+                        <div class="ltv-metrics">
+                            <div class="ltv-metric">
+                                <span class="ltv-label">Average LTV</span>
+                                <span class="ltv-value" id="avgLTV">$0</span>
+                            </div>
+                            <div class="ltv-metric">
+                                <span class="ltv-label">Predicted LTV</span>
+                                <span class="ltv-value" id="predictedLTV">$0</span>
+                            </div>
+                            <div class="ltv-metric">
+                                <span class="ltv-label">LTV:CAC Ratio</span>
+                                <span class="ltv-value" id="ltvCacRatio">0:1</span>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="ltvChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Features Tab -->
+        <div class="tab-content" id="features-tab">
+            <section class="features-section">
+                <div class="section-header">
+                    <h2>Feature Analytics</h2>
+                    <div class="section-controls">
+                        <button class="btn-secondary" id="exportFeatures">
+                            <i class="fas fa-download"></i>
+                            Export Data
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="features-grid">
+                    <!-- Feature Adoption Funnel -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3>Feature Adoption Funnel</h3>
+                            <select id="featureSelector">
+                                <option value="text_summarization">Text Summarization</option>
+                                <option value="audio_transcription">Audio Transcription</option>
+                                <option value="video_transcription">Video Transcription</option>
+                                <option value="file_upload">File Upload</option>
+                            </select>
+                        </div>
+                        <div class="funnel-container" id="adoptionFunnel">
+                            <!-- Funnel visualization will be generated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Feature Performance Matrix -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Feature Performance</h3>
+                        </div>
+                        <div class="performance-matrix" id="featureMatrix">
+                            <!-- Matrix will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- A/B Test Results -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>A/B Test Results</h3>
+                        </div>
+                        <div class="ab-tests" id="abTests">
+                            <!-- A/B test results will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Revenue Tab -->
+        <div class="tab-content" id="revenue-tab">
+            <section class="revenue-section">
+                <div class="section-header">
+                    <h2>Revenue Analytics</h2>
+                    <div class="section-controls">
+                        <button class="btn-secondary" id="exportRevenue">
+                            <i class="fas fa-download"></i>
+                            Export Data
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="revenue-grid">
+                    <!-- Revenue Breakdown -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3>Revenue Breakdown</h3>
+                            <div class="chart-controls">
+                                <button class="chart-control active" data-breakdown="package">By Package</button>
+                                <button class="chart-control" data-breakdown="feature">By Feature</button>
+                                <button class="chart-control" data-breakdown="geography">By Region</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="revenueBreakdownChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- MRR Trend -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Monthly Recurring Revenue</h3>
+                        </div>
+                        <div class="mrr-metrics">
+                            <div class="mrr-metric">
+                                <span class="mrr-label">Current MRR</span>
+                                <span class="mrr-value" id="currentMRR">$0</span>
+                            </div>
+                            <div class="mrr-metric">
+                                <span class="mrr-label">Growth Rate</span>
+                                <span class="mrr-value" id="mrrGrowth">0%</span>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="mrrChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Revenue Predictions -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Revenue Forecast</h3>
+                        </div>
+                        <div class="forecast-container">
+                            <canvas id="forecastChart"></canvas>
+                        </div>
+                        <div class="forecast-confidence">
+                            <span>Confidence: <strong id="forecastConfidence">85%</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Churn Risk Tab -->
+        <div class="tab-content" id="churn-tab">
+            <section class="churn-section">
+                <div class="section-header">
+                    <h2>Churn Risk Analysis</h2>
+                    <div class="section-controls">
+                        <button class="btn-primary" id="exportChurnRisk">
+                            <i class="fas fa-download"></i>
+                            Export Risk List
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="churn-grid">
+                    <!-- Churn Risk Distribution -->
+                    <div class="chart-card large">
+                        <div class="chart-header">
+                            <h3>Churn Risk Distribution</h3>
+                        </div>
+                        <div class="risk-distribution" id="riskDistribution">
+                            <div class="risk-segment high">
+                                <div class="risk-header">
+                                    <span class="risk-label">High Risk</span>
+                                    <span class="risk-count" id="highRiskCount">0</span>
+                                </div>
+                                <div class="risk-bar">
+                                    <div class="risk-fill" id="highRiskFill"></div>
+                                </div>
+                            </div>
+                            <div class="risk-segment medium">
+                                <div class="risk-header">
+                                    <span class="risk-label">Medium Risk</span>
+                                    <span class="risk-count" id="mediumRiskCount">0</span>
+                                </div>
+                                <div class="risk-bar">
+                                    <div class="risk-fill" id="mediumRiskFill"></div>
+                                </div>
+                            </div>
+                            <div class="risk-segment low">
+                                <div class="risk-header">
+                                    <span class="risk-label">Low Risk</span>
+                                    <span class="risk-count" id="lowRiskCount">0</span>
+                                </div>
+                                <div class="risk-bar">
+                                    <div class="risk-fill" id="lowRiskFill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Risk Factors -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Top Risk Factors</h3>
+                        </div>
+                        <div class="risk-factors" id="riskFactors">
+                            <!-- Risk factors will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- At-Risk Users -->
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Users at Risk</h3>
+                        </div>
+                        <div class="at-risk-users" id="atRiskUsers">
+                            <!-- At-risk users list will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <span>Loading analytics data...</span>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div class="toast" id="toast">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-message"></span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="analytics-dashboard.js"></script>
+</body>
+</html>
+

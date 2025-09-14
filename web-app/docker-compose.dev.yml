@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Main web application (development)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: summarize-this-web-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/summarize_this_dev
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+      - /app/node_modules
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - app-network
+    restart: unless-stopped
+    command: npm run dev
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: summarize-this-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # PostgreSQL for data storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: summarize-this-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=summarize_this_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  redis_data_dev:
+    driver: local
+  postgres_data_dev:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+
