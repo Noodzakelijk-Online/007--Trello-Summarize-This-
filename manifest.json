@@ -1,0 +1,30 @@
+{
+  "name": "Summarize This",
+  "details": "AI-powered card summarization that analyzes all card content and provides intelligent insights about status, progress, and next steps.",
+  "author": "Summarize This Team",
+  "author_email": "support@summarizethis.com",
+  "author_url": "https://summarizethis.com",
+  "overview_url": "https://summarizethis.com/trello",
+  "icon": {
+    "url": "./icon.png"
+  },
+  "tags": [
+    "productivity",
+    "ai",
+    "summarization",
+    "analysis",
+    "project-management"
+  ],
+  "moderators": [],
+  "capabilities": [
+    "card-buttons",
+    "card-detail-badges",
+    "show-settings"
+  ],
+  "connectors": {
+    "iframe": {
+      "url": "./index.html"
+    }
+  }
+}
+

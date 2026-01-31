@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Summarize This - Multi-AI Trello Power-Up</title>
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #64ffda;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .ai-strategy {
+            background: rgba(100, 255, 218, 0.1);
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .ai-strategy h3 {
+            color: #64ffda;
+            margin: 0 0 15px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .strategy-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 14px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+        }
+
+        .strategy-select:focus {
+            outline: none;
+            border-color: #64ffda;
+        }
+
+        .strategy-info {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+            margin-bottom: 15px;
+        }
+
+        .models-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .model-tag {
+            background: rgba(100, 255, 218, 0.2);
+            color: #64ffda;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .api-keys {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .api-keys h3 {
+            color: #ffc107;
+            margin: 0 0 15px 0;
+            font-size: 16px;
+        }
+
+        .api-group {
+            margin-bottom: 15px;
+        }
+
+        .api-label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: block;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .api-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+
+        .api-input:focus {
+            outline: none;
+            border-color: #ffc107;
+        }
+
+        .analysis-progress {
+            display: none;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .analysis-progress.show {
+            display: block;
+        }
+
+        .progress-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #64ffda;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .progress-status {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .progress-models {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .summary-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .summary-container.show {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .summary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #64ffda;
+        }
+
+        .summary-metadata {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: right;
+        }
+
+        .confidence-bar {
+            width: 60px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            margin: 4px 0;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff5252, #ffc107, #64ffda);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .summary-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64ffda;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-content {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 3px solid #64ffda;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .ai-insights {
+            background: rgba(156, 39, 176, 0.1);
+            border: 1px solid rgba(156, 39, 176, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .ai-insights h4 {
+            color: #ce93d8;
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .ai-insights ul {
+            margin: 0;
+            padding-left: 15px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .error {
+            background: rgba(255, 82, 82, 0.1);
+            border: 1px solid rgba(255, 82, 82, 0.3);
+            color: #ff5252;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+            font-size: 14px;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🧠 Summarize This</div>
+            <div class="subtitle">Multi-AI Powered Card Analysis</div>
+        </div>
+
+        <div class="ai-strategy">
+            <h3>🎯 AI Analysis Strategy</h3>
+            <select id="strategySelect" class="strategy-select">
+                <option value="best-quality">🏆 Best Quality - Multiple premium AI models</option>
+                <option value="cost-effective">💰 Cost Effective - Balanced quality and cost</option>
+                <option value="speed-optimized">⚡ Speed Optimized - Fastest analysis</option>
+                <option value="comprehensive">🔬 Comprehensive - All available models</option>
+                <option value="privacy-focused">🔒 Privacy Focused - Local models only</option>
+            </select>
+            <div class="strategy-info" id="strategyInfo">
+                Uses multiple premium AI models (GPT-4o, Claude-3 Opus, Gemini-1.5 Pro) for highest quality analysis. Results are synthesized for optimal insights.
+            </div>
+            <div class="models-preview" id="modelsPreview">
+                <span class="model-tag">GPT-4o</span>
+                <span class="model-tag">Claude-3 Opus</span>
+                <span class="model-tag">Gemini-1.5 Pro</span>
+            </div>
+        </div>
+
+        <div class="api-keys">
+            <h3>🔑 AI Provider API Keys</h3>
+            <div class="api-group">
+                <label class="api-label">OpenAI (GPT-4o, GPT-4o-mini)</label>
+                <input type="password" id="openaiKey" class="api-input" placeholder="sk-...">
+            </div>
+            <div class="api-group">
+                <label class="api-label">Anthropic (Claude-3)</label>
+                <input type="password" id="anthropicKey" class="api-input" placeholder="sk-ant-...">
+            </div>
+            <div class="api-group">
+                <label class="api-label">Google (Gemini)</label>
+                <input type="password" id="googleKey" class="api-input" placeholder="AI...">
+            </div>
+            <div class="api-group">
+                <label class="api-label">Cohere (Command-R)</label>
+                <input type="password" id="cohereKey" class="api-input" placeholder="co_...">
+            </div>
+            <div class="api-group">
+                <label class="api-label">Perplexity (Sonar)</label>
+                <input type="password" id="perplexityKey" class="api-input" placeholder="pplx-...">
+            </div>
+        </div>
+
+        <div id="analysisProgress" class="analysis-progress">
+            <div class="progress-spinner"></div>
+            <div class="progress-status" id="progressStatus">Initializing multi-AI analysis...</div>
+            <div class="progress-models" id="progressModels">Preparing models...</div>
+        </div>
+
+        <div id="error" class="error">
+            <span id="errorMessage"></span>
+        </div>
+
+        <div id="summaryContainer" class="summary-container">
+            <div class="summary-header">
+                <div class="summary-title">🧠 Multi-AI Analysis Complete</div>
+                <div class="summary-metadata">
+                    <div id="summaryStats"></div>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" id="confidenceFill"></div>
+                    </div>
+                    <div id="confidenceText">95% confidence</div>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <div class="section-title">
+                    📝 What this card is about
+                </div>
+                <div class="section-content" id="aboutContent"></div>
+                <div class="ai-insights" id="aboutInsights" style="display: none;">
+                    <h4>💡 AI Insights</h4>
+                    <ul id="aboutInsightsList"></ul>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <div class="section-title">
+                    📈 What has happened
+                </div>
+                <div class="section-content" id="historyContent"></div>
+                <div class="ai-insights" id="historyInsights" style="display: none;">
+                    <h4>💡 AI Insights</h4>
+                    <ul id="historyInsightsList"></ul>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <div class="section-title">
+                    📍 Current status
+                </div>
+                <div class="section-content" id="statusContent"></div>
+                <div class="ai-insights" id="statusInsights" style="display: none;">
+                    <h4>💡 AI Insights</h4>
+                    <ul id="statusInsightsList"></ul>
+                </div>
+            </div>
+
+            <div class="summary-section">
+                <div class="section-title">
+                    ✅ What's needed to complete
+                </div>
+                <div class="section-content" id="nextStepsContent"></div>
+                <div class="ai-insights" id="nextStepsInsights" style="display: none;">
+                    <h4>💡 AI Insights</h4>
+                    <ul id="nextStepsInsightsList"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Multi-AI Integration Class (simplified for browser)
+        class MultiAIAnalyzer {
+            constructor(apiKeys = {}) {
+                this.apiKeys = apiKeys;
+                this.strategies = {
+                    'best-quality': {
+                        models: ['gpt-4o', 'claude-3-opus', 'gemini-1.5-pro'],
+                        description: 'Uses multiple premium AI models for highest quality analysis. Results are synthesized for optimal insights.',
+                        tags: ['GPT-4o', 'Claude-3 Opus', 'Gemini-1.5 Pro'],
+                        maxCost: 0.05
+                    },
+                    'cost-effective': {
+                        models: ['gpt-4o-mini', 'claude-3-haiku', 'gemini-1.5-flash'],
+                        description: 'Balanced approach using efficient models that provide good quality at lower cost.',
+                        tags: ['GPT-4o Mini', 'Claude-3 Haiku', 'Gemini Flash'],
+                        maxCost: 0.01
+                    },
+                    'speed-optimized': {
+                        models: ['gpt-4o-mini', 'claude-3-haiku'],
+                        description: 'Fastest analysis using optimized models for quick results.',
+                        tags: ['GPT-4o Mini', 'Claude-3 Haiku'],
+                        maxCost: 0.005
+                    },
+                    'comprehensive': {
+                        models: ['gpt-4o', 'claude-3-opus', 'gemini-1.5-pro', 'command-r-plus', 'llama-3.1-sonar-huge'],
+                        description: 'Uses all available AI models for the most comprehensive analysis possible.',
+                        tags: ['GPT-4o', 'Claude-3 Opus', 'Gemini Pro', 'Command-R+', 'Sonar Huge'],
+                        maxCost: 0.1
+                    },
+                    'privacy-focused': {
+                        models: ['rule-based'],
+                        description: 'Uses only local processing without sending data to external AI services.',
+                        tags: ['Local Processing', 'No External APIs'],
+                        maxCost: 0
+                    }
+                };
+            }
+
+            async analyzeCard(cardData, strategy = 'best-quality') {
+                const strategyConfig = this.strategies[strategy];
+                const availableModels = this.getAvailableModels(strategyConfig.models);
+                
+                if (availableModels.length === 0) {
+                    throw new Error('No AI models available. Please configure API keys.');
+                }
+
+                updateProgress('Analyzing with multiple AI models...', availableModels);
+
+                const analyses = await this.runParallelAnalysis(cardData, availableModels);
+                
+                if (analyses.length === 0) {
+                    throw new Error('All AI analyses failed. Please check your API keys.');
+                }
+
+                updateProgress('Synthesizing results...', ['Synthesis Engine']);
+
+                const synthesized = await this.synthesizeResults(analyses, cardData);
+                
+                return {
+                    summary: synthesized,
+                    metadata: {
+                        modelsUsed: analyses.map(a => a.model),
+                        totalCost: this.calculateCost(analyses),
+                        confidence: this.calculateConfidence(analyses),
+                        strategy: strategy
+                    }
+                };
+            }
+
+            getAvailableModels(requestedModels) {
+                const available = [];
+                
+                for (const model of requestedModels) {
+                    if (model === 'rule-based') {
+                        available.push({ name: 'rule-based', provider: 'local' });
+                        continue;
+                    }
+                    
+                    if (model.includes('gpt') && this.apiKeys.openai) {
+                        available.push({ name: model, provider: 'openai' });
+                    } else if (model.includes('claude') && this.apiKeys.anthropic) {
+                        available.push({ name: model, provider: 'anthropic' });
+                    } else if (model.includes('gemini') && this.apiKeys.google) {
+                        available.push({ name: model, provider: 'google' });
+                    } else if (model.includes('command') && this.apiKeys.cohere) {
+                        available.push({ name: model, provider: 'cohere' });
+                    } else if (model.includes('sonar') && this.apiKeys.perplexity) {
+                        available.push({ name: model, provider: 'perplexity' });
+                    }
+                }
+                
+                return available;
+            }
+
+            async runParallelAnalysis(cardData, models) {
+                const analysisPromises = models.map(async (model) => {
+                    try {
+                        const result = await this.analyzeWithModel(cardData, model);
+                        return {
+                            model: model.name,
+                            result: result,
+                            success: true
+                        };
+                    } catch (error) {
+                        console.warn(`Analysis failed with ${model.name}:`, error);
+                        return null;
+                    }
+                });
+
+                const results = await Promise.allSettled(analysisPromises);
+                return results
+                    .filter(r => r.status === 'fulfilled' && r.value && r.value.success)
+                    .map(r => r.value);
+            }
+
+            async analyzeWithModel(cardData, model) {
+                const prompt = this.createPrompt(cardData);
+                
+                switch (model.provider) {
+                    case 'openai':
+                        return await this.callOpenAI(prompt, model.name);
+                    case 'anthropic':
+                        return await this.callAnthropic(prompt, model.name);
+                    case 'google':
+                        return await this.callGoogle(prompt, model.name);
+                    case 'cohere':
+                        return await this.callCohere(prompt, model.name);
+                    case 'perplexity':
+                        return await this.callPerplexity(prompt, model.name);
+                    case 'local':
+                        return await this.ruleBasedAnalysis(cardData);
+                    default:
+                        throw new Error(`Unsupported provider: ${model.provider}`);
+                }
+            }
+
+            createPrompt(cardData) {
+                return `Analyze this Trello card and provide structured insights:
+
+CARD DATA:
+Title: ${cardData.name}
+Description: ${cardData.desc || 'No description'}
+List: ${cardData.list?.name || 'Unknown'}
+Labels: ${cardData.labels?.map(l => l.name).join(', ') || 'None'}
+Due Date: ${cardData.due ? new Date(cardData.due).toLocaleDateString() : 'Not set'}
+Members: ${cardData.members?.map(m => m.fullName).join(', ') || 'None'}
+${this.formatChecklists(cardData.checklists)}
+
+Provide analysis in this format:
+ABOUT: [What this card is about - purpose and scope]
+HISTORY: [What has happened - key activities and progress]
+STATUS: [Current status - where things stand now]
+NEXT_STEPS: [What's needed to complete - specific actions]
+INSIGHTS: [Key insights and recommendations]`;
+            }
+
+            async callOpenAI(prompt, model) {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.apiKeys.openai}`
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [
+                            { role: 'system', content: 'You are an expert project analyst. Provide structured, actionable insights.' },
+                            { role: 'user', content: prompt }
+                        ],
+                        temperature: 0.3,
+                        max_tokens: 1000
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`OpenAI API error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return this.parseResponse(data.choices[0].message.content);
+            }
+
+            parseResponse(text) {
+                const sections = { about: '', history: '', status: '', nextSteps: '', insights: [] };
+                const lines = text.split('\n');
+                let currentSection = '';
+
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('ABOUT:')) {
+                        currentSection = 'about';
+                        sections.about = trimmed.replace('ABOUT:', '').trim();
+                    } else if (trimmed.startsWith('HISTORY:')) {
+                        currentSection = 'history';
+                        sections.history = trimmed.replace('HISTORY:', '').trim();
+                    } else if (trimmed.startsWith('STATUS:')) {
+                        currentSection = 'status';
+                        sections.status = trimmed.replace('STATUS:', '').trim();
+                    } else if (trimmed.startsWith('NEXT_STEPS:')) {
+                        currentSection = 'nextSteps';
+                        sections.nextSteps = trimmed.replace('NEXT_STEPS:', '').trim();
+                    } else if (trimmed.startsWith('INSIGHTS:')) {
+                        currentSection = 'insights';
+                        const insightText = trimmed.replace('INSIGHTS:', '').trim();
+                        if (insightText) sections.insights.push(insightText);
+                    } else if (trimmed && currentSection) {
+                        if (currentSection === 'insights') {
+                            sections.insights.push(trimmed);
+                        } else {
+                            sections[currentSection] += ' ' + trimmed;
+                        }
+                    }
+                }
+
+                return sections;
+            }
+
+            async synthesizeResults(analyses, cardData) {
+                if (analyses.length === 1) {
+                    return analyses[0].result;
+                }
+
+                // Simple synthesis - combine the best parts from each analysis
+                const synthesized = {
+                    about: this.selectBestSection(analyses, 'about'),
+                    history: this.selectBestSection(analyses, 'history'),
+                    status: this.selectBestSection(analyses, 'status'),
+                    nextSteps: this.selectBestSection(analyses, 'nextSteps'),
+                    insights: this.combineInsights(analyses)
+                };
+
+                return synthesized;
+            }
+
+            selectBestSection(analyses, section) {
+                // Select the longest, most detailed section
+                return analyses
+                    .map(a => a.result[section])
+                    .filter(s => s && s.length > 0)
+                    .sort((a, b) => b.length - a.length)[0] || '';
+            }
+
+            combineInsights(analyses) {
+                const allInsights = [];
+                for (const analysis of analyses) {
+                    if (analysis.result.insights) {
+                        allInsights.push(...analysis.result.insights);
+                    }
+                }
+                return [...new Set(allInsights)]; // Remove duplicates
+            }
+
+            calculateConfidence(analyses) {
+                if (analyses.length === 0) return 0;
+                if (analyses.length === 1) return 0.75;
+                return Math.min(0.95, 0.6 + (analyses.length * 0.1));
+            }
+
+            calculateCost(analyses) {
+                // Simplified cost calculation
+                const costs = {
+                    'gpt-4o': 0.015,
+                    'gpt-4o-mini': 0.004,
+                    'claude-3-opus': 0.015,
+                    'claude-3-sonnet': 0.003,
+                    'claude-3-haiku': 0.00025,
+                    'gemini-1.5-pro': 0.007,
+                    'gemini-1.5-flash': 0.0005
+                };
+                
+                return analyses.reduce((total, analysis) => {
+                    return total + (costs[analysis.model] || 0.001);
+                }, 0);
+            }
+
+            formatChecklists(checklists) {
+                if (!checklists || checklists.length === 0) return 'Checklists: None';
+                
+                let formatted = 'Checklists:\n';
+                for (const checklist of checklists) {
+                    formatted += `${checklist.name}:\n`;
+                    for (const item of checklist.checkItems) {
+                        formatted += `  ${item.state === 'complete' ? '✓' : '○'} ${item.name}\n`;
+                    }
+                }
+                return formatted;
+            }
+
+            async ruleBasedAnalysis(cardData) {
+                // Fallback rule-based analysis
+                return {
+                    about: `This card "${cardData.name}" is focused on ${cardData.desc ? cardData.desc.substring(0, 100) + '...' : 'the task described in the title'}.`,
+                    history: `Card is in "${cardData.list?.name || 'Unknown'}" list with ${cardData.members?.length || 0} assigned members.`,
+                    status: this.generateRuleBasedStatus(cardData),
+                    nextSteps: this.generateRuleBasedNextSteps(cardData),
+                    insights: ['Rule-based analysis - consider adding AI models for deeper insights']
+                };
+            }
+
+            generateRuleBasedStatus(cardData) {
+                let status = `Currently in "${cardData.list?.name || 'Unknown'}" list. `;
+                
+                if (cardData.checklists && cardData.checklists.length > 0) {
+                    const totalItems = cardData.checklists.reduce((sum, cl) => sum + cl.checkItems.length, 0);
+                    const completedItems = cardData.checklists.reduce((sum, cl) => 
+                        sum + cl.checkItems.filter(item => item.state === 'complete').length, 0);
+                    
+                    const percentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+                    status += `${percentage}% complete (${completedItems}/${totalItems} tasks done).`;
+                }
+                
+                return status;
+            }
+
+            generateRuleBasedNextSteps(cardData) {
+                if (cardData.checklists && cardData.checklists.length > 0) {
+                    const pendingItems = [];
+                    cardData.checklists.forEach(checklist => {
+                        checklist.checkItems.forEach(item => {
+                            if (item.state !== 'complete') {
+                                pendingItems.push(item.name);
+                            }
+                        });
+                    });
+
+                    if (pendingItems.length > 0) {
+                        return `Complete remaining tasks: ${pendingItems.slice(0, 3).join(', ')}${pendingItems.length > 3 ? ` and ${pendingItems.length - 3} more items` : ''}.`;
+                    }
+                }
+                
+                return 'Review card details and define specific action items to move forward.';
+            }
+        }
+
+        // Initialize Trello Power-Up
+        TrelloPowerUp.initialize({
+            'card-buttons': function(t, options) {
+                return [{
+                    icon: '🧠',
+                    text: 'Multi-AI Summarize',
+                    callback: function(t) {
+                        return t.popup({
+                            title: 'Multi-AI Card Analysis',
+                            url: './enhanced-trello-powerup.html',
+                            height: 700,
+                            args: { action: 'summarize' }
+                        });
+                    }
+                }];
+            }
+        });
+
+        // UI Elements
+        const strategySelect = document.getElementById('strategySelect');
+        const strategyInfo = document.getElementById('strategyInfo');
+        const modelsPreview = document.getElementById('modelsPreview');
+        const analysisProgress = document.getElementById('analysisProgress');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressModels = document.getElementById('progressModels');
+        const error = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
+        const summaryContainer = document.getElementById('summaryContainer');
+
+        // API Key inputs
+        const apiKeyInputs = {
+            openai: document.getElementById('openaiKey'),
+            anthropic: document.getElementById('anthropicKey'),
+            google: document.getElementById('googleKey'),
+            cohere: document.getElementById('cohereKey'),
+            perplexity: document.getElementById('perplexityKey')
+        };
+
+        // Load saved settings
+        loadSettings();
+
+        // Strategy selection handler
+        strategySelect.addEventListener('change', updateStrategyInfo);
+        updateStrategyInfo();
+
+        // Save API keys when changed
+        Object.keys(apiKeyInputs).forEach(provider => {
+            apiKeyInputs[provider].addEventListener('change', () => saveSettings());
+        });
+
+        // Auto-start if called from card button
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'summarize') {
+            setTimeout(startMultiAIAnalysis, 500);
+        }
+
+        function updateStrategyInfo() {
+            const strategy = strategySelect.value;
+            const analyzer = new MultiAIAnalyzer();
+            const config = analyzer.strategies[strategy];
+            
+            strategyInfo.textContent = config.description;
+            modelsPreview.innerHTML = config.tags.map(tag => 
+                `<span class="model-tag">${tag}</span>`
+            ).join('');
+        }
+
+        async function startMultiAIAnalysis() {
+            hideElements();
+            analysisProgress.classList.add('show');
+
+            try {
+                // Get API keys
+                const apiKeys = {};
+                Object.keys(apiKeyInputs).forEach(provider => {
+                    const key = apiKeyInputs[provider].value.trim();
+                    if (key) apiKeys[provider] = key;
+                });
+
+                // Initialize analyzer
+                const analyzer = new MultiAIAnalyzer(apiKeys);
+                
+                // Get card data
+                updateProgress('Gathering card data...', ['Trello API']);
+                const cardData = await gatherCardData();
+                
+                // Run analysis
+                const strategy = strategySelect.value;
+                const result = await analyzer.analyzeCard(cardData, strategy);
+                
+                // Display results
+                displayResults(result);
+
+            } catch (err) {
+                console.error('Multi-AI analysis failed:', err);
+                showError(err.message || 'Analysis failed. Please check your API keys and try again.');
+            } finally {
+                analysisProgress.classList.remove('show');
+            }
+        }
+
+        function updateProgress(status, models) {
+            progressStatus.textContent = status;
+            progressModels.textContent = `Using: ${models.join(', ')}`;
+        }
+
+        async function gatherCardData() {
+            const t = TrelloPowerUp.iframe();
+            return await t.card('all');
+        }
+
+        function displayResults(result) {
+            const { summary, metadata } = result;
+            
+            // Update content
+            document.getElementById('aboutContent').textContent = summary.about;
+            document.getElementById('historyContent').textContent = summary.history;
+            document.getElementById('statusContent').textContent = summary.status;
+            document.getElementById('nextStepsContent').textContent = summary.nextSteps;
+            
+            // Update metadata
+            document.getElementById('summaryStats').innerHTML = `
+                ${metadata.modelsUsed.length} AI models • $${metadata.totalCost.toFixed(4)} cost<br>
+                Strategy: ${metadata.strategy}
+            `;
+            
+            // Update confidence
+            const confidence = Math.round(metadata.confidence * 100);
+            document.getElementById('confidenceFill').style.width = `${confidence}%`;
+            document.getElementById('confidenceText').textContent = `${confidence}% confidence`;
+            
+            // Show insights if available
+            if (summary.insights && summary.insights.length > 0) {
+                const sections = ['about', 'history', 'status', 'nextSteps'];
+                sections.forEach(section => {
+                    const insights = summary.insights.slice(0, 3); // Show first 3 insights
+                    if (insights.length > 0) {
+                        const insightsElement = document.getElementById(`${section}Insights`);
+                        const listElement = document.getElementById(`${section}InsightsList`);
+                        listElement.innerHTML = insights.map(insight => `<li>${insight}</li>`).join('');
+                        insightsElement.style.display = 'block';
+                    }
+                });
+            }
+            
+            summaryContainer.classList.add('show');
+        }
+
+        function hideElements() {
+            error.classList.remove('show');
+            summaryContainer.classList.remove('show');
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            error.classList.add('show');
+        }
+
+        async function loadSettings() {
+            try {
+                const settings = await TrelloPowerUp.get('member', 'private', 'multiAISettings') || {};
+                
+                Object.keys(apiKeyInputs).forEach(provider => {
+                    if (settings[provider]) {
+                        apiKeyInputs[provider].value = settings[provider];
+                    }
+                });
+                
+                if (settings.strategy) {
+                    strategySelect.value = settings.strategy;
+                    updateStrategyInfo();
+                }
+            } catch (err) {
+                console.warn('Failed to load settings:', err);
+            }
+        }
+
+        async function saveSettings() {
+            try {
+                const settings = { strategy: strategySelect.value };
+                
+                Object.keys(apiKeyInputs).forEach(provider => {
+                    const key = apiKeyInputs[provider].value.trim();
+                    if (key) settings[provider] = key;
+                });
+                
+                await TrelloPowerUp.set('member', 'private', 'multiAISettings', settings);
+            } catch (err) {
+                console.warn('Failed to save settings:', err);
+            }
+        }
+
+        console.log('Multi-AI Trello Power-Up loaded');
+    </script>
+</body>
+</html>
+
