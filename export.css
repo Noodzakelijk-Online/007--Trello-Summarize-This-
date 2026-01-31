@@ -1,0 +1,107 @@
+/* Export Functionality Styles */
+
+.export-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.export-btn {
+    background: linear-gradient(135deg, #64ffda 0%, #00bcd4 100%);
+    color: #1a1a2e;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.export-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(100, 255, 218, 0.4);
+}
+
+.export-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 15px;
+    padding: 10px;
+    min-width: 220px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(100, 255, 218, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.export-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.export-option {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 12px 15px;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.export-option:hover {
+    background: rgba(100, 255, 218, 0.1);
+    color: #64ffda;
+}
+
+.export-option:active {
+    transform: scale(0.98);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .export-dropdown {
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%) translateY(-10px);
+    }
+
+    .export-dropdown.show {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .export-option {
+        padding: 14px 15px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .export-btn {
+        padding: 10px 15px;
+        font-size: 13px;
+    }
+
+    .export-dropdown {
+        min-width: 200px;
+    }
+
+    .export-option {
+        font-size: 14px;
+    }
+}

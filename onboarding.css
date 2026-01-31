@@ -1,0 +1,392 @@
+/* Onboarding and Help System Styles */
+
+/* Onboarding Overlay */
+.onboarding-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.onboarding-overlay * {
+    pointer-events: auto;
+}
+
+.onboarding-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10001;
+}
+
+.onboarding-spotlight {
+    position: fixed;
+    border-radius: 10px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.8);
+    z-index: 10002;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    display: none;
+}
+
+.onboarding-card {
+    position: fixed;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    z-index: 10003;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(100, 255, 218, 0.3);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.onboarding-progress {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.progress-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.progress-dot.active {
+    background: #64ffda;
+    transform: scale(1.2);
+}
+
+.progress-dot.completed {
+    background: #4caf50;
+}
+
+.onboarding-title {
+    color: #64ffda;
+    font-size: 24px;
+    margin: 0 0 15px 0;
+    font-weight: 600;
+}
+
+.onboarding-content {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 25px;
+}
+
+.onboarding-content strong {
+    color: #64ffda;
+}
+
+.onboarding-content a {
+    color: #64ffda;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.onboarding-content a:hover {
+    border-bottom-color: #64ffda;
+}
+
+.onboarding-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.onboarding-skip {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 12px 24px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.onboarding-skip:hover {
+    color: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.onboarding-next {
+    background: linear-gradient(135deg, #64ffda 0%, #00bcd4 100%);
+    color: #1a1a2e;
+    border: none;
+    padding: 12px 32px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.onboarding-next:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(100, 255, 218, 0.4);
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+}
+
+/* Help Modal */
+.help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.help-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9998;
+}
+
+.help-modal-content {
+    position: relative;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 9999;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.help-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 32px;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.help-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.help-modal-content h2 {
+    color: #64ffda;
+    font-size: 28px;
+    margin: 0 0 20px 0;
+    font-weight: 600;
+}
+
+.help-modal-content h3 {
+    color: #64ffda;
+    font-size: 18px;
+    margin: 20px 0 10px 0;
+    font-weight: 600;
+}
+
+.help-modal-body {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.help-modal-body p {
+    margin: 10px 0;
+}
+
+.help-modal-body ul {
+    margin: 10px 0;
+    padding-left: 20px;
+}
+
+.help-modal-body li {
+    margin: 8px 0;
+}
+
+.help-modal-body a {
+    color: #64ffda;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.help-modal-body a:hover {
+    border-bottom-color: #64ffda;
+}
+
+.help-modal-body strong {
+    color: #64ffda;
+}
+
+/* Help Icon Button */
+.help-icon-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(100, 255, 218, 0.2);
+    border: 1px solid rgba(100, 255, 218, 0.4);
+    color: #64ffda;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.help-icon-btn:hover {
+    background: rgba(100, 255, 218, 0.3);
+    transform: scale(1.1);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .onboarding-card {
+        padding: 25px;
+        max-width: 90%;
+    }
+
+    .onboarding-title {
+        font-size: 20px;
+    }
+
+    .onboarding-content {
+        font-size: 14px;
+    }
+
+    .onboarding-actions {
+        flex-direction: column;
+    }
+
+    .onboarding-skip,
+    .onboarding-next {
+        width: 100%;
+    }
+
+    .help-modal-content {
+        padding: 30px 20px;
+        max-width: 95%;
+    }
+
+    .help-modal-content h2 {
+        font-size: 22px;
+    }
+
+    .help-modal-content h3 {
+        font-size: 16px;
+    }
+
+    .help-modal-body {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .onboarding-card {
+        padding: 20px;
+    }
+
+    .onboarding-title {
+        font-size: 18px;
+    }
+
+    .onboarding-content {
+        font-size: 13px;
+    }
+
+    .help-modal-content {
+        padding: 25px 15px;
+    }
+
+    .help-modal-content h2 {
+        font-size: 20px;
+    }
+}
+
+/* Scrollbar Styling for Help Modal */
+.help-modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.help-modal-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.help-modal-content::-webkit-scrollbar-thumb {
+    background: rgba(100, 255, 218, 0.3);
+    border-radius: 10px;
+}
+
+.help-modal-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 255, 218, 0.5);
+}

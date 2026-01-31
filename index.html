@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Summarize This - Multi-AI Trello Power-Up</title>
     <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="attachment-processor.js"></script>
+    <script src="onboarding.js"></script>
+    <script src="export.js"></script>
+    <link rel="stylesheet" href="onboarding.css">
+    <link rel="stylesheet" href="export.css">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -401,6 +406,165 @@
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+                border-radius: 15px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .subtitle {
+                font-size: 12px;
+            }
+
+            .mode-buttons {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .mode-btn {
+                width: 100%;
+                padding: 10px;
+            }
+
+            .strategy-select {
+                font-size: 14px;
+                padding: 10px;
+            }
+
+            .api-keys h3 {
+                font-size: 14px;
+            }
+
+            .api-input {
+                font-size: 14px;
+                padding: 10px;
+            }
+
+            .analyze-btn {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+
+            .summary-section {
+                padding: 15px;
+            }
+
+            .section-title {
+                font-size: 14px;
+            }
+
+            .section-content {
+                font-size: 13px;
+            }
+
+            .models-preview {
+                flex-wrap: wrap;
+            }
+
+            .model-tag {
+                font-size: 10px;
+                padding: 4px 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                padding: 15px;
+                border-radius: 10px;
+            }
+
+            .logo {
+                font-size: 18px;
+            }
+
+            .subtitle {
+                font-size: 11px;
+            }
+
+            .mode-toggle {
+                padding: 15px;
+            }
+
+            .ai-strategy,
+            .api-keys,
+            .test-section {
+                padding: 15px;
+            }
+
+            h3 {
+                font-size: 14px;
+            }
+
+            .analyze-btn {
+                padding: 10px 15px;
+                font-size: 13px;
+            }
+
+            .summary-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .summary-title {
+                font-size: 16px;
+            }
+
+            .section-title {
+                font-size: 13px;
+                padding: 8px;
+            }
+
+            .section-content {
+                font-size: 12px;
+                line-height: 1.5;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .mode-btn,
+            .analyze-btn,
+            button {
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            .api-input,
+            .strategy-select {
+                min-height: 44px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+
+            .mode-btn:active,
+            .analyze-btn:active {
+                transform: scale(0.95);
+            }
+        }
+
+        /* Landscape mobile */
+        @media (max-width: 896px) and (orientation: landscape) {
+            .container {
+                max-width: 90%;
+            }
+
+            .summary-section {
+                margin-bottom: 15px;
             }
         }
     </style>
@@ -1117,8 +1281,27 @@ Provide your analysis in this JSON format:
                 let cardData;
                 try {
                     cardData = isTestMode ? getSampleCardData() : await gatherTrelloCardData();
+                    // Store for export functionality
+                    window.lastAnalyzedCardData = cardData;
                 } catch (err) {
                     throw new Error(`Failed to fetch card data: ${err.message}`);
+                }
+                
+                // Process attachments if present
+                if (cardData.attachments && cardData.attachments.length > 0) {
+                    updateProgress('Processing attachments...', ['Attachment Processor']);
+                    try {
+                        const processor = new AttachmentProcessor();
+                        const processedAttachments = await processor.processAttachments(cardData.attachments);
+                        const attachmentsSummary = processor.generateAttachmentsSummary(processedAttachments);
+                        
+                        // Add attachment content to card description
+                        cardData.desc = (cardData.desc || '') + attachmentsSummary;
+                        cardData.processedAttachments = processedAttachments;
+                    } catch (attachErr) {
+                        console.warn('Attachment processing failed:', attachErr);
+                        // Continue with analysis even if attachment processing fails
+                    }
                 }
                 
                 // Validate card data
@@ -1302,6 +1485,19 @@ Provide your analysis in this JSON format:
             }
             
             summaryContainer.classList.add('show');
+            
+            // Add export button if not already present
+            if (!document.querySelector('.export-menu')) {
+                const summaryHeader = document.querySelector('.summary-header');
+                if (summaryHeader && window.exportManager) {
+                    const exportUI = window.exportManager.createExportUI({
+                        summary: summary,
+                        metadata: metadata,
+                        cardData: window.lastAnalyzedCardData || { name: 'Trello Card' }
+                    });
+                    summaryHeader.appendChild(exportUI);
+                }
+            }
         }
 
         function hideElements() {
@@ -1379,6 +1575,24 @@ Provide your analysis in this JSON format:
         Object.keys(apiKeyInputs).forEach(provider => {
             apiKeyInputs[provider].addEventListener('change', saveSettings);
         });
+
+        // Initialize onboarding system
+        const onboarding = new OnboardingSystem();
+        
+        // Show onboarding for first-time users
+        setTimeout(() => {
+            if (!onboarding.checkOnboarding()) {
+                onboarding.showOnboarding();
+            }
+        }, 1000);
+
+        // Add help buttons
+        onboarding.addHelpButton('.ai-strategy', 'strategies');
+        onboarding.addHelpButton('.api-keys', 'api-keys');
+
+        // Initialize export manager
+        const exportManager = new ExportManager();
+        window.exportManager = exportManager; // Make it globally accessible
 
         console.log('Multi-AI Trello Power-Up loaded successfully');
     </script>
