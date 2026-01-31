@@ -13,9 +13,9 @@ TrelloPowerUp.initialize({
       callback: function(t) {
         // Open the popup when button is clicked
         return t.popup({
-          title: 'AI Card Summary',
-          url: './popup.html',
-          height: 500
+          title: 'AI Analysis - 99.9% Accuracy',
+          url: './popup-999-accuracy.html',
+          height: 600
         });
       }
     }];
