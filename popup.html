@@ -37,6 +37,29 @@
             100% { transform: rotate(360deg); }
         }
 
+        .loading-steps {
+            font-size: 13px;
+            color: #5e6c84;
+            margin-top: 15px;
+        }
+
+        .loading-step {
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .loading-step.active {
+            color: #0079bf;
+            font-weight: 600;
+        }
+
+        .loading-step.complete {
+            color: #61bd4f;
+        }
+
         .error {
             background: #eb5a46;
             color: white;
@@ -86,7 +109,7 @@
         }
 
         .summary-section li {
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             line-height: 1.5;
         }
 
@@ -139,27 +162,6 @@
             cursor: not-allowed;
         }
 
-        .strategy-selector {
-            margin-bottom: 15px;
-        }
-
-        .strategy-selector label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: #172b4d;
-            font-size: 14px;
-        }
-
-        .strategy-selector select {
-            width: 100%;
-            padding: 8px 12px;
-            border: 2px solid #dfe1e6;
-            border-radius: 6px;
-            font-size: 14px;
-            background: white;
-        }
-
         .card-info {
             background: white;
             border-radius: 8px;
@@ -179,28 +181,48 @@
             color: #5e6c84;
         }
 
-        .confidence-badge {
+        .quality-badge {
             display: inline-block;
             padding: 4px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             margin-left: 8px;
         }
 
-        .confidence-high {
+        .quality-high {
             background: #61bd4f;
             color: white;
         }
 
-        .confidence-medium {
+        .quality-medium {
             background: #f2d600;
             color: #172b4d;
         }
 
-        .confidence-low {
+        .quality-low {
             background: #eb5a46;
             color: white;
+        }
+
+        .data-completeness {
+            background: #e4f7fb;
+            border-left: 4px solid #0079bf;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .completeness-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+        }
+
+        .completeness-icon {
+            font-size: 16px;
         }
     </style>
 </head>
@@ -209,7 +231,24 @@
         <div id="loadingState" class="loading">
             <div class="spinner"></div>
             <p>Analyzing card with AI...</p>
-            <p style="font-size: 12px; color: #5e6c84;">This may take 10-30 seconds</p>
+            <div class="loading-steps">
+                <div class="loading-step" id="step1">
+                    <span>⏳</span>
+                    <span>Gathering card data...</span>
+                </div>
+                <div class="loading-step" id="step2">
+                    <span>⏳</span>
+                    <span>Fetching comments & attachments...</span>
+                </div>
+                <div class="loading-step" id="step3">
+                    <span>⏳</span>
+                    <span>Analyzing with AI...</span>
+                </div>
+                <div class="loading-step" id="step4">
+                    <span>⏳</span>
+                    <span>Validating results...</span>
+                </div>
+            </div>
         </div>
 
         <div id="setupState" style="display: none;">
@@ -232,6 +271,11 @@
             <div class="card-info">
                 <h2 id="cardName"></h2>
                 <div class="card-details" id="cardDetails"></div>
+            </div>
+
+            <div class="data-completeness" id="dataCompleteness">
+                <strong>📊 Data Analyzed:</strong>
+                <div id="completenessItems"></div>
             </div>
 
             <div class="summary-section">
@@ -259,6 +303,16 @@
                 <ul id="insightsList"></ul>
             </div>
 
+            <div class="summary-section">
+                <h3><span class="icon">⚠️</span> Risks & Blockers</h3>
+                <ul id="risksList"></ul>
+            </div>
+
+            <div class="summary-section">
+                <h3><span class="icon">🎓</span> Recommendations</h3>
+                <ul id="recommendationsList"></ul>
+            </div>
+
             <div class="metadata">
                 <div class="metadata-item">
                     <span class="metadata-label">Provider</span>
@@ -267,6 +321,10 @@
                 <div class="metadata-item">
                     <span class="metadata-label">Model</span>
                     <span id="modelName"></span>
+                </div>
+                <div class="metadata-item">
+                    <span class="metadata-label">Quality</span>
+                    <span id="qualityScore"></span>
                 </div>
                 <div class="metadata-item">
                     <span class="metadata-label">Cost</span>
@@ -288,6 +346,8 @@
 
         const t = TrelloPowerUp.iframe();
         let currentAnalysis = null;
+        let trelloAPIKey = null;
+        let trelloToken = null;
 
         // Initialize when popup opens
         window.addEventListener('load', function() {
@@ -302,6 +362,13 @@
                 if (!apiKeys || Object.keys(apiKeys).length === 0) {
                     showSetupState();
                     return;
+                }
+
+                // Get Trello credentials if available
+                const trelloCreds = await t.get('member', 'private', 'trelloCredentials');
+                if (trelloCreds) {
+                    trelloAPIKey = trelloCreds.apiKey;
+                    trelloToken = trelloCreds.token;
                 }
 
                 // Get card data
@@ -320,20 +387,32 @@
             try {
                 showLoadingState();
 
-                // Gather comprehensive card data
-                const cardData = await gatherCardData(card);
+                // Step 1: Gather comprehensive card data
+                updateLoadingStep(1, 'active');
+                const cardData = await gatherCompleteCardData(card);
+                updateLoadingStep(1, 'complete');
 
-                // Get preferred strategy or use default
+                // Step 2: Fetch additional data
+                updateLoadingStep(2, 'active');
+                await fetchAdditionalData(cardData);
+                updateLoadingStep(2, 'complete');
+
+                // Step 3: Perform AI analysis
+                updateLoadingStep(3, 'active');
                 const strategy = await t.get('member', 'private', 'preferredStrategy') || 'cost-effective';
+                const analysis = await performEnhancedAIAnalysis(cardData, apiKeys, strategy);
+                updateLoadingStep(3, 'complete');
 
-                // Perform AI analysis
-                const analysis = await performAIAnalysis(cardData, apiKeys, strategy);
+                // Step 4: Validate results
+                updateLoadingStep(4, 'active');
+                const validatedAnalysis = validateAnalysis(analysis, cardData);
+                updateLoadingStep(4, 'complete');
 
                 // Display results
-                displayResults(cardData, analysis);
+                displayResults(cardData, validatedAnalysis);
 
                 // Save to history
-                await saveToHistory(cardData, analysis);
+                await saveToHistory(cardData, validatedAnalysis);
 
             } catch (error) {
                 console.error('Analysis error:', error);
@@ -341,33 +420,72 @@
             }
         }
 
-        async function gatherCardData(card) {
+        function updateLoadingStep(stepNum, status) {
+            const step = document.getElementById('step' + stepNum);
+            if (!step) return;
+
+            step.className = 'loading-step ' + status;
+            
+            const icon = step.querySelector('span:first-child');
+            if (status === 'complete') {
+                icon.textContent = '✅';
+            } else if (status === 'active') {
+                icon.textContent = '⏳';
+            }
+        }
+
+        async function gatherCompleteCardData(card) {
             const cardData = {
                 id: card.id,
                 name: card.name,
                 desc: card.desc,
                 due: card.due,
                 dueComplete: card.dueComplete,
-                labels: card.labels,
-                members: card.members,
-                attachments: card.attachments,
+                labels: card.labels || [],
+                members: card.members || [],
+                attachments: card.attachments || [],
                 url: card.url,
-                shortLink: card.shortLink
+                shortLink: card.shortLink,
+                dateLastActivity: card.dateLastActivity,
+                start: card.start,
+                badges: card.badges || {}
             };
 
             // Get board and list info
             try {
-                const board = await t.board('name');
-                const list = await t.list('name');
+                const board = await t.board('all');
+                const list = await t.list('all');
                 cardData.board = board;
                 cardData.list = list;
             } catch (e) {
                 console.warn('Could not fetch board/list info:', e);
             }
 
-            // Get checklists
+            // Get custom fields if available
             try {
-                const response = await fetch(`https://api.trello.com/1/cards/${card.id}/checklists?key=${window.trelloAPIKey}&token=${window.trelloToken}`);
+                const customFields = await t.get(card.id, 'shared', 'customFields');
+                if (customFields) {
+                    cardData.customFields = customFields;
+                }
+            } catch (e) {
+                console.warn('Could not fetch custom fields:', e);
+            }
+
+            return cardData;
+        }
+
+        async function fetchAdditionalData(cardData) {
+            if (!trelloAPIKey || !trelloToken) {
+                console.warn('Trello credentials not available, skipping additional data fetch');
+                return;
+            }
+
+            const baseUrl = 'https://api.trello.com/1';
+            const auth = `key=${trelloAPIKey}&token=${trelloToken}`;
+
+            // Fetch ALL checklists
+            try {
+                const response = await fetch(`${baseUrl}/cards/${cardData.id}/checklists?${auth}`);
                 if (response.ok) {
                     cardData.checklists = await response.json();
                 }
@@ -375,9 +493,9 @@
                 console.warn('Could not fetch checklists:', e);
             }
 
-            // Get comments
+            // Fetch ALL comments (not just 10)
             try {
-                const response = await fetch(`https://api.trello.com/1/cards/${card.id}/actions?filter=commentCard&limit=10&key=${window.trelloAPIKey}&token=${window.trelloToken}`);
+                const response = await fetch(`${baseUrl}/cards/${cardData.id}/actions?filter=commentCard&limit=1000&${auth}`);
                 if (response.ok) {
                     cardData.comments = await response.json();
                 }
@@ -385,14 +503,38 @@
                 console.warn('Could not fetch comments:', e);
             }
 
-            return cardData;
+            // Fetch card actions/history
+            try {
+                const response = await fetch(`${baseUrl}/cards/${cardData.id}/actions?limit=100&${auth}`);
+                if (response.ok) {
+                    cardData.actions = await response.json();
+                }
+            } catch (e) {
+                console.warn('Could not fetch actions:', e);
+            }
+
+            // Fetch attachment details
+            if (cardData.attachments && cardData.attachments.length > 0) {
+                try {
+                    const attachmentDetails = [];
+                    for (const attachment of cardData.attachments.slice(0, 10)) {
+                        const response = await fetch(`${baseUrl}/cards/${cardData.id}/attachments/${attachment.id}?${auth}`);
+                        if (response.ok) {
+                            attachmentDetails.push(await response.json());
+                        }
+                    }
+                    cardData.attachmentDetails = attachmentDetails;
+                } catch (e) {
+                    console.warn('Could not fetch attachment details:', e);
+                }
+            }
         }
 
-        async function performAIAnalysis(cardData, apiKeys, strategy) {
-            // Format card data for AI
-            const prompt = formatCardDataForAI(cardData);
+        async function performEnhancedAIAnalysis(cardData, apiKeys, strategy) {
+            // Format card data with enhanced prompt
+            const prompt = formatEnhancedPrompt(cardData);
 
-            // Select AI provider based on available keys
+            // Select AI provider
             let provider = null;
             let apiKey = null;
 
@@ -409,39 +551,64 @@
                 throw new Error('No valid API key found');
             }
 
-            // Call AI API
+            // Call AI API with enhanced prompt
             const analysis = await callAIProvider(provider, apiKey, prompt, strategy);
 
             return analysis;
         }
 
-        function formatCardDataForAI(cardData) {
-            let prompt = `Analyze this Trello card and provide a structured summary:\n\n`;
-            prompt += `CARD: ${cardData.name}\n`;
+        function formatEnhancedPrompt(cardData) {
+            let prompt = `You are an expert project analyst with deep experience in project management, agile methodologies, and team collaboration. Analyze this Trello card comprehensively and provide a detailed, actionable summary.
+
+CARD INFORMATION:
+================
+
+CARD TITLE: ${cardData.name}
+`;
             
             if (cardData.board) prompt += `BOARD: ${cardData.board.name}\n`;
-            if (cardData.list) prompt += `LIST: ${cardData.list.name}\n\n`;
+            if (cardData.list) prompt += `LIST: ${cardData.list.name}\n`;
             
             if (cardData.desc) {
-                prompt += `DESCRIPTION:\n${cardData.desc}\n\n`;
+                prompt += `\nDESCRIPTION:\n${cardData.desc}\n`;
             }
 
             if (cardData.labels && cardData.labels.length > 0) {
-                prompt += `LABELS: ${cardData.labels.map(l => l.name).filter(n => n).join(', ')}\n\n`;
+                const labelNames = cardData.labels.map(l => l.name || l.color).filter(n => n);
+                if (labelNames.length > 0) {
+                    prompt += `\nLABELS: ${labelNames.join(', ')}\n`;
+                }
+            }
+
+            if (cardData.members && cardData.members.length > 0) {
+                prompt += `\nASSIGNED MEMBERS: ${cardData.members.length} member(s)\n`;
             }
 
             if (cardData.due) {
-                prompt += `DUE DATE: ${new Date(cardData.due).toLocaleString()}\n`;
-                prompt += `STATUS: ${cardData.dueComplete ? 'Completed' : 'Not completed'}\n\n`;
+                const dueDate = new Date(cardData.due);
+                const now = new Date();
+                const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+                prompt += `\nDUE DATE: ${dueDate.toLocaleString()}`;
+                if (daysUntilDue < 0) {
+                    prompt += ` (OVERDUE by ${Math.abs(daysUntilDue)} days)`;
+                } else if (daysUntilDue === 0) {
+                    prompt += ` (DUE TODAY)`;
+                } else if (daysUntilDue <= 3) {
+                    prompt += ` (URGENT: ${daysUntilDue} days remaining)`;
+                } else {
+                    prompt += ` (${daysUntilDue} days remaining)`;
+                }
+                prompt += `\nCOMPLETION STATUS: ${cardData.dueComplete ? 'COMPLETED' : 'NOT COMPLETED'}\n`;
             }
 
             if (cardData.checklists && cardData.checklists.length > 0) {
-                prompt += `CHECKLISTS:\n`;
+                prompt += `\nCHECKLISTS (${cardData.checklists.length} total):\n`;
                 cardData.checklists.forEach(checklist => {
                     const completed = checklist.checkItems.filter(item => item.state === 'complete').length;
                     const total = checklist.checkItems.length;
-                    prompt += `\n${checklist.name} (${completed}/${total} complete):\n`;
-                    checklist.checkItems.slice(0, 10).forEach(item => {
+                    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+                    prompt += `\n"${checklist.name}" - ${percentage}% complete (${completed}/${total} items):\n`;
+                    checklist.checkItems.forEach(item => {
                         const status = item.state === 'complete' ? '✓' : '○';
                         prompt += `  ${status} ${item.name}\n`;
                     });
@@ -450,21 +617,79 @@
             }
 
             if (cardData.comments && cardData.comments.length > 0) {
-                prompt += `RECENT COMMENTS:\n`;
-                cardData.comments.slice(0, 5).forEach(comment => {
-                    prompt += `\n${comment.memberCreator.fullName}: ${comment.data.text}\n`;
+                prompt += `\nCOMMENTS (${cardData.comments.length} total, showing most recent):\n`;
+                cardData.comments.slice(0, 20).forEach(comment => {
+                    const date = new Date(comment.date).toLocaleDateString();
+                    prompt += `\n[${date}] ${comment.memberCreator.fullName}:\n${comment.data.text}\n`;
                 });
                 prompt += `\n`;
             }
 
-            prompt += `\nProvide analysis in JSON format with these fields:\n`;
-            prompt += `{\n`;
-            prompt += `  "about": "A comprehensive overview of what this card is about",\n`;
-            prompt += `  "history": "What has happened so far on this card",\n`;
-            prompt += `  "status": "Current status and progress",\n`;
-            prompt += `  "nextSteps": "What needs to be done to complete this card",\n`;
-            prompt += `  "insights": ["Key insight 1", "Key insight 2", "Key insight 3"]\n`;
-            prompt += `}`;
+            if (cardData.attachments && cardData.attachments.length > 0) {
+                prompt += `\nATTACHMENTS (${cardData.attachments.length} total):\n`;
+                cardData.attachments.forEach(attachment => {
+                    prompt += `- ${attachment.name} (${attachment.mimeType || 'unknown type'})\n`;
+                });
+                prompt += `\n`;
+            }
+
+            if (cardData.actions && cardData.actions.length > 0) {
+                const recentActions = cardData.actions.slice(0, 10);
+                prompt += `\nRECENT ACTIVITY:\n`;
+                recentActions.forEach(action => {
+                    const date = new Date(action.date).toLocaleDateString();
+                    prompt += `- [${date}] ${action.type}\n`;
+                });
+                prompt += `\n`;
+            }
+
+            prompt += `
+ANALYSIS REQUIREMENTS:
+=====================
+
+Provide a comprehensive analysis in JSON format with the following structure. Each field MUST be detailed and actionable:
+
+{
+  "about": "A thorough 3-4 sentence overview explaining what this card represents, its purpose, and its role in the project. Be specific and contextual.",
+  
+  "history": "A detailed 3-4 sentence summary of what has happened on this card. Include progress made, key decisions, changes, and significant activities. Reference specific checklist items, comments, or actions when relevant.",
+  
+  "status": "A comprehensive 3-4 sentence assessment of the current state. Include completion percentage, blockers, dependencies, and urgency level. Be explicit about what's working and what isn't.",
+  
+  "nextSteps": "A detailed 4-6 sentence action plan for completing this card. Prioritize tasks, identify dependencies, suggest timelines, and specify who should do what. Be concrete and actionable.",
+  
+  "insights": [
+    "Insight 1: A specific, actionable observation about the card",
+    "Insight 2: Another important finding or pattern",
+    "Insight 3: A third key insight",
+    "Add 2-5 insights total, each being specific and valuable"
+  ],
+  
+  "risks": [
+    "Risk 1: A specific risk or blocker that could impact completion",
+    "Risk 2: Another potential issue to watch",
+    "Add 1-4 risks if applicable, or empty array if none identified"
+  ],
+  
+  "recommendations": [
+    "Recommendation 1: A specific action to improve outcomes",
+    "Recommendation 2: Another suggestion for better results",
+    "Add 2-4 recommendations for how to handle this card better"
+  ],
+  
+  "confidence": "high|medium|low - Your confidence level in this analysis based on data completeness"
+}
+
+IMPORTANT GUIDELINES:
+- Be specific and concrete, avoid generic statements
+- Reference actual data from the card (checklist items, comments, dates)
+- Identify patterns and trends in the activity
+- Consider urgency, dependencies, and blockers
+- Provide actionable recommendations
+- If data is limited, acknowledge it in your confidence level
+- Focus on what matters most for completing this card successfully
+
+Provide ONLY the JSON response, no additional text.`;
 
             return prompt;
         }
@@ -494,7 +719,7 @@
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are an expert project analyst. Analyze Trello cards and provide clear, actionable summaries in JSON format.'
+                            content: 'You are an expert project analyst. Provide detailed, accurate, and actionable analysis in JSON format.'
                         },
                         {
                             role: 'user',
@@ -502,7 +727,7 @@
                         }
                     ],
                     response_format: { type: 'json_object' },
-                    temperature: 0.7
+                    temperature: 0.3
                 })
             });
 
@@ -538,11 +763,12 @@
                 },
                 body: JSON.stringify({
                     model: model,
-                    max_tokens: 2048,
+                    max_tokens: 4096,
+                    temperature: 0.3,
                     messages: [
                         {
                             role: 'user',
-                            content: `You are an expert project analyst. ${prompt}`
+                            content: prompt
                         }
                     ]
                 })
@@ -572,7 +798,7 @@
         }
 
         async function callGoogle(apiKey, prompt, strategy) {
-            const model = strategy === 'best-quality' ? 'gemini-2.0-flash-exp' : 'gemini-2.0-flash-exp';
+            const model = 'gemini-2.0-flash-exp';
             
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
                 method: 'POST',
@@ -582,12 +808,12 @@
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
-                            text: `You are an expert project analyst. ${prompt}`
+                            text: prompt
                         }]
                     }],
                     generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 2048
+                        temperature: 0.3,
+                        maxOutputTokens: 4096
                     }
                 })
             });
@@ -610,7 +836,7 @@
                     provider: 'Google AI',
                     model: model,
                     tokens: data.usageMetadata?.totalTokenCount || 0,
-                    cost: 0.0001 // Approximate
+                    cost: 0.0002
                 }
             };
         }
@@ -633,6 +859,57 @@
             return (inputTokens * rate.input) + (outputTokens * rate.output);
         }
 
+        function validateAnalysis(analysis, cardData) {
+            const summary = analysis.summary;
+            let qualityScore = 100;
+            const issues = [];
+
+            // Check required fields
+            const requiredFields = ['about', 'history', 'status', 'nextSteps', 'insights'];
+            requiredFields.forEach(field => {
+                if (!summary[field] || (typeof summary[field] === 'string' && summary[field].length < 50)) {
+                    qualityScore -= 15;
+                    issues.push(`${field} is too short or missing`);
+                }
+            });
+
+            // Check insights array
+            if (!Array.isArray(summary.insights) || summary.insights.length < 2) {
+                qualityScore -= 10;
+                issues.push('Insufficient insights provided');
+            }
+
+            // Add default risks if missing
+            if (!summary.risks) {
+                summary.risks = [];
+            }
+
+            // Add default recommendations if missing
+            if (!summary.recommendations) {
+                summary.recommendations = [];
+            }
+
+            // Determine quality level
+            let qualityLevel = 'high';
+            if (qualityScore < 70) {
+                qualityLevel = 'low';
+            } else if (qualityScore < 85) {
+                qualityLevel = 'medium';
+            }
+
+            // Add confidence if missing
+            if (!summary.confidence) {
+                summary.confidence = qualityLevel;
+            }
+
+            analysis.summary = summary;
+            analysis.qualityScore = qualityScore;
+            analysis.qualityLevel = qualityLevel;
+            analysis.validationIssues = issues;
+
+            return analysis;
+        }
+
         function displayResults(cardData, analysis) {
             currentAnalysis = { cardData, analysis };
 
@@ -643,6 +920,9 @@
             if (cardData.board) details += `Board: ${cardData.board.name} • `;
             if (cardData.list) details += `List: ${cardData.list.name}`;
             document.getElementById('cardDetails').textContent = details;
+
+            // Data completeness
+            displayDataCompleteness(cardData);
 
             // Summary sections
             document.getElementById('aboutText').textContent = analysis.summary.about || 'No information available';
@@ -666,13 +946,70 @@
                 insightsList.innerHTML = '<li>No insights available</li>';
             }
 
+            // Risks
+            const risksList = document.getElementById('risksList');
+            risksList.innerHTML = '';
+            if (analysis.summary.risks && Array.isArray(analysis.summary.risks) && analysis.summary.risks.length > 0) {
+                analysis.summary.risks.forEach(risk => {
+                    const li = document.createElement('li');
+                    li.textContent = risk;
+                    risksList.appendChild(li);
+                });
+            } else {
+                risksList.innerHTML = '<li>No significant risks identified</li>';
+            }
+
+            // Recommendations
+            const recommendationsList = document.getElementById('recommendationsList');
+            recommendationsList.innerHTML = '';
+            if (analysis.summary.recommendations && Array.isArray(analysis.summary.recommendations) && analysis.summary.recommendations.length > 0) {
+                analysis.summary.recommendations.forEach(rec => {
+                    const li = document.createElement('li');
+                    li.textContent = rec;
+                    recommendationsList.appendChild(li);
+                });
+            } else {
+                recommendationsList.innerHTML = '<li>No specific recommendations at this time</li>';
+            }
+
             // Metadata
             document.getElementById('providerName').textContent = analysis.metadata.provider;
             document.getElementById('modelName').textContent = analysis.metadata.model;
+            
+            // Quality score
+            const qualityBadgeClass = 'quality-' + analysis.qualityLevel;
+            document.getElementById('qualityScore').innerHTML = 
+                `<span class="quality-badge ${qualityBadgeClass}">${analysis.qualityScore}%</span>`;
+            
             document.getElementById('costAmount').textContent = '$' + analysis.metadata.cost.toFixed(4);
             document.getElementById('tokenCount').textContent = analysis.metadata.tokens.toLocaleString();
 
             showResultsState();
+        }
+
+        function displayDataCompleteness(cardData) {
+            const completenessItems = document.getElementById('completenessItems');
+            completenessItems.innerHTML = '';
+
+            const items = [
+                { label: 'Description', present: !!cardData.desc },
+                { label: 'Labels', present: cardData.labels && cardData.labels.length > 0 },
+                { label: 'Members', present: cardData.members && cardData.members.length > 0 },
+                { label: 'Due Date', present: !!cardData.due },
+                { label: 'Checklists', present: cardData.checklists && cardData.checklists.length > 0 },
+                { label: 'Comments', present: cardData.comments && cardData.comments.length > 0 },
+                { label: 'Attachments', present: cardData.attachments && cardData.attachments.length > 0 }
+            ];
+
+            items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'completeness-item';
+                div.innerHTML = `
+                    <span class="completeness-icon">${item.present ? '✅' : '⚪'}</span>
+                    <span>${item.label}</span>
+                `;
+                completenessItems.appendChild(div);
+            });
         }
 
         async function saveToHistory(cardData, analysis) {
@@ -685,7 +1022,8 @@
                     boardName: cardData.board?.name,
                     timestamp: new Date().toISOString(),
                     analysis: analysis,
-                    cost: analysis.metadata.cost
+                    cost: analysis.metadata.cost,
+                    qualityScore: analysis.qualityScore
                 });
 
                 // Keep only last 100 analyses
@@ -713,6 +1051,22 @@
                 analysis.summary.insights.forEach(insight => {
                     text += `- ${insight}\n`;
                 });
+                text += `\n`;
+            }
+
+            if (analysis.summary.risks && analysis.summary.risks.length > 0) {
+                text += `## Risks & Blockers\n`;
+                analysis.summary.risks.forEach(risk => {
+                    text += `- ${risk}\n`;
+                });
+                text += `\n`;
+            }
+
+            if (analysis.summary.recommendations && analysis.summary.recommendations.length > 0) {
+                text += `## Recommendations\n`;
+                analysis.summary.recommendations.forEach(rec => {
+                    text += `- ${rec}\n`;
+                });
             }
 
             navigator.clipboard.writeText(text).then(() => {
@@ -726,7 +1080,7 @@
         function openSettings() {
             t.popup({
                 title: 'Settings',
-                url: './settings.html',
+                url: './settings-powerup.html',
                 height: 400
             });
         }
