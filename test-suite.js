@@ -1,6 +1,18 @@
 // Automated Test Suite for Summarize This
 // Comprehensive testing framework for all components
 
+function getTestSecret(name) {
+    if (typeof process !== 'undefined' && process.env && process.env[name]) {
+        return process.env[name];
+    }
+
+    if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(name);
+    }
+
+    return '';
+}
+
 class TestSuite {
     constructor() {
         this.tests = [];
@@ -189,10 +201,14 @@ const suite = new TestSuite();
 // ============================================================================
 
 suite.test('Trello API: Fetch boards', async () => {
-    const tester = new TrelloAPITester(
-        'eda71c6538a148f072216a00d82c07e9',
-        '2ebc1d7d22cebcbb4b31049c25b34b0ccf2211b7e67e864f61b84a90ef9f23b5'
-    );
+    const apiKey = getTestSecret('TRELLO_TEST_API_KEY');
+    const token = getTestSecret('TRELLO_TEST_TOKEN');
+    if (!apiKey || !token) {
+        console.log('Skipping Trello API test: set TRELLO_TEST_API_KEY and TRELLO_TEST_TOKEN to run it.');
+        return;
+    }
+
+    const tester = new TrelloAPITester(apiKey, token);
     
     const boards = await tester.getMyBoards();
     Assert.exists(boards, 'Boards should exist');
@@ -201,12 +217,17 @@ suite.test('Trello API: Fetch boards', async () => {
 });
 
 suite.test('Trello API: Fetch card data', async () => {
-    const tester = new TrelloAPITester(
-        'eda71c6538a148f072216a00d82c07e9',
-        '2ebc1d7d22cebcbb4b31049c25b34b0ccf2211b7e67e864f61b84a90ef9f23b5'
-    );
+    const apiKey = getTestSecret('TRELLO_TEST_API_KEY');
+    const token = getTestSecret('TRELLO_TEST_TOKEN');
+    const cardId = getTestSecret('TRELLO_TEST_CARD_ID') || '67ec4021155832263da4ab8d';
+    if (!apiKey || !token) {
+        console.log('Skipping Trello API test: set TRELLO_TEST_API_KEY and TRELLO_TEST_TOKEN to run it.');
+        return;
+    }
+
+    const tester = new TrelloAPITester(apiKey, token);
     
-    const cardData = await tester.getCompleteCardData('67ec4021155832263da4ab8d');
+    const cardData = await tester.getCompleteCardData(cardId);
     Assert.exists(cardData, 'Card data should exist');
     Assert.exists(cardData.name, 'Card should have a name');
     Assert.exists(cardData.board, 'Card should have board info');

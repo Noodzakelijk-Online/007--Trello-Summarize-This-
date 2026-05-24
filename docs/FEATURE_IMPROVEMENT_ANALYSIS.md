@@ -1,0 +1,136 @@
+# Feature Improvement Analysis
+
+Date: 2026-05-24
+
+## Product Direction
+
+The tool is strongest as a Trello card understanding assistant: it should quickly explain what a card is about, what happened, what is blocked, and what the next practical action should be. The best next improvements should reduce setup friction, improve summary usefulness, and make the user trust the output.
+
+## Highest-Value Improvements
+
+### 1. Trello Setup Assistant
+
+Problem: The Windows installer can run the standalone tool locally, but Trello Power-Up use still needs HTTPS hosting and Trello admin configuration.
+
+Recommendation:
+
+- Add a guided setup page that explains the two modes:
+  - Standalone Windows/local mode.
+  - Trello Power-Up mode with hosted HTTPS URL.
+- Add a “copy connector URL” section once deployed.
+- Add deployment presets for Netlify, Vercel, and GitHub Pages.
+
+Impact: High. Setup is the biggest barrier for non-technical users.
+
+### 2. Provider Key Validation
+
+Problem: Users can save invalid AI keys and only discover the issue during analysis.
+
+Recommendation:
+
+- Add a “Test key” button for OpenAI, Google AI, and Anthropic in settings.
+- Show a clear success or provider-specific error.
+- Keep local fallback available even if validation fails.
+
+Impact: High. Makes onboarding calmer and reduces failed first runs.
+
+### 3. Summary History Per Card
+
+Problem: The current tool can store the latest summary, but users benefit from seeing how the summary changed over time.
+
+Recommendation:
+
+- Add a small “History” view in the popup.
+- Store timestamp, provider, quality score, and summary snapshot.
+- Allow copying older summaries.
+
+Impact: Medium-high. Useful for project managers and async status tracking.
+
+### 4. Action-Oriented Output Modes
+
+Problem: Different users need different outputs from the same card.
+
+Recommendation:
+
+- Add output modes:
+  - Status update.
+  - Risk review.
+  - Meeting brief.
+  - Next-action checklist.
+  - Client-friendly summary.
+- Reuse the same card data and local fallback logic.
+
+Impact: High. This expands usefulness without changing the core architecture.
+
+### 5. Board/List Context
+
+Problem: A single card can be misleading without nearby board context.
+
+Recommendation:
+
+- Optionally include list name, neighboring card count, and label patterns.
+- For AI mode, summarize how this card relates to its list or sprint.
+- Keep this optional to avoid extra Trello reads and larger prompts.
+
+Impact: Medium. Stronger summaries for planning workflows.
+
+### 6. Attachment Content Extraction
+
+Problem: Attachments are counted but not deeply summarized in the active Power-Up.
+
+Recommendation:
+
+- Add optional attachment text extraction only for trusted HTTPS Trello attachment files.
+- Prefer backend extraction for PDFs/docs to avoid browser-side arbitrary fetch risks.
+- Show attachment-derived facts separately so users know where claims came from.
+
+Impact: Medium-high, but should be implemented carefully for security and resource use.
+
+### 7. Better Trust Signals
+
+Problem: Users need to know why the summary is confident or uncertain.
+
+Recommendation:
+
+- Show “Based on” chips: description, comments, checklist, labels, due date, attachments.
+- Show missing-context warnings, such as “No owner” or “No description.”
+- Add a compact “Why this score?” tooltip.
+
+Impact: Medium. Improves confidence without adding heavy features.
+
+### 8. One-Click Export Formats
+
+Problem: Copying markdown is useful, but some workflows need issue comments, email text, or meeting notes.
+
+Recommendation:
+
+- Add copy formats:
+  - Markdown.
+  - Plain text.
+  - Trello comment.
+  - Email/status update.
+
+Impact: Medium. Low implementation cost, high workflow usefulness.
+
+## Lower-Priority Improvements
+
+- Bulk summarize selected cards or a full list.
+- Saved custom prompt templates.
+- Cost budget alerts per provider.
+- Dark mode.
+- Localization for Dutch and English.
+- Optional update checker for the Windows installer.
+
+## Implementation Order
+
+1. Provider key validation.
+2. Output modes.
+3. Summary history view.
+4. Trello setup assistant.
+5. Trust signals.
+6. Export formats.
+7. Optional board/list context.
+8. Attachment extraction through a safer backend path.
+
+This order improves the existing user experience first, then expands capability where it needs more security and product design care.
+

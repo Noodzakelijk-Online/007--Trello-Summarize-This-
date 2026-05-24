@@ -176,7 +176,7 @@ class TrelloIntegration {
     async processPDF(attachment) {
         try {
             // Fetch PDF content
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const blob = await response.blob();
             
             // For now, return metadata (actual PDF parsing would require pdf.js or similar)
@@ -224,7 +224,7 @@ class TrelloIntegration {
     // Process text file
     async processText(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const text = await response.text();
             return {
                 ...attachment,
@@ -239,12 +239,47 @@ class TrelloIntegration {
 
     // Process web link
     async processWebLink(attachment) {
+        const parsed = this.validateAttachmentUrl(attachment.url);
         return {
             ...attachment,
+            url: parsed.href,
             processed: true,
             type: 'link',
-            content: `Web link: ${attachment.name} - ${attachment.url}`
+            content: `Web link: ${attachment.name} - ${parsed.href}`
         };
+    }
+
+    async safeFetchAttachment(url, options = {}) {
+        const parsed = this.validateAttachmentUrl(url);
+        return fetch(parsed.href, {
+            ...options,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer'
+        });
+    }
+
+    validateAttachmentUrl(url) {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+        const isPrivateHost = (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname === '127.0.0.1' ||
+            hostname === '0.0.0.0' ||
+            hostname === '[::1]' ||
+            hostname === '::1' ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+            hostname.startsWith('169.254.')
+        );
+
+        if (parsed.protocol !== 'https:' || isPrivateHost) {
+            throw new Error('Attachment URL must be HTTPS and publicly reachable');
+        }
+
+        return parsed;
     }
 
     // Format bytes to human-readable size

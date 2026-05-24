@@ -102,10 +102,11 @@ class MultiModelConsensus {
     }
     
     async analyzeWithGoogle(prompt) {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${this.providers.google}`, {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-goog-api-key': this.providers.google
             },
             body: JSON.stringify({
                 contents: [{

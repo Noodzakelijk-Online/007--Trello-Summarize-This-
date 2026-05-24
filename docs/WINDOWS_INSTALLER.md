@@ -1,0 +1,30 @@
+# Windows 11 Installer
+
+The repository now includes a Windows 11 `.exe` installer build path.
+
+Build it with:
+
+```powershell
+npm run build:windows-installer
+```
+
+Output:
+
+```text
+dist\windows-installer\SummarizeThisSetup.exe
+```
+
+The installer:
+
+- Installs the runtime files to `%LOCALAPPDATA%\SummarizeThis`.
+- Creates Start Menu shortcuts for launch, Trello Power-Up configuration, and uninstall.
+- Registers a per-user uninstall entry.
+- Starts a lightweight local launcher at `http://127.0.0.1:17117`.
+- Avoids Electron and external dependencies.
+
+The Start Menu shortcut named `Configure Trello Power-Up` opens a setup assistant that prepares the exact iframe connector URL, app metadata, icon URL, and capabilities for Trello's Power-Up Admin Portal.
+
+Important:
+
+- The installer is for easy standalone Windows use.
+- Trello Power-Up use inside Trello still requires hosting the static files on an HTTPS URL and configuring that connector URL in Trello.

@@ -67,7 +67,7 @@ class AttachmentAnalyzer {
         } else if (fileType === 'text') {
             // For text files, we can fetch directly
             try {
-                const response = await fetch(attachment.url);
+                const response = await this.safeFetchAttachment(attachment.url);
                 const text = await response.text();
                 result.content = text;
                 result.analyzed = true;
@@ -77,6 +77,39 @@ class AttachmentAnalyzer {
         }
         
         return result;
+    }
+
+    async safeFetchAttachment(url, options = {}) {
+        const parsed = this.validateAttachmentUrl(url);
+        return fetch(parsed.href, {
+            ...options,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer'
+        });
+    }
+
+    validateAttachmentUrl(url) {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+        const isPrivateHost = (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname === '127.0.0.1' ||
+            hostname === '0.0.0.0' ||
+            hostname === '[::1]' ||
+            hostname === '::1' ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+            hostname.startsWith('169.254.')
+        );
+
+        if (parsed.protocol !== 'https:' || isPrivateHost) {
+            throw new Error('Attachment URL must be HTTPS and publicly reachable');
+        }
+
+        return parsed;
     }
     
     detectFileType(filename) {

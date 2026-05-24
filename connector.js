@@ -1,53 +1,80 @@
-// Trello Power-Up Connector
-// This file initializes the Power-Up and defines card buttons
+// Summarize This Trello Power-Up connector.
+// Defines the card button, settings popup, and lightweight status badge.
 
 /* global TrelloPowerUp */
 
-// Initialize the Power-Up
-TrelloPowerUp.initialize({
-  // Add a button to each card
-  'card-buttons': function(t, options) {
-    return [{
-      icon: 'https://cdn-icons-png.flaticon.com/512/2991/2991148.png', // AI/brain icon
-      text: 'Summarize This',
-      callback: function(t) {
-        // Open the popup when button is clicked
-        return t.popup({
-          title: 'AI Analysis - 99.9% Accuracy',
-          url: './popup-999-accuracy.html',
-          height: 600
-        });
-      }
-    }];
-  },
+(function () {
+  "use strict";
 
-  // Add settings capability
-  'show-settings': function(t, options) {
-    return t.popup({
-      title: 'Summarize This Settings',
-      url: './settings-powerup.html',
-      height: 400
-    });
-  },
+  var POPUP_URL = "./popup.html";
+  var SETTINGS_URL = "./settings-powerup.html";
+  var ICON_URL = "./icon.svg";
 
-  // Authorization capability for API keys
-  'authorization-status': function(t, options) {
-    return t.get('member', 'private', 'apiKeys')
-      .then(function(apiKeys) {
-        if (apiKeys && Object.keys(apiKeys).length > 0) {
-          return { authorized: true };
-        }
-        return { authorized: false };
-      });
-  },
-
-  'show-authorization': function(t, options) {
-    return t.popup({
-      title: 'Configure API Keys',
-      url: './settings-powerup.html',
-      height: 400
-    });
+  function hasAnyKey(settings) {
+    var keys = settings && settings.apiKeys ? settings.apiKeys : {};
+    return Boolean(keys.openai || keys.anthropic || keys.google);
   }
-});
 
-console.log('Summarize This Power-Up loaded successfully!');
+  function loadSettings(t) {
+    return t.get("member", "private", "summarizeThisSettings")
+      .then(function (settings) {
+        return settings || {};
+      })
+      .catch(function () {
+        return {};
+      });
+  }
+
+  TrelloPowerUp.initialize({
+    "card-buttons": function () {
+      return [{
+        icon: ICON_URL,
+        text: "Summarize This",
+        callback: function (t) {
+          return t.popup({
+            title: "Summarize This",
+            url: POPUP_URL,
+            height: 720
+          });
+        }
+      }];
+    },
+
+    "card-detail-badges": function (t) {
+      return loadSettings(t).then(function (settings) {
+        var localMode = settings.analysisMode === "local";
+        var ready = localMode || hasAnyKey(settings);
+
+        return [{
+          text: ready ? "Summary ready" : "Setup needed",
+          color: ready ? "green" : "yellow",
+          refresh: 300
+        }];
+      });
+    },
+
+    "show-settings": function (t) {
+      return t.popup({
+        title: "Summarize This Settings",
+        url: SETTINGS_URL,
+        height: 620
+      });
+    },
+
+    "authorization-status": function (t) {
+      return loadSettings(t).then(function (settings) {
+        return {
+          authorized: settings.analysisMode === "local" || hasAnyKey(settings)
+        };
+      });
+    },
+
+    "show-authorization": function (t) {
+      return t.popup({
+        title: "Summarize This Settings",
+        url: SETTINGS_URL,
+        height: 620
+      });
+    }
+  });
+})();

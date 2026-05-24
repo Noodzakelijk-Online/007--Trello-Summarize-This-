@@ -1,324 +1,361 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Summarize This - Settings</title>
-    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            padding: 20px;
-            margin: 0;
-            background: #f4f5f7;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summarize This Settings</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --blue: #0c66e4;
+      --blue-dark: #0747a6;
+      --green: #1f845a;
+      --red: #c9372c;
+      --ink: #172b4d;
+      --muted: #626f86;
+      --line: #dcdfe4;
+      --panel: #ffffff;
+      --surface: #f7f8f9;
+    }
 
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        h2 {
-            margin: 0 0 20px 0;
-            color: #172b4d;
-            font-size: 20px;
-        }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--surface);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
 
-        .settings-section {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        }
+    .shell {
+      max-width: 560px;
+      margin: 0 auto;
+    }
 
-        .settings-section h3 {
-            margin: 0 0 15px 0;
-            color: #172b4d;
-            font-size: 16px;
-            font-weight: 600;
-        }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
 
-        .form-group {
-            margin-bottom: 15px;
-        }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 1px rgba(9, 30, 66, 0.08);
+    }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: #172b4d;
-            font-size: 14px;
-        }
+    .group {
+      margin-bottom: 14px;
+    }
 
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 2px solid #dfe1e6;
-            border-radius: 6px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-weight: 700;
+    }
 
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #0079bf;
-        }
+    input,
+    select {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #b6c2cf;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+    }
 
-        .form-group small {
-            display: block;
-            margin-top: 4px;
-            color: #5e6c84;
-            font-size: 12px;
-        }
+    input:focus,
+    select:focus {
+      outline: 2px solid #85b8ff;
+      border-color: var(--blue);
+    }
 
-        .btn {
-            background: #0079bf;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            width: 100%;
-        }
+    .help {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
 
-        .btn:hover {
-            background: #026aa7;
-        }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
 
-        .btn:disabled {
-            background: #dfe1e6;
-            color: #a5adba;
-            cursor: not-allowed;
-        }
+    button {
+      min-height: 36px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-        .success-message {
-            background: #61bd4f;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            display: none;
-        }
+    .primary {
+      background: var(--blue);
+      color: white;
+    }
 
-        .error-message {
-            background: #eb5a46;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            display: none;
-        }
+    .primary:hover {
+      background: var(--blue-dark);
+    }
 
-        .info-box {
-            background: #e4f7fb;
-            border-left: 4px solid #0079bf;
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #172b4d;
-        }
+    .secondary {
+      background: white;
+      border-color: var(--line);
+      color: var(--ink);
+    }
 
-        .provider-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-            font-size: 13px;
-        }
+    .message {
+      display: none;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
 
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
+    .message.success {
+      display: block;
+      background: #dcfff1;
+      color: var(--green);
+      border: 1px solid #7ee2b8;
+    }
 
-        .status-active {
-            background: #61bd4f;
-        }
-
-        .status-inactive {
-            background: #dfe1e6;
-        }
-    </style>
+    .message.error {
+      display: block;
+      background: #ffebe6;
+      color: var(--red);
+      border: 1px solid #fd9891;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>⚙️ Settings</h2>
+  <div class="shell">
+    <h1>Summarize This Settings</h1>
+    <div id="message" class="message"></div>
 
-        <div class="success-message" id="successMessage">
-            ✓ Settings saved successfully!
-        </div>
+    <section class="panel">
+      <div class="group">
+        <label for="analysisMode">Analysis mode</label>
+        <select id="analysisMode">
+          <option value="auto">Auto: AI when available, local fallback</option>
+          <option value="ai-only">AI only</option>
+          <option value="local">Local summary only</option>
+        </select>
+      </div>
 
-        <div class="error-message" id="errorMessage">
-            ✗ <span id="errorText"></span>
-        </div>
+      <div class="group">
+        <label for="provider">Preferred provider</label>
+        <select id="provider">
+          <option value="openai">OpenAI</option>
+          <option value="google">Google AI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="auto">Auto-select configured provider</option>
+        </select>
+      </div>
 
-        <div class="info-box">
-            <strong>🔐 Privacy Notice:</strong> API keys are stored securely in your Trello account and are never sent to our servers. They are only used directly with AI providers.
-        </div>
+      <div class="group">
+        <label for="strategy">Strategy</label>
+        <select id="strategy">
+          <option value="cost-effective">Cost-effective</option>
+          <option value="best-quality">Best quality</option>
+          <option value="speed-optimized">Speed optimized</option>
+        </select>
+      </div>
+    </section>
 
-        <div class="settings-section">
-            <h3>AI Provider API Keys</h3>
-            <p style="font-size: 13px; color: #5e6c84; margin: 0 0 15px 0;">
-                Configure at least one AI provider to enable card analysis.
-            </p>
+    <section class="panel">
+      <div class="group">
+        <label for="openaiKey">OpenAI API key</label>
+        <input id="openaiKey" type="password" autocomplete="off" placeholder="sk-...">
+        <p class="help">Used directly from the Power-Up iframe when OpenAI is selected.</p>
+      </div>
 
-            <div class="form-group">
-                <label>OpenAI API Key</label>
-                <input type="password" id="openaiKey" placeholder="sk-..." />
-                <small>Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></small>
-                <div class="provider-status">
-                    <div class="status-indicator" id="openaiStatus"></div>
-                    <span id="openaiStatusText">Not configured</span>
-                </div>
-            </div>
+      <div class="group">
+        <label for="openaiModel">OpenAI model</label>
+        <input id="openaiModel" type="text" autocomplete="off" placeholder="gpt-4o-mini">
+      </div>
 
-            <div class="form-group">
-                <label>Anthropic API Key</label>
-                <input type="password" id="anthropicKey" placeholder="sk-ant-..." />
-                <small>Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></small>
-                <div class="provider-status">
-                    <div class="status-indicator" id="anthropicStatus"></div>
-                    <span id="anthropicStatusText">Not configured</span>
-                </div>
-            </div>
+      <div class="group">
+        <label for="googleKey">Google AI API key</label>
+        <input id="googleKey" type="password" autocomplete="off" placeholder="AIza...">
+      </div>
 
-            <div class="form-group">
-                <label>Google AI API Key</label>
-                <input type="password" id="googleKey" placeholder="AIza..." />
-                <small>Get your key at <a href="https://makersuite.google.com/app/apikey" target="_blank">makersuite.google.com</a></small>
-                <div class="provider-status">
-                    <div class="status-indicator" id="googleStatus"></div>
-                    <span id="googleStatusText">Not configured</span>
-                </div>
-            </div>
-        </div>
+      <div class="group">
+        <label for="googleModel">Google model</label>
+        <input id="googleModel" type="text" autocomplete="off" placeholder="gemini-1.5-flash">
+      </div>
 
-        <div class="settings-section">
-            <h3>Analysis Preferences</h3>
+      <div class="group">
+        <label for="anthropicKey">Anthropic API key</label>
+        <input id="anthropicKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+      </div>
 
-            <div class="form-group">
-                <label>Default Strategy</label>
-                <select id="strategySelect">
-                    <option value="cost-effective">Cost-Effective (Recommended)</option>
-                    <option value="best-quality">Best Quality</option>
-                    <option value="speed-optimized">Speed-Optimized</option>
-                </select>
-                <small>Choose your preferred analysis strategy</small>
-            </div>
-        </div>
+      <div class="group">
+        <label for="anthropicModel">Anthropic model</label>
+        <input id="anthropicModel" type="text" autocomplete="off" placeholder="claude-3-5-haiku-20241022">
+      </div>
+    </section>
 
-        <button class="btn" onclick="saveSettings()">Save Settings</button>
+    <div class="actions">
+      <button id="saveButton" class="primary" type="button">Save settings</button>
+      <button id="clearButton" class="secondary" type="button">Clear keys</button>
     </div>
+  </div>
 
-    <script src="https://p.trellocdn.com/power-up.min.js"></script>
-    <script>
-        /* global TrelloPowerUp */
+  <script>
+    /* global TrelloPowerUp */
 
-        const t = TrelloPowerUp.iframe();
+    (function () {
+      "use strict";
 
-        // Load existing settings
-        window.addEventListener('load', async function() {
-            try {
-                const apiKeys = await t.get('member', 'private', 'apiKeys') || {};
-                const strategy = await t.get('member', 'private', 'preferredStrategy') || 'cost-effective';
+      var inTrello = Boolean(
+        window.TrelloPowerUp &&
+        window.TrelloPowerUp.iframe &&
+        window.self !== window.top
+      );
+      var t = inTrello ? window.TrelloPowerUp.iframe() : null;
+      var fields = {
+        analysisMode: document.getElementById("analysisMode"),
+        provider: document.getElementById("provider"),
+        strategy: document.getElementById("strategy"),
+        openaiKey: document.getElementById("openaiKey"),
+        openaiModel: document.getElementById("openaiModel"),
+        googleKey: document.getElementById("googleKey"),
+        googleModel: document.getElementById("googleModel"),
+        anthropicKey: document.getElementById("anthropicKey"),
+        anthropicModel: document.getElementById("anthropicModel")
+      };
 
-                // Populate fields
-                if (apiKeys.openai) {
-                    document.getElementById('openaiKey').value = apiKeys.openai;
-                    updateProviderStatus('openai', true);
-                }
-                if (apiKeys.anthropic) {
-                    document.getElementById('anthropicKey').value = apiKeys.anthropic;
-                    updateProviderStatus('anthropic', true);
-                }
-                if (apiKeys.google) {
-                    document.getElementById('googleKey').value = apiKeys.google;
-                    updateProviderStatus('google', true);
-                }
+      document.getElementById("saveButton").addEventListener("click", saveSettings);
+      document.getElementById("clearButton").addEventListener("click", clearKeys);
+      document.addEventListener("DOMContentLoaded", loadSettings);
 
-                document.getElementById('strategySelect').value = strategy;
+      async function loadSettings() {
+        var settings = await readSettings();
+        fields.analysisMode.value = settings.analysisMode || "auto";
+        fields.provider.value = settings.provider || "openai";
+        fields.strategy.value = settings.strategy || "cost-effective";
+        fields.openaiKey.value = (settings.apiKeys && settings.apiKeys.openai) || "";
+        fields.googleKey.value = (settings.apiKeys && settings.apiKeys.google) || "";
+        fields.anthropicKey.value = (settings.apiKeys && settings.apiKeys.anthropic) || "";
+        fields.openaiModel.value = settings.openaiModel || "";
+        fields.googleModel.value = settings.googleModel || "";
+        fields.anthropicModel.value = settings.anthropicModel || "";
+      }
 
-            } catch (error) {
-                console.error('Failed to load settings:', error);
-            }
+      async function readSettings() {
+        var fallback = {
+          analysisMode: "auto",
+          provider: "openai",
+          strategy: "cost-effective",
+          apiKeys: {}
+        };
+
+        if (!t) {
+          try {
+            return Object.assign(fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+          } catch (error) {
+            return fallback;
+          }
+        }
+
+        var current = await safe(function () {
+          return t.get("member", "private", "summarizeThisSettings");
+        }, {});
+        var legacyKeys = await safe(function () {
+          return t.get("member", "private", "apiKeys");
+        }, {});
+        var strategy = await safe(function () {
+          return t.get("member", "private", "preferredStrategy");
+        }, "");
+
+        return Object.assign({}, fallback, current || {}, {
+          apiKeys: Object.assign({}, legacyKeys || {}, current && current.apiKeys ? current.apiKeys : {}),
+          strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy
+        });
+      }
+
+      async function saveSettings() {
+        var settings = {
+          analysisMode: fields.analysisMode.value,
+          provider: fields.provider.value,
+          strategy: fields.strategy.value,
+          apiKeys: {
+            openai: fields.openaiKey.value.trim(),
+            google: fields.googleKey.value.trim(),
+            anthropic: fields.anthropicKey.value.trim()
+          },
+          openaiModel: fields.openaiModel.value.trim(),
+          googleModel: fields.googleModel.value.trim(),
+          anthropicModel: fields.anthropicModel.value.trim(),
+          updatedAt: new Date().toISOString()
+        };
+
+        Object.keys(settings.apiKeys).forEach(function (key) {
+          if (!settings.apiKeys[key]) delete settings.apiKeys[key];
         });
 
-        async function saveSettings() {
-            try {
-                const apiKeys = {};
-                
-                const openaiKey = document.getElementById('openaiKey').value.trim();
-                const anthropicKey = document.getElementById('anthropicKey').value.trim();
-                const googleKey = document.getElementById('googleKey').value.trim();
-                const strategy = document.getElementById('strategySelect').value;
-
-                if (openaiKey) apiKeys.openai = openaiKey;
-                if (anthropicKey) apiKeys.anthropic = anthropicKey;
-                if (googleKey) apiKeys.google = googleKey;
-
-                if (Object.keys(apiKeys).length === 0) {
-                    showError('Please configure at least one API key');
-                    return;
-                }
-
-                // Save to Trello
-                await t.set('member', 'private', 'apiKeys', apiKeys);
-                await t.set('member', 'private', 'preferredStrategy', strategy);
-
-                // Update status indicators
-                updateProviderStatus('openai', !!openaiKey);
-                updateProviderStatus('anthropic', !!anthropicKey);
-                updateProviderStatus('google', !!googleKey);
-
-                showSuccess();
-
-                // Close popup after 1.5 seconds
-                setTimeout(() => {
-                    t.closePopup();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Failed to save settings:', error);
-                showError('Failed to save settings: ' + error.message);
-            }
+        if (settings.analysisMode === "ai-only" && Object.keys(settings.apiKeys).length === 0) {
+          showMessage("Add at least one API key or choose Auto/local mode.", "error");
+          return;
         }
 
-        function updateProviderStatus(provider, isActive) {
-            const statusIndicator = document.getElementById(provider + 'Status');
-            const statusText = document.getElementById(provider + 'StatusText');
-
-            if (isActive) {
-                statusIndicator.className = 'status-indicator status-active';
-                statusText.textContent = 'Configured';
-            } else {
-                statusIndicator.className = 'status-indicator status-inactive';
-                statusText.textContent = 'Not configured';
-            }
+        if (!t) {
+          localStorage.setItem("summarizeThisSettings", JSON.stringify(settings));
+          showMessage("Settings saved for local preview.", "success");
+          return;
         }
 
-        function showSuccess() {
-            const successMsg = document.getElementById('successMessage');
-            successMsg.style.display = 'block';
-            setTimeout(() => {
-                successMsg.style.display = 'none';
-            }, 3000);
-        }
+        await t.set("member", "private", "summarizeThisSettings", settings);
+        await t.set("member", "private", "apiKeys", settings.apiKeys);
+        await t.set("member", "private", "preferredStrategy", settings.strategy);
+        showMessage("Settings saved.", "success");
 
-        function showError(message) {
-            const errorMsg = document.getElementById('errorMessage');
-            const errorText = document.getElementById('errorText');
-            errorText.textContent = message;
-            errorMsg.style.display = 'block';
-            setTimeout(() => {
-                errorMsg.style.display = 'none';
-            }, 5000);
+        setTimeout(function () {
+          if (t && t.closePopup) t.closePopup();
+        }, 900);
+      }
+
+      async function clearKeys() {
+        fields.openaiKey.value = "";
+        fields.googleKey.value = "";
+        fields.anthropicKey.value = "";
+        await saveSettings();
+      }
+
+      async function safe(fn, fallback) {
+        try {
+          var value = await fn();
+          return value === undefined || value === null ? fallback : value;
+        } catch (error) {
+          return fallback;
         }
-    </script>
+      }
+
+      function showMessage(text, type) {
+        var node = document.getElementById("message");
+        node.textContent = text;
+        node.className = "message " + type;
+        setTimeout(function () {
+          node.className = "message";
+        }, 3000);
+      }
+    }());
+  </script>
 </body>
 </html>

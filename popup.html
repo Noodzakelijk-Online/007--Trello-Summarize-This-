@@ -1,1122 +1,807 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Summarize This - AI Analysis</title>
-    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            padding: 15px;
-            margin: 0;
-            background: #f4f5f7;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summarize This</title>
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <script src="./summarizer-core.js?v=1.0.0"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --blue: #0c66e4;
+      --blue-dark: #0747a6;
+      --green: #1f845a;
+      --yellow: #946f00;
+      --red: #c9372c;
+      --ink: #172b4d;
+      --muted: #626f86;
+      --line: #dcdfe4;
+      --panel: #ffffff;
+      --surface: #f7f8f9;
+    }
 
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-        }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--surface);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
 
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #0079bf;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
+    .shell {
+      max-width: 820px;
+      margin: 0 auto;
+    }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
 
-        .loading-steps {
-            font-size: 13px;
-            color: #5e6c84;
-            margin-top: 15px;
-        }
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
 
-        .loading-step {
-            padding: 6px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+    }
 
-        .loading-step.active {
-            color: #0079bf;
-            font-weight: 600;
-        }
+    .context {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
 
-        .loading-step.complete {
-            color: #61bd4f;
-        }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e9f2ff;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
 
-        .error {
-            background: #eb5a46;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 1px rgba(9, 30, 66, 0.08);
+    }
 
-        .warning {
-            background: #f2d600;
-            color: #172b4d;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-        }
+    .status-panel {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 64px;
+    }
 
-        .summary-section {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #dcdfe4;
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      flex: 0 0 auto;
+    }
 
-        .summary-section h3 {
-            margin: 0 0 12px 0;
-            color: #172b4d;
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
 
-        .summary-section p {
-            margin: 0;
-            color: #5e6c84;
-            line-height: 1.6;
-            font-size: 14px;
-        }
+    .status-title {
+      margin: 0;
+      font-weight: 700;
+    }
 
-        .summary-section ul {
-            margin: 8px 0 0 0;
-            padding-left: 20px;
-            color: #5e6c84;
-            font-size: 14px;
-        }
+    .status-detail {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
 
-        .summary-section li {
-            margin-bottom: 8px;
-            line-height: 1.5;
-        }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
 
-        .icon {
-            font-size: 18px;
-        }
+    .section-title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      line-height: 1.3;
+    }
 
-        .metadata {
-            background: #f4f5f7;
-            border-radius: 6px;
-            padding: 12px;
-            font-size: 12px;
-            color: #5e6c84;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
+    .section-body {
+      margin: 0;
+      color: #243757;
+    }
 
-        .metadata-item {
-            display: flex;
-            flex-direction: column;
-        }
+    ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #243757;
+    }
 
-        .metadata-label {
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
+    li {
+      margin-bottom: 6px;
+    }
 
-        .btn {
-            background: #0079bf;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            width: 100%;
-            margin-top: 10px;
-        }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
 
-        .btn:hover {
-            background: #026aa7;
-        }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 10px;
+      min-height: 72px;
+    }
 
-        .btn:disabled {
-            background: #dfe1e6;
-            color: #a5adba;
-            cursor: not-allowed;
-        }
+    .metric-value {
+      display: block;
+      color: var(--blue-dark);
+      font-size: 18px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
 
-        .card-info {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        }
+    .metric-label {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
 
-        .card-info h2 {
-            margin: 0 0 10px 0;
-            color: #172b4d;
-            font-size: 18px;
-        }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
 
-        .card-info .card-details {
-            font-size: 13px;
-            color: #5e6c84;
-        }
+    button {
+      min-height: 36px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-        .quality-badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-left: 8px;
-        }
+    .primary {
+      background: var(--blue);
+      color: white;
+    }
 
-        .quality-high {
-            background: #61bd4f;
-            color: white;
-        }
+    .primary:hover {
+      background: var(--blue-dark);
+    }
 
-        .quality-medium {
-            background: #f2d600;
-            color: #172b4d;
-        }
+    .secondary {
+      background: white;
+      border-color: var(--line);
+      color: var(--ink);
+    }
 
-        .quality-low {
-            background: #eb5a46;
-            color: white;
-        }
+    .secondary:hover {
+      background: #f1f2f4;
+    }
 
-        .data-completeness {
-            background: #e4f7fb;
-            border-left: 4px solid #0079bf;
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            font-size: 13px;
-        }
+    .notice {
+      border-left: 4px solid var(--yellow);
+      background: #fff7d6;
+    }
 
-        .completeness-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 0;
-        }
+    .error {
+      border-left: 4px solid var(--red);
+      background: #ffebe6;
+    }
 
-        .completeness-icon {
-            font-size: 16px;
-        }
-    </style>
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 12px;
+      }
+
+      .topbar {
+        display: block;
+      }
+
+      .pill {
+        margin-top: 10px;
+      }
+
+      .grid,
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div id="loadingState" class="loading">
-            <div class="spinner"></div>
-            <p>Analyzing card with AI...</p>
-            <div class="loading-steps">
-                <div class="loading-step" id="step1">
-                    <span>⏳</span>
-                    <span>Gathering card data...</span>
-                </div>
-                <div class="loading-step" id="step2">
-                    <span>⏳</span>
-                    <span>Fetching comments & attachments...</span>
-                </div>
-                <div class="loading-step" id="step3">
-                    <span>⏳</span>
-                    <span>Analyzing with AI...</span>
-                </div>
-                <div class="loading-step" id="step4">
-                    <span>⏳</span>
-                    <span>Validating results...</span>
-                </div>
-            </div>
+  <div class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Summarize This</p>
+        <h1 id="cardTitle">Analyzing Trello card</h1>
+        <p id="contextLine" class="context">Reading available card details.</p>
+      </div>
+      <span id="confidencePill" class="pill">Starting</span>
+    </header>
+
+    <section id="statusPanel" class="panel status-panel" aria-live="polite">
+      <div id="statusSpinner" class="spinner"></div>
+      <div>
+        <p id="statusTitle" class="status-title">Preparing analysis</p>
+        <p id="statusDetail" class="status-detail">Connecting to the Trello card.</p>
+      </div>
+    </section>
+
+    <section id="warningPanel" class="panel notice hidden">
+      <p id="warningText" class="section-body"></p>
+    </section>
+
+    <section id="errorPanel" class="panel error hidden">
+      <h2 class="section-title">Analysis failed</h2>
+      <p id="errorText" class="section-body"></p>
+      <div class="actions">
+        <button class="primary" type="button" id="retryButton">Try again</button>
+        <button class="secondary" type="button" id="settingsButtonError">Settings</button>
+      </div>
+    </section>
+
+    <main id="results" class="hidden">
+      <div class="metrics">
+        <div class="metric">
+          <span id="providerMetric" class="metric-value">Local</span>
+          <span class="metric-label">Provider</span>
         </div>
-
-        <div id="setupState" style="display: none;">
-            <div class="warning">
-                <strong>⚠️ API Keys Required</strong>
-                <p style="margin: 8px 0 0 0;">Please configure at least one AI provider API key in the Power-Up settings.</p>
-            </div>
-            <button class="btn" onclick="openSettings()">Open Settings</button>
+        <div class="metric">
+          <span id="qualityMetric" class="metric-value">--</span>
+          <span class="metric-label">Quality</span>
         </div>
-
-        <div id="errorState" style="display: none;">
-            <div class="error">
-                <strong>❌ Analysis Failed</strong>
-                <p id="errorMessage" style="margin: 8px 0 0 0;"></p>
-            </div>
-            <button class="btn" onclick="retryAnalysis()">Retry Analysis</button>
+        <div class="metric">
+          <span id="tokensMetric" class="metric-value">0</span>
+          <span class="metric-label">Tokens</span>
         </div>
-
-        <div id="resultsState" style="display: none;">
-            <div class="card-info">
-                <h2 id="cardName"></h2>
-                <div class="card-details" id="cardDetails"></div>
-            </div>
-
-            <div class="data-completeness" id="dataCompleteness">
-                <strong>📊 Data Analyzed:</strong>
-                <div id="completenessItems"></div>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">📝</span> What This Card Is About</h3>
-                <p id="aboutText"></p>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">📈</span> What Has Happened</h3>
-                <p id="historyText"></p>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">🎯</span> Current Status</h3>
-                <p id="statusText"></p>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">✅</span> Next Steps</h3>
-                <div id="nextStepsText"></div>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">💡</span> Key Insights</h3>
-                <ul id="insightsList"></ul>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">⚠️</span> Risks & Blockers</h3>
-                <ul id="risksList"></ul>
-            </div>
-
-            <div class="summary-section">
-                <h3><span class="icon">🎓</span> Recommendations</h3>
-                <ul id="recommendationsList"></ul>
-            </div>
-
-            <div class="metadata">
-                <div class="metadata-item">
-                    <span class="metadata-label">Provider</span>
-                    <span id="providerName"></span>
-                </div>
-                <div class="metadata-item">
-                    <span class="metadata-label">Model</span>
-                    <span id="modelName"></span>
-                </div>
-                <div class="metadata-item">
-                    <span class="metadata-label">Quality</span>
-                    <span id="qualityScore"></span>
-                </div>
-                <div class="metadata-item">
-                    <span class="metadata-label">Cost</span>
-                    <span id="costAmount"></span>
-                </div>
-                <div class="metadata-item">
-                    <span class="metadata-label">Tokens</span>
-                    <span id="tokenCount"></span>
-                </div>
-            </div>
-
-            <button class="btn" onclick="copyToClipboard()">📋 Copy Summary</button>
+        <div class="metric">
+          <span id="costMetric" class="metric-value">$0.0000</span>
+          <span class="metric-label">Estimated cost</span>
         </div>
-    </div>
+      </div>
 
-    <script src="https://p.trellocdn.com/power-up.min.js"></script>
-    <script>
-        /* global TrelloPowerUp */
+      <section class="grid">
+        <article class="panel">
+          <h2 class="section-title">What this card is about</h2>
+          <p id="aboutText" class="section-body"></p>
+        </article>
 
-        const t = TrelloPowerUp.iframe();
-        let currentAnalysis = null;
-        let trelloAPIKey = null;
-        let trelloToken = null;
+        <article class="panel">
+          <h2 class="section-title">What has happened</h2>
+          <p id="historyText" class="section-body"></p>
+        </article>
 
-        // Initialize when popup opens
-        window.addEventListener('load', function() {
-            initializePopup();
+        <article class="panel">
+          <h2 class="section-title">Current status</h2>
+          <p id="statusText" class="section-body"></p>
+        </article>
+
+        <article class="panel">
+          <h2 class="section-title">Next steps</h2>
+          <ul id="nextStepsList"></ul>
+        </article>
+
+        <article class="panel">
+          <h2 class="section-title">Key insights</h2>
+          <ul id="insightsList"></ul>
+        </article>
+
+        <article class="panel">
+          <h2 class="section-title">Risks and blockers</h2>
+          <ul id="risksList"></ul>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Recommendations</h2>
+        <ul id="recommendationsList"></ul>
+      </section>
+
+      <div class="actions">
+        <button class="primary" type="button" id="copyButton">Copy summary</button>
+        <button class="secondary" type="button" id="reanalyzeButton">Analyze again</button>
+        <button class="secondary" type="button" id="settingsButton">Settings</button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /* global TrelloPowerUp, SummarizeThis */
+
+    (function () {
+      "use strict";
+
+      var t = null;
+      var lastCardData = null;
+      var lastAnalysis = null;
+      var inTrello = Boolean(
+        window.TrelloPowerUp &&
+        window.TrelloPowerUp.iframe &&
+        window.self !== window.top
+      );
+
+      var elements = {
+        cardTitle: document.getElementById("cardTitle"),
+        contextLine: document.getElementById("contextLine"),
+        confidencePill: document.getElementById("confidencePill"),
+        statusPanel: document.getElementById("statusPanel"),
+        statusSpinner: document.getElementById("statusSpinner"),
+        statusTitle: document.getElementById("statusTitle"),
+        statusDetail: document.getElementById("statusDetail"),
+        warningPanel: document.getElementById("warningPanel"),
+        warningText: document.getElementById("warningText"),
+        errorPanel: document.getElementById("errorPanel"),
+        errorText: document.getElementById("errorText"),
+        results: document.getElementById("results")
+      };
+
+      document.getElementById("copyButton").addEventListener("click", copySummary);
+      document.getElementById("reanalyzeButton").addEventListener("click", runAnalysis);
+      document.getElementById("retryButton").addEventListener("click", runAnalysis);
+      document.getElementById("settingsButton").addEventListener("click", openSettings);
+      document.getElementById("settingsButtonError").addEventListener("click", openSettings);
+
+      document.addEventListener("DOMContentLoaded", runAnalysis);
+
+      async function runAnalysis() {
+        resetView();
+        setStatus("Reading card", "Collecting card title, description, due date, labels, members, and progress.");
+
+        try {
+          t = inTrello ? TrelloPowerUp.iframe() : null;
+          var settings = await loadSettings();
+          var cardData = await gatherCardData();
+          lastCardData = cardData;
+
+          var normalized = SummarizeThis.normalizeCardData(cardData);
+          elements.cardTitle.textContent = normalized.name;
+          elements.contextLine.textContent = [normalized.boardName, normalized.listName].filter(Boolean).join(" / ") || "Local preview mode";
+
+          setStatus("Building summary", "Creating a reliable local summary first.");
+          var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData);
+          var analysis = localAnalysis;
+          var warning = "";
+
+          if (settings.analysisMode !== "local") {
+            if (hasAnyConfiguredKey(settings)) {
+              setStatus("Calling AI provider", "Asking the configured provider for a structured project summary.");
+              try {
+                analysis = await runConfiguredAI(cardData, settings, localAnalysis);
+              } catch (error) {
+                if (settings.analysisMode === "ai-only") {
+                  throw error;
+                }
+                warning = "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + error.message;
+                analysis = localAnalysis;
+              }
+            } else if (settings.analysisMode === "ai-only") {
+              throw new Error("AI-only mode is selected, but no provider API key is configured.");
+            } else {
+              warning = "No AI key is configured yet. This result uses the built-in summarizer.";
+            }
+          }
+
+          lastAnalysis = analysis;
+          renderAnalysis(cardData, analysis, warning);
+          await saveHistory(cardData, analysis);
+        } catch (error) {
+          showError(error.message || String(error));
+        }
+      }
+
+      function resetView() {
+        elements.errorPanel.classList.add("hidden");
+        elements.warningPanel.classList.add("hidden");
+        elements.results.classList.add("hidden");
+        elements.statusPanel.classList.remove("hidden");
+        elements.statusSpinner.classList.remove("hidden");
+        elements.confidencePill.textContent = "Starting";
+      }
+
+      function setStatus(title, detail) {
+        elements.statusTitle.textContent = title;
+        elements.statusDetail.textContent = detail;
+      }
+
+      function showError(message) {
+        elements.statusPanel.classList.add("hidden");
+        elements.results.classList.add("hidden");
+        elements.errorText.textContent = message;
+        elements.errorPanel.classList.remove("hidden");
+        elements.confidencePill.textContent = "Needs attention";
+      }
+
+      async function loadSettings() {
+        var fallback = {
+          provider: "openai",
+          analysisMode: "auto",
+          strategy: "cost-effective",
+          apiKeys: {}
+        };
+
+        if (!t) {
+          try {
+            return Object.assign(fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+          } catch (error) {
+            return fallback;
+          }
+        }
+
+        var settings = await safe(function () {
+          return t.get("member", "private", "summarizeThisSettings");
+        }, {});
+
+        var legacyKeys = await safe(function () {
+          return t.get("member", "private", "apiKeys");
+        }, {});
+
+        var legacyStrategy = await safe(function () {
+          return t.get("member", "private", "preferredStrategy");
+        }, "");
+
+        var apiKeys = Object.assign({}, legacyKeys || {}, settings.apiKeys || {});
+        return Object.assign({}, fallback, settings || {}, {
+          apiKeys: apiKeys,
+          strategy: settings.strategy || legacyStrategy || fallback.strategy
         });
+      }
 
-        async function initializePopup() {
-            try {
-                // Check if API keys are configured
-                const apiKeys = await t.get('member', 'private', 'apiKeys');
-                
-                if (!apiKeys || Object.keys(apiKeys).length === 0) {
-                    showSetupState();
-                    return;
-                }
-
-                // Get Trello credentials if available
-                const trelloCreds = await t.get('member', 'private', 'trelloCredentials');
-                if (trelloCreds) {
-                    trelloAPIKey = trelloCreds.apiKey;
-                    trelloToken = trelloCreds.token;
-                }
-
-                // Get card data
-                const card = await t.card('all');
-                
-                // Start analysis
-                await analyzeCard(card, apiKeys);
-
-            } catch (error) {
-                console.error('Initialization error:', error);
-                showErrorState('Failed to initialize: ' + error.message);
-            }
+      async function gatherCardData() {
+        if (!t) {
+          return SummarizeThis.sampleCardData();
         }
 
-        async function analyzeCard(card, apiKeys) {
-            try {
-                showLoadingState();
+        var card = await safe(function () {
+          return t.card("all");
+        }, {});
+        var board = await safe(function () {
+          return t.board("all");
+        }, null);
+        var list = await safe(function () {
+          return t.list("all");
+        }, null);
 
-                // Step 1: Gather comprehensive card data
-                updateLoadingStep(1, 'active');
-                const cardData = await gatherCompleteCardData(card);
-                updateLoadingStep(1, 'complete');
+        return Object.assign({}, card, {
+          board: board,
+          list: list
+        });
+      }
 
-                // Step 2: Fetch additional data
-                updateLoadingStep(2, 'active');
-                await fetchAdditionalData(cardData);
-                updateLoadingStep(2, 'complete');
+      async function safe(fn, fallback) {
+        try {
+          var value = await fn();
+          return value === undefined || value === null ? fallback : value;
+        } catch (error) {
+          return fallback;
+        }
+      }
 
-                // Step 3: Perform AI analysis
-                updateLoadingStep(3, 'active');
-                const strategy = await t.get('member', 'private', 'preferredStrategy') || 'cost-effective';
-                const analysis = await performEnhancedAIAnalysis(cardData, apiKeys, strategy);
-                updateLoadingStep(3, 'complete');
+      function hasAnyConfiguredKey(settings) {
+        var keys = settings.apiKeys || {};
+        return Boolean(keys.openai || keys.anthropic || keys.google);
+      }
 
-                // Step 4: Validate results
-                updateLoadingStep(4, 'active');
-                const validatedAnalysis = validateAnalysis(analysis, cardData);
-                updateLoadingStep(4, 'complete');
+      async function runConfiguredAI(cardData, settings, localAnalysis) {
+        var providerOrder = settings.provider === "auto"
+          ? ["openai", "google", "anthropic"]
+          : [settings.provider || "openai"];
 
-                // Display results
-                displayResults(cardData, validatedAnalysis);
+        var lastError = null;
+        for (var i = 0; i < providerOrder.length; i += 1) {
+          var provider = providerOrder[i];
+          var key = settings.apiKeys && settings.apiKeys[provider];
+          if (!key) continue;
 
-                // Save to history
-                await saveToHistory(cardData, validatedAnalysis);
-
-            } catch (error) {
-                console.error('Analysis error:', error);
-                showErrorState(error.message);
+          try {
+            if (provider === "openai") {
+              return await callOpenAI(key, cardData, settings, localAnalysis);
             }
+            if (provider === "google") {
+              return await callGoogle(key, cardData, settings, localAnalysis);
+            }
+            if (provider === "anthropic") {
+              return await callAnthropic(key, cardData, settings, localAnalysis);
+            }
+          } catch (error) {
+            lastError = error;
+          }
         }
 
-        function updateLoadingStep(stepNum, status) {
-            const step = document.getElementById('step' + stepNum);
-            if (!step) return;
+        throw lastError || new Error("No configured provider was available.");
+      }
 
-            step.className = 'loading-step ' + status;
-            
-            const icon = step.querySelector('span:first-child');
-            if (status === 'complete') {
-                icon.textContent = '✅';
-            } else if (status === 'active') {
-                icon.textContent = '⏳';
-            }
+      async function callOpenAI(apiKey, cardData, settings, localAnalysis) {
+        var model = settings.openaiModel || (settings.strategy === "best-quality" ? "gpt-4o" : "gpt-4o-mini");
+        var response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": "Bearer " + apiKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              {
+                role: "system",
+                content: "You analyze Trello cards for project teams. Return only valid JSON."
+              },
+              {
+                role: "user",
+                content: SummarizeThis.buildAIPrompt(cardData)
+              }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.2,
+            max_tokens: 900
+          })
+        }, 30000);
+
+        var data = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          throw new Error((data.error && data.error.message) || "OpenAI request failed.");
         }
 
-        async function gatherCompleteCardData(card) {
-            const cardData = {
-                id: card.id,
-                name: card.name,
-                desc: card.desc,
-                due: card.due,
-                dueComplete: card.dueComplete,
-                labels: card.labels || [],
-                members: card.members || [],
-                attachments: card.attachments || [],
-                url: card.url,
-                shortLink: card.shortLink,
-                dateLastActivity: card.dateLastActivity,
-                start: card.start,
-                badges: card.badges || {}
-            };
+        var content = data.choices && data.choices[0] && data.choices[0].message
+          ? data.choices[0].message.content
+          : "{}";
+        return createAIAnalysis(content, localAnalysis, {
+          provider: "OpenAI",
+          model: model,
+          tokens: data.usage ? data.usage.total_tokens : 0,
+          cost: estimateOpenAICost(model, data.usage)
+        });
+      }
 
-            // Get board and list info
-            try {
-                const board = await t.board('all');
-                const list = await t.list('all');
-                cardData.board = board;
-                cardData.list = list;
-            } catch (e) {
-                console.warn('Could not fetch board/list info:', e);
+      async function callGoogle(apiKey, cardData, settings, localAnalysis) {
+        var model = settings.googleModel || "gemini-1.5-flash";
+        var response = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: SummarizeThis.buildAIPrompt(cardData) }] }],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: "application/json",
+              maxOutputTokens: 900
             }
+          })
+        }, 30000);
 
-            // Get custom fields if available
-            try {
-                const customFields = await t.get(card.id, 'shared', 'customFields');
-                if (customFields) {
-                    cardData.customFields = customFields;
-                }
-            } catch (e) {
-                console.warn('Could not fetch custom fields:', e);
-            }
-
-            return cardData;
+        var data = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          throw new Error((data.error && data.error.message) || "Google AI request failed.");
         }
 
-        async function fetchAdditionalData(cardData) {
-            if (!trelloAPIKey || !trelloToken) {
-                console.warn('Trello credentials not available, skipping additional data fetch');
-                return;
-            }
+        var content = data.candidates && data.candidates[0] && data.candidates[0].content
+          ? data.candidates[0].content.parts.map(function (part) { return part.text || ""; }).join("")
+          : "{}";
+        return createAIAnalysis(content, localAnalysis, {
+          provider: "Google AI",
+          model: model,
+          tokens: data.usageMetadata ? data.usageMetadata.totalTokenCount : 0,
+          cost: 0
+        });
+      }
 
-            const baseUrl = 'https://api.trello.com/1';
-            const auth = `key=${trelloAPIKey}&token=${trelloToken}`;
+      async function callAnthropic(apiKey, cardData, settings, localAnalysis) {
+        var model = settings.anthropicModel || (settings.strategy === "best-quality" ? "claude-3-5-sonnet-20241022" : "claude-3-5-haiku-20241022");
+        var response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: model,
+            max_tokens: 900,
+            temperature: 0.2,
+            messages: [{ role: "user", content: SummarizeThis.buildAIPrompt(cardData) }]
+          })
+        }, 30000);
 
-            // Fetch ALL checklists
-            try {
-                const response = await fetch(`${baseUrl}/cards/${cardData.id}/checklists?${auth}`);
-                if (response.ok) {
-                    cardData.checklists = await response.json();
-                }
-            } catch (e) {
-                console.warn('Could not fetch checklists:', e);
-            }
-
-            // Fetch ALL comments (not just 10)
-            try {
-                const response = await fetch(`${baseUrl}/cards/${cardData.id}/actions?filter=commentCard&limit=1000&${auth}`);
-                if (response.ok) {
-                    cardData.comments = await response.json();
-                }
-            } catch (e) {
-                console.warn('Could not fetch comments:', e);
-            }
-
-            // Fetch card actions/history
-            try {
-                const response = await fetch(`${baseUrl}/cards/${cardData.id}/actions?limit=100&${auth}`);
-                if (response.ok) {
-                    cardData.actions = await response.json();
-                }
-            } catch (e) {
-                console.warn('Could not fetch actions:', e);
-            }
-
-            // Fetch attachment details
-            if (cardData.attachments && cardData.attachments.length > 0) {
-                try {
-                    const attachmentDetails = [];
-                    for (const attachment of cardData.attachments.slice(0, 10)) {
-                        const response = await fetch(`${baseUrl}/cards/${cardData.id}/attachments/${attachment.id}?${auth}`);
-                        if (response.ok) {
-                            attachmentDetails.push(await response.json());
-                        }
-                    }
-                    cardData.attachmentDetails = attachmentDetails;
-                } catch (e) {
-                    console.warn('Could not fetch attachment details:', e);
-                }
-            }
+        var data = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          throw new Error((data.error && data.error.message) || "Anthropic request failed.");
         }
 
-        async function performEnhancedAIAnalysis(cardData, apiKeys, strategy) {
-            // Format card data with enhanced prompt
-            const prompt = formatEnhancedPrompt(cardData);
+        var content = data.content ? data.content.map(function (part) { return part.text || ""; }).join("") : "{}";
+        return createAIAnalysis(content, localAnalysis, {
+          provider: "Anthropic",
+          model: model,
+          tokens: data.usage ? (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0) : 0,
+          cost: 0
+        });
+      }
 
-            // Select AI provider
-            let provider = null;
-            let apiKey = null;
+      async function fetchWithTimeout(url, options, timeoutMs) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function () {
+          controller.abort();
+        }, timeoutMs || 30000);
 
-            if (apiKeys.openai) {
-                provider = 'openai';
-                apiKey = apiKeys.openai;
-            } else if (apiKeys.anthropic) {
-                provider = 'anthropic';
-                apiKey = apiKeys.anthropic;
-            } else if (apiKeys.google) {
-                provider = 'google';
-                apiKey = apiKeys.google;
-            } else {
-                throw new Error('No valid API key found');
-            }
+        try {
+          return await fetch(url, Object.assign({}, options, {
+            signal: controller.signal
+          }));
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            throw new Error("The AI provider took too long to respond.");
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
 
-            // Call AI API with enhanced prompt
-            const analysis = await callAIProvider(provider, apiKey, prompt, strategy);
+      function createAIAnalysis(rawContent, localAnalysis, metadata) {
+        var summary = SummarizeThis.normalizeAIAnalysis(rawContent, localAnalysis.summary);
+        var qualityScore = Math.min(98, Math.max(localAnalysis.qualityScore, localAnalysis.qualityScore + 5));
+        return {
+          summary: summary,
+          metadata: metadata,
+          qualityScore: qualityScore,
+          qualityLevel: qualityScore >= 80 ? "high" : qualityScore >= 60 ? "medium" : "low",
+          source: "ai"
+        };
+      }
 
-            return analysis;
+      function estimateOpenAICost(model, usage) {
+        if (!usage) return 0;
+        var rates = {
+          "gpt-4o": { input: 0.005 / 1000, output: 0.015 / 1000 },
+          "gpt-4o-mini": { input: 0.00015 / 1000, output: 0.0006 / 1000 }
+        };
+        var rate = rates[model] || rates["gpt-4o-mini"];
+        return ((usage.prompt_tokens || 0) * rate.input) + ((usage.completion_tokens || 0) * rate.output);
+      }
+
+      function renderAnalysis(cardData, analysis, warning) {
+        var summary = analysis.summary;
+        elements.statusPanel.classList.add("hidden");
+        elements.results.classList.remove("hidden");
+
+        if (warning) {
+          elements.warningText.textContent = warning;
+          elements.warningPanel.classList.remove("hidden");
         }
 
-        function formatEnhancedPrompt(cardData) {
-            let prompt = `You are an expert project analyst with deep experience in project management, agile methodologies, and team collaboration. Analyze this Trello card comprehensively and provide a detailed, actionable summary.
+        elements.confidencePill.textContent = analysis.qualityLevel + " confidence";
+        document.getElementById("providerMetric").textContent = analysis.metadata.provider;
+        document.getElementById("qualityMetric").textContent = analysis.qualityScore + "%";
+        document.getElementById("tokensMetric").textContent = String(analysis.metadata.tokens || 0);
+        document.getElementById("costMetric").textContent = "$" + Number(analysis.metadata.cost || 0).toFixed(4);
 
-CARD INFORMATION:
-================
+        document.getElementById("aboutText").textContent = summary.about;
+        document.getElementById("historyText").textContent = summary.history;
+        document.getElementById("statusText").textContent = summary.status;
+        renderList("nextStepsList", summary.nextSteps, "No next steps identified.");
+        renderList("insightsList", summary.insights, "No insights available.");
+        renderList("risksList", summary.risks, "No material risks detected.");
+        renderList("recommendationsList", summary.recommendations, "No recommendations available.");
+      }
 
-CARD TITLE: ${cardData.name}
-`;
-            
-            if (cardData.board) prompt += `BOARD: ${cardData.board.name}\n`;
-            if (cardData.list) prompt += `LIST: ${cardData.list.name}\n`;
-            
-            if (cardData.desc) {
-                prompt += `\nDESCRIPTION:\n${cardData.desc}\n`;
-            }
+      function renderList(id, items, emptyText) {
+        var list = document.getElementById(id);
+        list.innerHTML = "";
+        var values = Array.isArray(items) ? items : [];
+        if (!values.length) values = [emptyText];
+        values.forEach(function (item) {
+          var li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        });
+      }
 
-            if (cardData.labels && cardData.labels.length > 0) {
-                const labelNames = cardData.labels.map(l => l.name || l.color).filter(n => n);
-                if (labelNames.length > 0) {
-                    prompt += `\nLABELS: ${labelNames.join(', ')}\n`;
-                }
-            }
+      async function saveHistory(cardData, analysis) {
+        if (!t) return;
+        var historyItem = {
+          cardId: cardData.id,
+          cardName: cardData.name,
+          timestamp: new Date().toISOString(),
+          provider: analysis.metadata.provider,
+          qualityScore: analysis.qualityScore,
+          summary: analysis.summary
+        };
 
-            if (cardData.members && cardData.members.length > 0) {
-                prompt += `\nASSIGNED MEMBERS: ${cardData.members.length} member(s)\n`;
-            }
+        await safe(function () {
+          return t.set("card", "shared", "lastSummarizeThisAnalysis", historyItem);
+        }, null);
 
-            if (cardData.due) {
-                const dueDate = new Date(cardData.due);
-                const now = new Date();
-                const daysUntilDue = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
-                prompt += `\nDUE DATE: ${dueDate.toLocaleString()}`;
-                if (daysUntilDue < 0) {
-                    prompt += ` (OVERDUE by ${Math.abs(daysUntilDue)} days)`;
-                } else if (daysUntilDue === 0) {
-                    prompt += ` (DUE TODAY)`;
-                } else if (daysUntilDue <= 3) {
-                    prompt += ` (URGENT: ${daysUntilDue} days remaining)`;
-                } else {
-                    prompt += ` (${daysUntilDue} days remaining)`;
-                }
-                prompt += `\nCOMPLETION STATUS: ${cardData.dueComplete ? 'COMPLETED' : 'NOT COMPLETED'}\n`;
-            }
+        var history = await safe(function () {
+          return t.get("member", "private", "analysisHistory");
+        }, []);
+        if (!Array.isArray(history)) history = [];
+        history.unshift(historyItem);
+        await safe(function () {
+          return t.set("member", "private", "analysisHistory", history.slice(0, 50));
+        }, null);
+      }
 
-            if (cardData.checklists && cardData.checklists.length > 0) {
-                prompt += `\nCHECKLISTS (${cardData.checklists.length} total):\n`;
-                cardData.checklists.forEach(checklist => {
-                    const completed = checklist.checkItems.filter(item => item.state === 'complete').length;
-                    const total = checklist.checkItems.length;
-                    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-                    prompt += `\n"${checklist.name}" - ${percentage}% complete (${completed}/${total} items):\n`;
-                    checklist.checkItems.forEach(item => {
-                        const status = item.state === 'complete' ? '✓' : '○';
-                        prompt += `  ${status} ${item.name}\n`;
-                    });
-                });
-                prompt += `\n`;
-            }
-
-            if (cardData.comments && cardData.comments.length > 0) {
-                prompt += `\nCOMMENTS (${cardData.comments.length} total, showing most recent):\n`;
-                cardData.comments.slice(0, 20).forEach(comment => {
-                    const date = new Date(comment.date).toLocaleDateString();
-                    prompt += `\n[${date}] ${comment.memberCreator.fullName}:\n${comment.data.text}\n`;
-                });
-                prompt += `\n`;
-            }
-
-            if (cardData.attachments && cardData.attachments.length > 0) {
-                prompt += `\nATTACHMENTS (${cardData.attachments.length} total):\n`;
-                cardData.attachments.forEach(attachment => {
-                    prompt += `- ${attachment.name} (${attachment.mimeType || 'unknown type'})\n`;
-                });
-                prompt += `\n`;
-            }
-
-            if (cardData.actions && cardData.actions.length > 0) {
-                const recentActions = cardData.actions.slice(0, 10);
-                prompt += `\nRECENT ACTIVITY:\n`;
-                recentActions.forEach(action => {
-                    const date = new Date(action.date).toLocaleDateString();
-                    prompt += `- [${date}] ${action.type}\n`;
-                });
-                prompt += `\n`;
-            }
-
-            prompt += `
-ANALYSIS REQUIREMENTS:
-=====================
-
-Provide a comprehensive analysis in JSON format with the following structure. Each field MUST be detailed and actionable:
-
-{
-  "about": "A thorough 3-4 sentence overview explaining what this card represents, its purpose, and its role in the project. Be specific and contextual.",
-  
-  "history": "A detailed 3-4 sentence summary of what has happened on this card. Include progress made, key decisions, changes, and significant activities. Reference specific checklist items, comments, or actions when relevant.",
-  
-  "status": "A comprehensive 3-4 sentence assessment of the current state. Include completion percentage, blockers, dependencies, and urgency level. Be explicit about what's working and what isn't.",
-  
-  "nextSteps": "A detailed 4-6 sentence action plan for completing this card. Prioritize tasks, identify dependencies, suggest timelines, and specify who should do what. Be concrete and actionable.",
-  
-  "insights": [
-    "Insight 1: A specific, actionable observation about the card",
-    "Insight 2: Another important finding or pattern",
-    "Insight 3: A third key insight",
-    "Add 2-5 insights total, each being specific and valuable"
-  ],
-  
-  "risks": [
-    "Risk 1: A specific risk or blocker that could impact completion",
-    "Risk 2: Another potential issue to watch",
-    "Add 1-4 risks if applicable, or empty array if none identified"
-  ],
-  
-  "recommendations": [
-    "Recommendation 1: A specific action to improve outcomes",
-    "Recommendation 2: Another suggestion for better results",
-    "Add 2-4 recommendations for how to handle this card better"
-  ],
-  
-  "confidence": "high|medium|low - Your confidence level in this analysis based on data completeness"
-}
-
-IMPORTANT GUIDELINES:
-- Be specific and concrete, avoid generic statements
-- Reference actual data from the card (checklist items, comments, dates)
-- Identify patterns and trends in the activity
-- Consider urgency, dependencies, and blockers
-- Provide actionable recommendations
-- If data is limited, acknowledge it in your confidence level
-- Focus on what matters most for completing this card successfully
-
-Provide ONLY the JSON response, no additional text.`;
-
-            return prompt;
+      function copySummary() {
+        if (!lastAnalysis || !lastCardData) return;
+        var text = SummarizeThis.markdownForAnalysis(lastCardData, lastAnalysis);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            elements.confidencePill.textContent = "Copied";
+          }).catch(function () {
+            fallbackCopy(text);
+          });
+        } else {
+          fallbackCopy(text);
         }
+      }
 
-        async function callAIProvider(provider, apiKey, prompt, strategy) {
-            if (provider === 'openai') {
-                return await callOpenAI(apiKey, prompt, strategy);
-            } else if (provider === 'anthropic') {
-                return await callAnthropic(apiKey, prompt, strategy);
-            } else if (provider === 'google') {
-                return await callGoogle(apiKey, prompt, strategy);
-            }
-            throw new Error('Unsupported provider');
+      function fallbackCopy(text) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        elements.confidencePill.textContent = "Copied";
+      }
+
+      function openSettings() {
+        if (t) {
+          t.popup({
+            title: "Summarize This Settings",
+            url: "./settings-powerup.html",
+            height: 620
+          });
+        } else {
+          window.location.href = "./settings-powerup.html";
         }
-
-        async function callOpenAI(apiKey, prompt, strategy) {
-            const model = strategy === 'best-quality' ? 'gpt-4' : 'gpt-4o-mini';
-            
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: model,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'You are an expert project analyst. Provide detailed, accurate, and actionable analysis in JSON format.'
-                        },
-                        {
-                            role: 'user',
-                            content: prompt
-                        }
-                    ],
-                    response_format: { type: 'json_object' },
-                    temperature: 0.3
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error?.message || 'OpenAI API request failed');
-            }
-
-            const data = await response.json();
-            const content = data.choices[0].message.content;
-            const summary = JSON.parse(content);
-
-            return {
-                summary: summary,
-                metadata: {
-                    provider: 'OpenAI',
-                    model: model,
-                    tokens: data.usage.total_tokens,
-                    cost: calculateOpenAICost(model, data.usage.prompt_tokens, data.usage.completion_tokens)
-                }
-            };
-        }
-
-        async function callAnthropic(apiKey, prompt, strategy) {
-            const model = strategy === 'best-quality' ? 'claude-3-5-sonnet-20241022' : 'claude-3-5-haiku-20241022';
-            
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01'
-                },
-                body: JSON.stringify({
-                    model: model,
-                    max_tokens: 4096,
-                    temperature: 0.3,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: prompt
-                        }
-                    ]
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error?.message || 'Anthropic API request failed');
-            }
-
-            const data = await response.json();
-            const content = data.content[0].text;
-            
-            // Extract JSON from response
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            const summary = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
-
-            return {
-                summary: summary,
-                metadata: {
-                    provider: 'Anthropic',
-                    model: model,
-                    tokens: data.usage.input_tokens + data.usage.output_tokens,
-                    cost: calculateAnthropicCost(model, data.usage.input_tokens, data.usage.output_tokens)
-                }
-            };
-        }
-
-        async function callGoogle(apiKey, prompt, strategy) {
-            const model = 'gemini-2.0-flash-exp';
-            
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: prompt
-                        }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.3,
-                        maxOutputTokens: 4096
-                    }
-                })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error?.message || 'Google AI API request failed');
-            }
-
-            const data = await response.json();
-            const content = data.candidates[0].content.parts[0].text;
-            
-            // Extract JSON from response
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            const summary = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(content);
-
-            return {
-                summary: summary,
-                metadata: {
-                    provider: 'Google AI',
-                    model: model,
-                    tokens: data.usageMetadata?.totalTokenCount || 0,
-                    cost: 0.0002
-                }
-            };
-        }
-
-        function calculateOpenAICost(model, promptTokens, completionTokens) {
-            const rates = {
-                'gpt-4': { prompt: 0.03 / 1000, completion: 0.06 / 1000 },
-                'gpt-4o-mini': { prompt: 0.00015 / 1000, completion: 0.0006 / 1000 }
-            };
-            const rate = rates[model] || rates['gpt-4o-mini'];
-            return (promptTokens * rate.prompt) + (completionTokens * rate.completion);
-        }
-
-        function calculateAnthropicCost(model, inputTokens, outputTokens) {
-            const rates = {
-                'claude-3-5-sonnet-20241022': { input: 0.003 / 1000, output: 0.015 / 1000 },
-                'claude-3-5-haiku-20241022': { input: 0.0008 / 1000, output: 0.004 / 1000 }
-            };
-            const rate = rates[model] || rates['claude-3-5-haiku-20241022'];
-            return (inputTokens * rate.input) + (outputTokens * rate.output);
-        }
-
-        function validateAnalysis(analysis, cardData) {
-            const summary = analysis.summary;
-            let qualityScore = 100;
-            const issues = [];
-
-            // Check required fields
-            const requiredFields = ['about', 'history', 'status', 'nextSteps', 'insights'];
-            requiredFields.forEach(field => {
-                if (!summary[field] || (typeof summary[field] === 'string' && summary[field].length < 50)) {
-                    qualityScore -= 15;
-                    issues.push(`${field} is too short or missing`);
-                }
-            });
-
-            // Check insights array
-            if (!Array.isArray(summary.insights) || summary.insights.length < 2) {
-                qualityScore -= 10;
-                issues.push('Insufficient insights provided');
-            }
-
-            // Add default risks if missing
-            if (!summary.risks) {
-                summary.risks = [];
-            }
-
-            // Add default recommendations if missing
-            if (!summary.recommendations) {
-                summary.recommendations = [];
-            }
-
-            // Determine quality level
-            let qualityLevel = 'high';
-            if (qualityScore < 70) {
-                qualityLevel = 'low';
-            } else if (qualityScore < 85) {
-                qualityLevel = 'medium';
-            }
-
-            // Add confidence if missing
-            if (!summary.confidence) {
-                summary.confidence = qualityLevel;
-            }
-
-            analysis.summary = summary;
-            analysis.qualityScore = qualityScore;
-            analysis.qualityLevel = qualityLevel;
-            analysis.validationIssues = issues;
-
-            return analysis;
-        }
-
-        function displayResults(cardData, analysis) {
-            currentAnalysis = { cardData, analysis };
-
-            // Card info
-            document.getElementById('cardName').textContent = cardData.name;
-            
-            let details = '';
-            if (cardData.board) details += `Board: ${cardData.board.name} • `;
-            if (cardData.list) details += `List: ${cardData.list.name}`;
-            document.getElementById('cardDetails').textContent = details;
-
-            // Data completeness
-            displayDataCompleteness(cardData);
-
-            // Summary sections
-            document.getElementById('aboutText').textContent = analysis.summary.about || 'No information available';
-            document.getElementById('historyText').textContent = analysis.summary.history || 'No history available';
-            document.getElementById('statusText').textContent = analysis.summary.status || 'No status available';
-            
-            // Next steps
-            const nextSteps = analysis.summary.nextSteps || 'No next steps identified';
-            document.getElementById('nextStepsText').innerHTML = `<p>${nextSteps}</p>`;
-
-            // Insights
-            const insightsList = document.getElementById('insightsList');
-            insightsList.innerHTML = '';
-            if (analysis.summary.insights && Array.isArray(analysis.summary.insights)) {
-                analysis.summary.insights.forEach(insight => {
-                    const li = document.createElement('li');
-                    li.textContent = insight;
-                    insightsList.appendChild(li);
-                });
-            } else {
-                insightsList.innerHTML = '<li>No insights available</li>';
-            }
-
-            // Risks
-            const risksList = document.getElementById('risksList');
-            risksList.innerHTML = '';
-            if (analysis.summary.risks && Array.isArray(analysis.summary.risks) && analysis.summary.risks.length > 0) {
-                analysis.summary.risks.forEach(risk => {
-                    const li = document.createElement('li');
-                    li.textContent = risk;
-                    risksList.appendChild(li);
-                });
-            } else {
-                risksList.innerHTML = '<li>No significant risks identified</li>';
-            }
-
-            // Recommendations
-            const recommendationsList = document.getElementById('recommendationsList');
-            recommendationsList.innerHTML = '';
-            if (analysis.summary.recommendations && Array.isArray(analysis.summary.recommendations) && analysis.summary.recommendations.length > 0) {
-                analysis.summary.recommendations.forEach(rec => {
-                    const li = document.createElement('li');
-                    li.textContent = rec;
-                    recommendationsList.appendChild(li);
-                });
-            } else {
-                recommendationsList.innerHTML = '<li>No specific recommendations at this time</li>';
-            }
-
-            // Metadata
-            document.getElementById('providerName').textContent = analysis.metadata.provider;
-            document.getElementById('modelName').textContent = analysis.metadata.model;
-            
-            // Quality score
-            const qualityBadgeClass = 'quality-' + analysis.qualityLevel;
-            document.getElementById('qualityScore').innerHTML = 
-                `<span class="quality-badge ${qualityBadgeClass}">${analysis.qualityScore}%</span>`;
-            
-            document.getElementById('costAmount').textContent = '$' + analysis.metadata.cost.toFixed(4);
-            document.getElementById('tokenCount').textContent = analysis.metadata.tokens.toLocaleString();
-
-            showResultsState();
-        }
-
-        function displayDataCompleteness(cardData) {
-            const completenessItems = document.getElementById('completenessItems');
-            completenessItems.innerHTML = '';
-
-            const items = [
-                { label: 'Description', present: !!cardData.desc },
-                { label: 'Labels', present: cardData.labels && cardData.labels.length > 0 },
-                { label: 'Members', present: cardData.members && cardData.members.length > 0 },
-                { label: 'Due Date', present: !!cardData.due },
-                { label: 'Checklists', present: cardData.checklists && cardData.checklists.length > 0 },
-                { label: 'Comments', present: cardData.comments && cardData.comments.length > 0 },
-                { label: 'Attachments', present: cardData.attachments && cardData.attachments.length > 0 }
-            ];
-
-            items.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'completeness-item';
-                div.innerHTML = `
-                    <span class="completeness-icon">${item.present ? '✅' : '⚪'}</span>
-                    <span>${item.label}</span>
-                `;
-                completenessItems.appendChild(div);
-            });
-        }
-
-        async function saveToHistory(cardData, analysis) {
-            try {
-                const history = await t.get('member', 'private', 'analysisHistory') || [];
-                
-                history.unshift({
-                    cardId: cardData.id,
-                    cardName: cardData.name,
-                    boardName: cardData.board?.name,
-                    timestamp: new Date().toISOString(),
-                    analysis: analysis,
-                    cost: analysis.metadata.cost,
-                    qualityScore: analysis.qualityScore
-                });
-
-                // Keep only last 100 analyses
-                const trimmedHistory = history.slice(0, 100);
-                
-                await t.set('member', 'private', 'analysisHistory', trimmedHistory);
-            } catch (error) {
-                console.warn('Could not save to history:', error);
-            }
-        }
-
-        function copyToClipboard() {
-            if (!currentAnalysis) return;
-
-            const { cardData, analysis } = currentAnalysis;
-            
-            let text = `# ${cardData.name}\n\n`;
-            text += `## What This Card Is About\n${analysis.summary.about}\n\n`;
-            text += `## What Has Happened\n${analysis.summary.history}\n\n`;
-            text += `## Current Status\n${analysis.summary.status}\n\n`;
-            text += `## Next Steps\n${analysis.summary.nextSteps}\n\n`;
-            
-            if (analysis.summary.insights && analysis.summary.insights.length > 0) {
-                text += `## Key Insights\n`;
-                analysis.summary.insights.forEach(insight => {
-                    text += `- ${insight}\n`;
-                });
-                text += `\n`;
-            }
-
-            if (analysis.summary.risks && analysis.summary.risks.length > 0) {
-                text += `## Risks & Blockers\n`;
-                analysis.summary.risks.forEach(risk => {
-                    text += `- ${risk}\n`;
-                });
-                text += `\n`;
-            }
-
-            if (analysis.summary.recommendations && analysis.summary.recommendations.length > 0) {
-                text += `## Recommendations\n`;
-                analysis.summary.recommendations.forEach(rec => {
-                    text += `- ${rec}\n`;
-                });
-            }
-
-            navigator.clipboard.writeText(text).then(() => {
-                alert('Summary copied to clipboard!');
-            }).catch(err => {
-                console.error('Copy failed:', err);
-                alert('Failed to copy to clipboard');
-            });
-        }
-
-        function openSettings() {
-            t.popup({
-                title: 'Settings',
-                url: './settings-powerup.html',
-                height: 400
-            });
-        }
-
-        function retryAnalysis() {
-            initializePopup();
-        }
-
-        function showLoadingState() {
-            document.getElementById('loadingState').style.display = 'block';
-            document.getElementById('setupState').style.display = 'none';
-            document.getElementById('errorState').style.display = 'none';
-            document.getElementById('resultsState').style.display = 'none';
-        }
-
-        function showSetupState() {
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('setupState').style.display = 'block';
-            document.getElementById('errorState').style.display = 'none';
-            document.getElementById('resultsState').style.display = 'none';
-        }
-
-        function showErrorState(message) {
-            document.getElementById('errorMessage').textContent = message;
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('setupState').style.display = 'none';
-            document.getElementById('errorState').style.display = 'block';
-            document.getElementById('resultsState').style.display = 'none';
-        }
-
-        function showResultsState() {
-            document.getElementById('loadingState').style.display = 'none';
-            document.getElementById('setupState').style.display = 'none';
-            document.getElementById('errorState').style.display = 'none';
-            document.getElementById('resultsState').style.display = 'block';
-        }
-    </script>
+      }
+    }());
+  </script>
 </body>
 </html>

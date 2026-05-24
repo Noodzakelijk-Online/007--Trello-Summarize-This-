@@ -110,7 +110,7 @@ class AttachmentProcessor {
             // In production, you'd want to use PDF.js library
             
             // Check if we can fetch the PDF
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch PDF: ${response.statusText}`);
             }
@@ -143,7 +143,7 @@ class AttachmentProcessor {
             // For browser environment, Word processing is complex
             // Would require mammoth.js or similar library
             
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch Word document: ${response.statusText}`);
             }
@@ -173,7 +173,7 @@ class AttachmentProcessor {
     // Process Excel spreadsheets
     async processExcel(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch Excel file: ${response.statusText}`);
             }
@@ -224,7 +224,7 @@ class AttachmentProcessor {
     // Process text files
     async processText(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch text file: ${response.statusText}`);
             }
@@ -254,7 +254,7 @@ class AttachmentProcessor {
     // Process images (with optional OCR)
     async processImage(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             if (!response.ok) {
                 throw new Error(`Failed to fetch image: ${response.statusText}`);
             }
@@ -289,56 +289,19 @@ class AttachmentProcessor {
     // Process web links
     async processLink(attachment) {
         try {
-            // For web links, we can fetch and extract text
-            // But need to be careful about CORS
-            
             const url = attachment.url;
-            const domain = new URL(url).hostname;
-
-            // Try to fetch (may fail due to CORS)
-            try {
-                const response = await fetch(url, { mode: 'cors' });
-                if (response.ok) {
-                    const html = await response.text();
-                    const text = this.extractTextFromHTML(html);
-                    const preview = text.substring(0, 500);
-
-                    return {
-                        ...attachment,
-                        processed: true,
-                        type: 'link',
-                        extractedText: text,
-                        content: `Web Link: ${attachment.name || domain}\nURL: ${url}\n\nContent Preview:\n${preview}${text.length > 500 ? '...' : ''}`,
-                        metadata: {
-                            domain: domain,
-                            url: url,
-                            contentLength: text.length
-                        }
-                    };
-                }
-            } catch (corsError) {
-                // CORS blocked, return link info only
-                return {
-                    ...attachment,
-                    processed: true,
-                    type: 'link',
-                    extractedText: '',
-                    content: `Web Link: ${attachment.name || domain}\nURL: ${url}\n\nNote: Content could not be fetched due to CORS restrictions.`,
-                    metadata: {
-                        domain: domain,
-                        url: url
-                    }
-                };
-            }
+            const parsed = this.validateAttachmentUrl(url);
+            const domain = parsed.hostname;
 
             return {
                 ...attachment,
                 processed: true,
                 type: 'link',
-                content: `Web Link: ${attachment.name || domain}\nURL: ${url}`,
+                extractedText: '',
+                content: `Web Link: ${attachment.name || domain}\nURL: ${parsed.href}\n\nNote: Web links are not fetched automatically for privacy and security.`,
                 metadata: {
                     domain: domain,
-                    url: url
+                    url: parsed.href
                 }
             };
         } catch (error) {
@@ -380,6 +343,42 @@ class AttachmentProcessor {
         text = text.replace(/\s+/g, ' ').trim();
         
         return text;
+    }
+
+    // Fetch attachment content only after basic URL safety checks.
+    async safeFetchAttachment(url, options = {}) {
+        const parsed = this.validateAttachmentUrl(url);
+        return fetch(parsed.href, {
+            ...options,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer'
+        });
+    }
+
+    validateAttachmentUrl(url) {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+
+        if (parsed.protocol !== 'https:') {
+            throw new Error('Only HTTPS attachment URLs can be fetched');
+        }
+
+        if (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname === '127.0.0.1' ||
+            hostname === '0.0.0.0' ||
+            hostname === '::1' ||
+            /^10\./.test(hostname) ||
+            /^192\.168\./.test(hostname) ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+            /^169\.254\./.test(hostname)
+        ) {
+            throw new Error('Private or local attachment URLs are not fetched');
+        }
+
+        return parsed;
     }
 
     // Format bytes to human-readable size

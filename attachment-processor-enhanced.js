@@ -135,7 +135,7 @@ class EnhancedAttachmentProcessor {
 
         try {
             // Fetch PDF data
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const arrayBuffer = await response.arrayBuffer();
 
             // Load PDF document
@@ -197,7 +197,7 @@ class EnhancedAttachmentProcessor {
 
         try {
             // Fetch document data
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const arrayBuffer = await response.arrayBuffer();
 
             // Extract text with mammoth.js
@@ -246,7 +246,7 @@ class EnhancedAttachmentProcessor {
 
         try {
             // Fetch workbook data
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const arrayBuffer = await response.arrayBuffer();
 
             // Parse workbook
@@ -313,7 +313,7 @@ class EnhancedAttachmentProcessor {
     // Process CSV files
     async processCSV(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const text = await response.text();
             
             // Parse CSV
@@ -347,7 +347,7 @@ class EnhancedAttachmentProcessor {
     // Process text files
     async processText(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const text = await response.text();
             const preview = text.substring(0, 500) + (text.length > 500 ? '...' : '');
 
@@ -382,9 +382,10 @@ class EnhancedAttachmentProcessor {
         }
 
         try {
+            const parsed = this.validateAttachmentUrl(attachment.url);
             // Run OCR on image
             const result = await Tesseract.recognize(
-                attachment.url,
+                parsed.href,
                 'eng',
                 {
                     logger: m => console.log(m)
@@ -430,43 +431,64 @@ class EnhancedAttachmentProcessor {
     // Process web links
     async processLink(attachment) {
         try {
-            // Try to fetch content (may fail due to CORS)
-            const response = await fetch(attachment.url);
-            const html = await response.text();
-            
-            // Extract text from HTML (basic)
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const text = doc.body.textContent || '';
-            const preview = text.substring(0, 500) + (text.length > 500 ? '...' : '');
-
+            const parsed = this.validateAttachmentUrl(attachment.url);
             return {
                 ...attachment,
+                url: parsed.href,
                 processed: true,
                 type: 'link',
-                content: text,
-                preview: preview,
+                content: `Web Link: ${parsed.href}`,
+                preview: `Link: ${parsed.href}`,
                 metadata: {
-                    url: attachment.url,
-                    extractedWith: 'native'
+                    url: parsed.href,
+                    extractedWith: 'metadata-only'
                 }
             };
-
         } catch (error) {
-            // CORS or network error
             return {
                 ...attachment,
-                processed: true,
+                processed: false,
                 type: 'link',
-                content: `Web Link: ${attachment.url}`,
-                preview: `Link: ${attachment.url} (CORS restricted)`,
+                content: `Invalid or unsupported link: ${error.message}`,
+                preview: 'Link was not fetched',
                 metadata: {
-                    url: attachment.url,
-                    extractedWith: 'metadata-only',
-                    corsError: true
+                    extractedWith: 'metadata-only'
                 }
             };
         }
+    }
+
+    async safeFetchAttachment(url, options = {}) {
+        const parsed = this.validateAttachmentUrl(url);
+        return fetch(parsed.href, {
+            ...options,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer'
+        });
+    }
+
+    validateAttachmentUrl(url) {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+        const isPrivateHost = (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname === '127.0.0.1' ||
+            hostname === '0.0.0.0' ||
+            hostname === '[::1]' ||
+            hostname === '::1' ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+            hostname.startsWith('169.254.')
+        );
+
+        if (parsed.protocol !== 'https:' || isPrivateHost) {
+            throw new Error('Attachment URL must be HTTPS and publicly reachable');
+        }
+
+        return parsed;
     }
 
     // Generate summary of all attachments for AI
