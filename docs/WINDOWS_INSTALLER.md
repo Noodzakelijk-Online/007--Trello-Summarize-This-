@@ -21,6 +21,7 @@ The installer:
 - Registers a per-user uninstall entry.
 - Starts a lightweight local launcher at `http://127.0.0.1:17117`.
 - Avoids Electron and external dependencies.
+- Builds as a self-extracting .NET Framework executable using the Windows framework compiler.
 
 The Start Menu shortcut named `Configure Trello Power-Up` opens a setup assistant that prepares the exact iframe connector URL, app metadata, icon URL, and capabilities for Trello's Power-Up Admin Portal.
 

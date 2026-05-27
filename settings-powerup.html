@@ -88,6 +88,29 @@
       font-size: 12px;
     }
 
+    .field-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .status {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status.success {
+      color: var(--green);
+    }
+
+    .status.error {
+      color: var(--red);
+    }
+
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -183,6 +206,10 @@
         <label for="openaiKey">OpenAI API key</label>
         <input id="openaiKey" type="password" autocomplete="off" placeholder="sk-...">
         <p class="help">Used directly from the Power-Up iframe when OpenAI is selected.</p>
+        <div class="field-actions">
+          <button id="testOpenAiButton" class="secondary" type="button">Test OpenAI key</button>
+          <span id="openaiStatus" class="status" aria-live="polite"></span>
+        </div>
       </div>
 
       <div class="group">
@@ -193,6 +220,10 @@
       <div class="group">
         <label for="googleKey">Google AI API key</label>
         <input id="googleKey" type="password" autocomplete="off" placeholder="AIza...">
+        <div class="field-actions">
+          <button id="testGoogleButton" class="secondary" type="button">Test Google key</button>
+          <span id="googleStatus" class="status" aria-live="polite"></span>
+        </div>
       </div>
 
       <div class="group">
@@ -203,6 +234,10 @@
       <div class="group">
         <label for="anthropicKey">Anthropic API key</label>
         <input id="anthropicKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+        <div class="field-actions">
+          <button id="testAnthropicButton" class="secondary" type="button">Test Anthropic key</button>
+          <span id="anthropicStatus" class="status" aria-live="polite"></span>
+        </div>
       </div>
 
       <div class="group">
@@ -238,11 +273,23 @@
         googleKey: document.getElementById("googleKey"),
         googleModel: document.getElementById("googleModel"),
         anthropicKey: document.getElementById("anthropicKey"),
-        anthropicModel: document.getElementById("anthropicModel")
+        anthropicModel: document.getElementById("anthropicModel"),
+        openaiStatus: document.getElementById("openaiStatus"),
+        googleStatus: document.getElementById("googleStatus"),
+        anthropicStatus: document.getElementById("anthropicStatus")
       };
 
       document.getElementById("saveButton").addEventListener("click", saveSettings);
       document.getElementById("clearButton").addEventListener("click", clearKeys);
+      document.getElementById("testOpenAiButton").addEventListener("click", function () {
+        testProvider("openai");
+      });
+      document.getElementById("testGoogleButton").addEventListener("click", function () {
+        testProvider("google");
+      });
+      document.getElementById("testAnthropicButton").addEventListener("click", function () {
+        testProvider("anthropic");
+      });
       document.addEventListener("DOMContentLoaded", loadSettings);
 
       async function loadSettings() {
@@ -335,7 +382,167 @@
         fields.openaiKey.value = "";
         fields.googleKey.value = "";
         fields.anthropicKey.value = "";
+        setProviderStatus("openai", "", "");
+        setProviderStatus("google", "", "");
+        setProviderStatus("anthropic", "", "");
         await saveSettings();
+      }
+
+      async function testProvider(provider) {
+        var controls = getProviderControls(provider);
+        var key = controls.key.value.trim();
+        var model = controls.model.value.trim() || controls.defaultModel;
+
+        if (!key) {
+          setProviderStatus(provider, "Add a key first.", "error");
+          return;
+        }
+
+        setProviderStatus(provider, "Testing...", "");
+
+        try {
+          if (provider === "openai") await testOpenAiKey(key);
+          if (provider === "google") await testGoogleKey(key, model);
+          if (provider === "anthropic") await testAnthropicKey(key, model);
+          setProviderStatus(provider, "Key works.", "success");
+        } catch (error) {
+          setProviderStatus(provider, formatProviderError(error), "error");
+        }
+      }
+
+      async function testOpenAiKey(key) {
+        var response = await fetchWithTimeout("https://api.openai.com/v1/models", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + key
+          }
+        }, 10000);
+
+        await ensureProviderResponse(response, "OpenAI rejected the key.");
+      }
+
+      async function testGoogleKey(key, model) {
+        var response = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": key
+          },
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [{ text: "Reply OK." }]
+            }],
+            generationConfig: {
+              maxOutputTokens: 1,
+              temperature: 0
+            }
+          })
+        }, 10000);
+
+        await ensureProviderResponse(response, "Google rejected the key or model.");
+      }
+
+      async function testAnthropicKey(key, model) {
+        var response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          },
+          body: JSON.stringify({
+            model: model,
+            max_tokens: 1,
+            messages: [{
+              role: "user",
+              content: "Reply OK."
+            }]
+          })
+        }, 10000);
+
+        await ensureProviderResponse(response, "Anthropic rejected the key or model.");
+      }
+
+      async function ensureProviderResponse(response, fallbackMessage) {
+        if (response.ok) return;
+
+        var detail = await readProviderError(response);
+        throw new Error(detail || fallbackMessage);
+      }
+
+      async function readProviderError(response) {
+        try {
+          var payload = await response.json();
+          if (payload && payload.error && payload.error.message) return payload.error.message;
+          if (payload && payload.message) return payload.message;
+        } catch (error) {
+          return "";
+        }
+
+        return "";
+      }
+
+      function getProviderControls(provider) {
+        if (provider === "openai") {
+          return {
+            key: fields.openaiKey,
+            model: fields.openaiModel,
+            defaultModel: "gpt-4o-mini",
+            status: fields.openaiStatus
+          };
+        }
+
+        if (provider === "google") {
+          return {
+            key: fields.googleKey,
+            model: fields.googleModel,
+            defaultModel: "gemini-1.5-flash",
+            status: fields.googleStatus
+          };
+        }
+
+        return {
+          key: fields.anthropicKey,
+          model: fields.anthropicModel,
+          defaultModel: "claude-3-5-haiku-20241022",
+          status: fields.anthropicStatus
+        };
+      }
+
+      function setProviderStatus(provider, text, type) {
+        var status = getProviderControls(provider).status;
+        status.textContent = text;
+        status.className = type ? "status " + type : "status";
+      }
+
+      function formatProviderError(error) {
+        var message = error && error.message ? error.message : "Validation failed.";
+        if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+          return "Network request failed. Check hosting permissions and connection.";
+        }
+        if (message.length > 140) return message.slice(0, 137) + "...";
+        return message;
+      }
+
+      async function fetchWithTimeout(url, options, timeoutMs) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function () {
+          controller.abort();
+        }, timeoutMs);
+
+        try {
+          var requestOptions = Object.assign({}, options, { signal: controller.signal });
+          return await fetch(url, requestOptions);
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            throw new Error("Validation timed out.");
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeout);
+        }
       }
 
       async function safe(fn, fallback) {

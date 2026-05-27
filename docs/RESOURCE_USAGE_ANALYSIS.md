@@ -17,8 +17,8 @@ npm run analyze:resources
 Current results:
 
 - Active popup initial local files: about 41.9 KB (`popup.html`, `summarizer-core.js`, `icon.svg`).
-- Windows installer runtime payload: about 130.5 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.24 MB.
+- Windows installer runtime payload: about 137.2 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.25 MB.
 - Large-card AI prompt after caps: 12,572 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -36,6 +36,7 @@ Current results:
    - OpenAI and Google outputs are capped at 900 output tokens.
    - Anthropic output is capped at 900 tokens.
    - AI provider requests time out after 30 seconds and fall back cleanly in auto mode.
+   - Provider key validation is user-triggered only, uses a 10-second timeout, and sends the smallest practical validation request.
 
 3. Reduced background polling:
    - Trello card badge refresh moved from 60 seconds to 300 seconds.
@@ -62,7 +63,7 @@ Low. The active popup loads a small static HTML page and one shared JS helper. T
 
 ### Disk
 
-Low for installed users. The installer payload is roughly 118 KB before executable wrapper overhead. The generated `SummarizeThisSetup.exe` is larger because IExpress wraps the files into a Windows installer.
+Low for installed users. The installer runtime payload is about 137 KB, and the generated `SummarizeThisSetup.exe` is about 109 KB because the payload is compressed into a small self-extracting .NET Framework executable.
 
 ### Network
 

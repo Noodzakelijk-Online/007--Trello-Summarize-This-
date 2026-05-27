@@ -26,11 +26,14 @@ Impact: High. Setup is the biggest barrier for non-technical users.
 
 Problem: Users can save invalid AI keys and only discover the issue during analysis.
 
-Recommendation:
+Status: Implemented in `settings-powerup.html`.
 
-- Add a “Test key” button for OpenAI, Google AI, and Anthropic in settings.
-- Show a clear success or provider-specific error.
-- Keep local fallback available even if validation fails.
+Implemented:
+
+- Added user-triggered "Test key" buttons for OpenAI, Google AI, and Anthropic in settings.
+- Shows clear success or provider-specific error text without saving the key first.
+- Keeps local fallback and Auto mode available even if validation fails.
+- Uses short timeouts and tiny validation requests to avoid meaningful background resource cost.
 
 Impact: High. Makes onboarding calmer and reduces failed first runs.
 
@@ -133,4 +136,3 @@ Impact: Medium. Low implementation cost, high workflow usefulness.
 8. Attachment extraction through a safer backend path.
 
 This order improves the existing user experience first, then expands capability where it needs more security and product design care.
-
