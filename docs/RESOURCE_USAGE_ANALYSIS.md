@@ -17,8 +17,8 @@ npm run analyze:resources
 Current results:
 
 - Active popup initial local files: about 119.2 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 217.7 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.35 MB.
+- Windows installer runtime payload: about 226.7 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.36 MB.
 - Large-card AI prompt after caps: 14,187 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -47,7 +47,7 @@ Current results:
 4. Lightweight Windows runtime:
    - The installer includes only runtime static files and launcher scripts, not the full repository, docs, benchmarks, or prototype modules.
    - The Windows launcher uses PowerShell and a tiny local HTTP server, avoiding Electron and background services.
-   - The Trello setup assistant adds about 12 KB to the runtime payload.
+   - The Trello setup assistant and admin autofill helper add about 21 KB to the runtime payload and are not loaded by the active popup.
 
 5. No always-on service:
    - The installed app starts only when the user launches it.
@@ -74,7 +74,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 218 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 227 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

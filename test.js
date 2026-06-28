@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const SummarizeThis = require("./summarizer-core");
 const CardIntelligenceLedger = require("./card-intelligence-ledger");
+const TrelloAdminConfig = require("./trello-admin-config");
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -272,5 +273,33 @@ assert.ok(trelloCommentDraft.includes("VA/team-ready actions:"));
 assert.ok(trelloCommentDraft.includes("Confidence:"));
 assert.ok(trelloCommentDraft.includes("Review note:"));
 assert.ok(trelloCommentDraft.length <= 4000);
+
+const adminConfig = TrelloAdminConfig.createAdminConfig({
+  name: "Summarize This",
+  details: "Evidence-backed Trello card intelligence.",
+  author: "Noodzakelijk Online",
+  author_email: "support@example.com",
+  author_url: "https://example.com",
+  overview_url: "https://example.com/trello",
+  icon: { url: "./icon.svg" },
+  capabilities: ["card-buttons", "show-settings"]
+}, "https://powerup.example.com/app/");
+assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.js");
+assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
+assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
+
+const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
+assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.js"));
+assert.ok(adminValuesText.includes("Capabilities: card-buttons, show-settings"));
+
+const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
+assert.ok(adminAutofillScript.includes("Review every field in Trello"));
+assert.doesNotMatch(adminAutofillScript, /form\.submit|submit\s*\(/i);
+assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
+
+const adminBookmarklet = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
+assert.ok(adminBookmarklet.startsWith("javascript:"));
+assert.ok(adminBookmarklet.length < 9000);
 
 console.log("All summarizer tests passed.");

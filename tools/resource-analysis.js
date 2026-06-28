@@ -9,6 +9,7 @@ const runtimeFiles = [
   "popup.html",
   "settings-powerup.html",
   "trello-setup.html",
+  "trello-admin-config.js",
   "summarizer-core.js",
   "card-intelligence-ledger.js",
   "icon.svg",

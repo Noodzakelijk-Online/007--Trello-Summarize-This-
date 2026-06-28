@@ -23,7 +23,7 @@ The installer:
 - Avoids Electron and external dependencies.
 - Builds as a self-extracting .NET Framework executable using the Windows framework compiler.
 
-The Start Menu shortcut named `Configure Trello Power-Up` opens a setup assistant that prepares the exact iframe connector URL, app metadata, icon URL, and capabilities for Trello's Power-Up Admin Portal.
+The Start Menu shortcut named `Configure Trello Power-Up` opens a setup assistant that prepares the exact iframe connector URL, app metadata, icon URL, and capabilities for Trello's Power-Up Admin Portal. It also provides a safe admin autofill bookmarklet that can populate matching Trello admin fields and capability checkboxes, but it does not save or submit the admin page.
 
 Important:
 

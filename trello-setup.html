@@ -223,6 +223,26 @@
       font-weight: 700;
     }
 
+    .bookmarklet {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .checklist {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     @media (max-width: 780px) {
       .grid {
         grid-template-columns: 1fr;
@@ -293,6 +313,20 @@
             <a class="button primary" href="https://trello.com/power-ups/admin" target="_blank" rel="noopener noreferrer">Open Trello admin</a>
           </div>
         </div>
+
+        <div class="panel">
+          <h2>Admin autofill helper</h2>
+          <p class="help">Drag the helper to your bookmarks bar, open Trello Power-Up admin, then click the bookmark. It fills matching fields and capability checkboxes only; it does not save or submit the page.</p>
+          <div class="actions">
+            <a id="adminBookmarkletLink" class="bookmarklet" href="#">Summarize This admin autofill</a>
+            <button id="copyAutofillButton" class="secondary" type="button">Copy helper bookmarklet</button>
+          </div>
+          <ul class="checklist">
+            <li>Review every populated Trello admin field before saving.</li>
+            <li>Use the generated HTTPS connector URL, not a local Windows address.</li>
+            <li>If Trello changes its admin page labels, use the copied admin values manually.</li>
+          </ul>
+        </div>
       </section>
 
       <aside class="panel">
@@ -322,6 +356,7 @@
     </div>
   </main>
 
+  <script src="./trello-admin-config.js"></script>
   <script>
     (function () {
       "use strict";
@@ -344,6 +379,7 @@
         hostedBaseUrl: document.getElementById("hostedBaseUrl"),
         connectorUrl: document.getElementById("connectorUrl"),
         testConnectorLink: document.getElementById("testConnectorLink"),
+        adminBookmarkletLink: document.getElementById("adminBookmarkletLink"),
         message: document.getElementById("message"),
         localNotice: document.getElementById("localNotice"),
         urlStatusDot: document.getElementById("urlStatusDot"),
@@ -355,6 +391,7 @@
         copyText(fields.connectorUrl.value, "Connector URL copied.");
       });
       document.getElementById("copyAllButton").addEventListener("click", copyAllValues);
+      document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
       fields.hostedBaseUrl.addEventListener("input", updateComputedValues);
 
       loadManifest().then(updateComputedValues);
@@ -376,13 +413,15 @@
 
       function updateComputedValues() {
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
-        var connectorUrl = buildUrl(baseUrl, "connector.js");
-        var iconUrl = buildUrl(baseUrl, "icon.svg");
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var connectorUrl = adminConfig.connectorUrl;
+        var iconUrl = adminConfig.iconUrl;
         var isHttps = /^https:\/\//i.test(connectorUrl);
         var isLocal = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/i.test(baseUrl);
 
         fields.connectorUrl.value = connectorUrl;
         fields.testConnectorLink.href = connectorUrl || "#";
+        fields.adminBookmarkletLink.href = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
         document.getElementById("iconUrl").textContent = iconUrl;
         fields.localNotice.style.display = isLocal ? "block" : "none";
 
@@ -404,25 +443,14 @@
         return "https://your-hosted-site.example";
       }
 
-      function buildUrl(baseUrl, fileName) {
-        var base = (baseUrl || "").trim();
-        if (!base) return "";
-        return base.replace(/\/+$/, "") + "/" + fileName;
+      function copyAllValues() {
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        copyText(TrelloAdminConfig.makeAdminValuesText(adminConfig), "Setup values copied.");
       }
 
-      function copyAllValues() {
-        var lines = [
-          "Summarize This Trello Power-Up setup",
-          "",
-          "App name: " + (manifest.name || "Summarize This"),
-          "Author: " + (manifest.author || "Summarize This Team"),
-          "Details: " + (manifest.details || ""),
-          "iframe Connector URL: " + fields.connectorUrl.value,
-          "Icon URL: " + document.getElementById("iconUrl").textContent,
-          "Capabilities: " + (manifest.capabilities || []).join(", ")
-        ];
-
-        copyText(lines.join("\n"), "Setup values copied.");
+      function copyAutofillBookmarklet() {
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        copyText(TrelloAdminConfig.createAdminBookmarklet(adminConfig), "Admin autofill helper copied.");
       }
 
       async function copyText(value, successMessage) {
