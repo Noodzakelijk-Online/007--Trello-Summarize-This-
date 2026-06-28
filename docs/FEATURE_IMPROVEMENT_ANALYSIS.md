@@ -57,13 +57,14 @@ Impact: High. Makes onboarding calmer and reduces failed first runs.
 
 Problem: The current tool can store the latest summary, but users benefit from seeing how the summary changed over time.
 
-Status: Partially implemented through the private card intelligence ledger.
+Status: Implemented through the private card intelligence ledger and active popup History panel.
 
-Still recommended:
+Implemented:
 
-- Add a full "History" view in the popup.
-- Show previous runs and what changed since the last analysis.
-- Allow copying older summaries.
+- Shows a compact History view in the popup.
+- Stores timestamp, provider, model, confidence, and structured summary snapshot.
+- Shows what changed since the previous analysis and a confidence trend.
+- Allows copying older structured summaries.
 
 Impact: Medium-high. Useful for project managers and async status tracking.
 

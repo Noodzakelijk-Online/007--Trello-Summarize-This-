@@ -270,6 +270,33 @@
       font-weight: 700;
     }
 
+    .history-list {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .history-list li {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      padding: 10px 0;
+    }
+
+    .history-meta {
+      margin: 0;
+      color: #243757;
+      font-weight: 700;
+    }
+
+    .history-detail {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .error {
       border-left: 4px solid var(--red);
       background: #ffebe6;
@@ -295,6 +322,10 @@
       .grid,
       .metrics,
       .evidence-list {
+        grid-template-columns: 1fr;
+      }
+
+      .history-list li {
         grid-template-columns: 1fr;
       }
     }
@@ -421,6 +452,13 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">History</h2>
+        <p id="historyChangeText" class="section-body">No previous analyses yet.</p>
+        <ul id="historyChangeList" class="compact-list"></ul>
+        <ul id="historyList" class="history-list"></ul>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">Review / correction</h2>
         <p class="section-body">Feedback is stored in your private Power-Up data and is not posted to Trello.</p>
         <textarea id="correctionText" placeholder="Optional correction or missing context"></textarea>
@@ -449,6 +487,7 @@
       var lastCardData = null;
       var lastAnalysis = null;
       var lastLedgerRun = null;
+      var lastHistoryRuns = [];
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -481,6 +520,7 @@
       document.getElementById("wrongButton").addEventListener("click", function () {
         saveFeedback("wrong");
       });
+      document.getElementById("historyList").addEventListener("click", copyHistoryRun);
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
@@ -525,8 +565,9 @@
           lastAnalysis = analysis;
           lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis);
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
-          var historyCount = await saveLedgerRun(cardData, lastLedgerRun);
-          document.getElementById("historyMetric").textContent = String(historyCount);
+          lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
+          document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
+          renderHistory(lastHistoryRuns);
         } catch (error) {
           showError(error.message || String(error));
         }
@@ -541,6 +582,9 @@
         elements.confidencePill.textContent = "Starting";
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
+        document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
+        document.getElementById("historyChangeList").innerHTML = "";
+        document.getElementById("historyList").innerHTML = "";
       }
 
       function setStatus(title, detail) {
@@ -892,7 +936,7 @@
         await writePrivateObject(key, allHistory);
 
         await saveLegacyPrivateHistory(cardData, ledgerRun);
-        return allHistory[cardId].length;
+        return allHistory[cardId];
       }
 
       async function saveLegacyPrivateHistory(cardData, ledgerRun) {
@@ -958,7 +1002,77 @@
         }
       }
 
-      function fallbackCopy(text) {
+      function renderHistory(historyRuns) {
+        var runs = Array.isArray(historyRuns) ? historyRuns : [];
+        var change = CardIntelligenceLedger.summarizeRunChange(runs[0], runs[1]);
+        var changeText = document.getElementById("historyChangeText");
+        changeText.textContent = change.text + " Confidence trend: " + change.confidenceTrend + ".";
+        renderList("historyChangeList", change.changes.slice(1, 5), "No additional changes.");
+
+        var list = document.getElementById("historyList");
+        list.innerHTML = "";
+        if (!runs.length) {
+          var empty = document.createElement("li");
+          empty.textContent = "No saved analyses yet.";
+          list.appendChild(empty);
+          return;
+        }
+
+        runs.slice(0, 5).forEach(function (run, index) {
+          var item = document.createElement("li");
+          var content = document.createElement("div");
+          var meta = document.createElement("p");
+          var detail = document.createElement("p");
+          var button = document.createElement("button");
+          var confidence = run.result && run.result.confidence ? run.result.confidence.overall + "%" : "unknown";
+
+          meta.className = "history-meta";
+          meta.textContent = (index === 0 ? "Current run" : "Previous run") + " - " + formatDate(run.completedAt);
+          detail.className = "history-detail";
+          detail.textContent = run.provider + " / " + (run.model || "unknown model") + " / confidence " + confidence;
+          button.className = "secondary";
+          button.type = "button";
+          button.textContent = "Copy";
+          button.setAttribute("data-run-id", run.id);
+
+          content.appendChild(meta);
+          content.appendChild(detail);
+          item.appendChild(content);
+          item.appendChild(button);
+          list.appendChild(item);
+        });
+      }
+
+      function formatDate(value) {
+        if (!value) return "unknown time";
+        var date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "unknown time";
+        return date.toLocaleString();
+      }
+
+      function copyHistoryRun(event) {
+        var button = event.target;
+        if (!button || !button.getAttribute || !button.getAttribute("data-run-id")) return;
+        var runId = button.getAttribute("data-run-id");
+        var run = lastHistoryRuns.find(function (item) {
+          return item.id === runId;
+        });
+        if (!run) return;
+
+        var text = CardIntelligenceLedger.markdownForLedgerRun(run);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            elements.confidencePill.textContent = "History copied";
+            recordExport("markdown", "clipboard", run.id);
+          }).catch(function () {
+            fallbackCopy(text, run.id);
+          });
+        } else {
+          fallbackCopy(text, run.id);
+        }
+      }
+
+      function fallbackCopy(text, runId) {
         var textarea = document.createElement("textarea");
         textarea.value = text;
         textarea.setAttribute("readonly", "readonly");
@@ -969,12 +1083,12 @@
         document.execCommand("copy");
         document.body.removeChild(textarea);
         elements.confidencePill.textContent = "Copied";
-        recordExport("markdown", "clipboard");
+        recordExport("markdown", "clipboard", runId);
       }
 
-      async function recordExport(exportType, destination) {
-        if (!lastLedgerRun) return;
-        var record = CardIntelligenceLedger.createExportRecord(lastLedgerRun.id, exportType, destination);
+      async function recordExport(exportType, destination, runId) {
+        if (!lastLedgerRun && !runId) return;
+        var record = CardIntelligenceLedger.createExportRecord(runId || lastLedgerRun.id, exportType, destination);
         var records = await readPrivateObject("summarizeThisExportRecords", []);
         if (!Array.isArray(records)) records = [];
         records.unshift(record);

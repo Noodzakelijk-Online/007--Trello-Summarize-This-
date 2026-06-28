@@ -656,6 +656,73 @@
     return history.slice(0, limit || 25);
   }
 
+  function summarizeRunChange(currentRun, previousRun) {
+    if (!currentRun) {
+      return {
+        text: "No analysis run is available yet.",
+        changes: [],
+        confidenceTrend: "unknown"
+      };
+    }
+
+    if (!previousRun) {
+      return {
+        text: "First saved analysis for this card.",
+        changes: ["No previous analysis to compare."],
+        confidenceTrend: "new"
+      };
+    }
+
+    var changes = [];
+    var currentSnapshot = currentRun.cardSnapshot || {};
+    var previousSnapshot = previousRun.cardSnapshot || {};
+    var currentResult = currentRun.result || {};
+    var previousResult = previousRun.result || {};
+    var currentConfidence = currentResult.confidence ? toNumber(currentResult.confidence.overall) : 0;
+    var previousConfidence = previousResult.confidence ? toNumber(previousResult.confidence.overall) : 0;
+
+    if (currentRun.inputHash && previousRun.inputHash && currentRun.inputHash !== previousRun.inputHash) {
+      changes.push("Card source data changed since the previous analysis.");
+    }
+
+    if (currentSnapshot.descriptionHash && previousSnapshot.descriptionHash && currentSnapshot.descriptionHash !== previousSnapshot.descriptionHash) {
+      changes.push("Card description changed.");
+    }
+
+    compareNumber("Checklist completed items", currentSnapshot.checklistSummary && currentSnapshot.checklistSummary.complete, previousSnapshot.checklistSummary && previousSnapshot.checklistSummary.complete, changes);
+    compareNumber("Open checklist items", currentSnapshot.checklistSummary && currentSnapshot.checklistSummary.incomplete, previousSnapshot.checklistSummary && previousSnapshot.checklistSummary.incomplete, changes);
+    compareNumber("Comment count", currentSnapshot.commentCount, previousSnapshot.commentCount, changes);
+    compareNumber("Attachment count", currentSnapshot.attachmentCount, previousSnapshot.attachmentCount, changes);
+    compareNumber("Detected blocker count", toArray(currentResult.blockers).length, toArray(previousResult.blockers).length, changes);
+    compareNumber("Robert decision count", toArray(currentResult.robertDecisions).length, toArray(previousResult.robertDecisions).length, changes);
+    compareNumber("VA/team-ready action count", toArray(currentResult.vaReadyActions).length, toArray(previousResult.vaReadyActions).length, changes);
+
+    if (currentConfidence !== previousConfidence) {
+      changes.push("Confidence changed from " + previousConfidence + "% to " + currentConfidence + "%.");
+    }
+
+    if (!changes.length) {
+      changes.push("No material ledger changes detected.");
+    }
+
+    return {
+      text: changes[0],
+      changes: changes,
+      confidenceTrend: currentConfidence > previousConfidence
+        ? "up"
+        : currentConfidence < previousConfidence
+          ? "down"
+          : "flat"
+    };
+  }
+
+  function compareNumber(label, currentValue, previousValue, changes) {
+    var currentNumber = toNumber(currentValue);
+    var previousNumber = toNumber(previousValue);
+    if (currentNumber === previousNumber) return;
+    changes.push(label + " changed from " + previousNumber + " to " + currentNumber + ".");
+  }
+
   function createHumanFeedback(analysisRunId, feedback, options) {
     return {
       id: "feedback-" + shortHash(analysisRunId + nowIso(options) + JSON.stringify(feedback || {})),
@@ -727,6 +794,7 @@
     createOperationalAnalysis: createOperationalAnalysis,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,
-    normalizeCard: normalizeCard
+    normalizeCard: normalizeCard,
+    summarizeRunChange: summarizeRunChange
   };
 }));

@@ -16,9 +16,9 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 77.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 172.8 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.29 MB.
+- Active popup initial local files: about 84.7 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 180.0 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.30 MB.
 - Large-card AI prompt after caps: 12,572 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -55,6 +55,7 @@ Current results:
    - The card intelligence ledger runs in the popup only when an analysis is created.
    - It stores compact card snapshots with hashes instead of full descriptions.
    - History, feedback, and export records use member-private Power-Up storage.
+   - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
 
 ## Resource Risk Review
 
@@ -68,7 +69,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 173 KB, and the generated `SummarizeThisSetup.exe` is about 128 KB because the payload is compressed into a small self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 180 KB, and the generated `SummarizeThisSetup.exe` is about 132 KB because the payload is compressed into a small self-extracting .NET Framework executable.
 
 ### Network
 

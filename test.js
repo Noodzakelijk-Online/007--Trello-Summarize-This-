@@ -116,6 +116,27 @@ const history = CardIntelligenceLedger.mergeLedgerHistory([], { lastRun: run }, 
 assert.equal(history.length, 1);
 assert.equal(history[0].id, run.id);
 
+const changedRun = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, operationalCard, {
+  desc: operationalCard.desc + " The VA added a new screenshot request.",
+  comments: operationalCard.comments.concat([{
+    text: "VA can collect the screenshot after Robert approves the message.",
+    date: "2026-06-29T12:10:00.000Z",
+    memberCreator: { fullName: "Sam" }
+  }])
+}), operationalAnalysis, {
+  now: "2026-06-29T12:10:00.000Z"
+});
+const changedHistory = CardIntelligenceLedger.mergeLedgerHistory(history, changedRun, 25);
+assert.equal(changedHistory.length, 2);
+const runChange = CardIntelligenceLedger.summarizeRunChange(changedHistory[0], changedHistory[1]);
+assert.ok(runChange.changes.some(change => change.includes("Card source data changed")));
+assert.ok(runChange.changes.some(change => change.includes("Comment count changed")));
+assert.ok(["up", "down", "flat"].includes(runChange.confidenceTrend));
+
+const firstRunChange = CardIntelligenceLedger.summarizeRunChange(run, null);
+assert.equal(firstRunChange.confidenceTrend, "new");
+assert.ok(firstRunChange.text.includes("First saved analysis"));
+
 const feedback = CardIntelligenceLedger.createHumanFeedback(run.id, {
   rating: "wrong",
   correctionText: "The invoice amount is still missing.",
