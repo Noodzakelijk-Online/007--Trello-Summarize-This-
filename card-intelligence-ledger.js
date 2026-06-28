@@ -814,6 +814,78 @@
     return lines.join("\n");
   }
 
+  function plainTextForLedgerRun(run) {
+    var result = run && run.result ? run.result : {};
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card analysis";
+    var lines = [
+      "Trello Card Intelligence",
+      "Card: " + title,
+      "",
+      "Card overview:",
+      cleanText(result.about || "No overview available."),
+      "",
+      "Current status:",
+      cleanText(result.currentStatus || "No current status available."),
+      "",
+      "Blockers:"
+    ];
+
+    appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Next actions:");
+    appendItems(lines, result.nextActions, "No next actions detected.");
+    lines.push("", "Robert decisions:");
+    appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
+    lines.push("", "VA/team-ready actions:");
+    appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    lines.push("", "Missing information:");
+    appendItems(lines, result.missingInfo, "No missing information detected.");
+    lines.push("", "Confidence:");
+    lines.push(result.confidence ? result.confidence.overall + "% " + result.confidence.level : "Unknown");
+    return lines.join("\n");
+  }
+
+  function statusUpdateForLedgerRun(run) {
+    var result = run && run.result ? run.result : {};
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
+    var confidence = result.confidence ? result.confidence.overall + "% " + result.confidence.level : "Unknown";
+    var lines = [
+      "Status update: " + title,
+      "",
+      "Current status: " + cleanText(result.currentStatus || result.about || "No current status available."),
+      "",
+      "Top next action: " + firstItemText(result.nextActions, "No next action detected."),
+      "Main blocker: " + firstItemText(result.blockers, "No blocker detected."),
+      "Robert decision: " + firstItemText(result.robertDecisions, "No Robert-specific decision detected."),
+      "VA/team handoff: " + firstItemText(result.vaReadyActions, "No VA/team-ready action detected."),
+      "",
+      "Confidence: " + confidence + "."
+    ];
+
+    if (result.confidenceReason) {
+      lines.push("Confidence note: " + cleanText(result.confidenceReason));
+    }
+    return lines.join("\n");
+  }
+
+  function jsonForLedgerRun(run, options) {
+    var exportObject = {
+      schemaVersion: "summarize-this-card-intelligence-export-v1",
+      exportedAt: nowIso(options),
+      source: "Summarize This Trello Power-Up",
+      analysisRun: {
+        id: run && run.id,
+        provider: run && run.provider,
+        model: run && run.model,
+        promptTemplateId: run && run.promptTemplateId,
+        completedAt: run && run.completedAt,
+        inputHash: run && run.inputHash
+      },
+      cardSnapshot: run && run.cardSnapshot ? run.cardSnapshot : {},
+      result: run && run.result ? run.result : {}
+    };
+    return JSON.stringify(exportObject, null, 2);
+  }
+
   function createTrelloCommentDraft(run) {
     var result = run && run.result ? run.result : {};
     var cardTitle = run && run.cardSnapshot && run.cardSnapshot.title
@@ -849,6 +921,12 @@
     return lines.join("\n").slice(0, 4000);
   }
 
+  function firstItemText(items, fallback) {
+    var values = toArray(items);
+    if (!values.length) return fallback;
+    return cleanText(values[0].text || values[0].claim || values[0]);
+  }
+
   function appendItems(lines, items, fallback) {
     var values = toArray(items);
     if (!values.length) {
@@ -869,9 +947,12 @@
     createTrelloCommentDraft: createTrelloCommentDraft,
     createLedgerEntry: createLedgerEntry,
     createOperationalAnalysis: createOperationalAnalysis,
+    jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,
     normalizeCard: normalizeCard,
+    plainTextForLedgerRun: plainTextForLedgerRun,
+    statusUpdateForLedgerRun: statusUpdateForLedgerRun,
     summarizeRunChange: summarizeRunChange
   };
 }));

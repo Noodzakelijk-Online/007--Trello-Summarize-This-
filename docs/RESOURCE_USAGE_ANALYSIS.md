@@ -16,9 +16,9 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 98.9 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 194.2 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.32 MB.
+- Active popup initial local files: about 106.7 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 202.0 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.33 MB.
 - Large-card AI prompt after caps: 14,014 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -58,6 +58,7 @@ Current results:
    - History, feedback, and export records use member-private Power-Up storage.
    - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
+   - Plain text, status update, and JSON exports are generated on demand from the existing compact ledger result.
 
 ## Resource Risk Review
 
@@ -71,7 +72,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 186 KB, and the generated `SummarizeThisSetup.exe` is about 135 KB because the payload is compressed into a small self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 202 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

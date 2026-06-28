@@ -131,15 +131,16 @@ Impact: Medium. Improves confidence without adding heavy features.
 
 Problem: Copying markdown is useful, but some workflows need issue comments, email text, or meeting notes.
 
-Status: Partially implemented. The active popup now generates a Trello comment draft, lets the user copy it without changing Trello, and gates Trello comment posting behind explicit review, checkbox approval, and a second confirmation.
+Status: Mostly implemented for the active popup. It now copies markdown, plain text, status/email text, and structured ledger JSON; downloads compact JSON; generates a Trello comment draft; and gates Trello comment posting behind explicit review, checkbox approval, and a second confirmation.
 
 Recommendation:
 
 - Add copy formats:
-  - Markdown.
-  - Plain text.
+  - Markdown. Implemented.
+  - Plain text. Implemented.
+  - Structured JSON for Sneup/HAI ingestion. Implemented.
   - Trello comment. Implemented as an approval-gated draft/post flow when the Trello runtime exposes a supported comment API.
-  - Email/status update.
+  - Email/status update. Implemented as a copy-ready status format.
 
 Impact: Medium. Low implementation cost, high workflow usefulness.
 

@@ -488,6 +488,18 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">Export formats</h2>
+        <p class="section-body">Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.</p>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyPlainTextButton">Copy plain text</button>
+          <button class="secondary" type="button" id="copyStatusUpdateButton">Copy status update</button>
+          <button class="secondary" type="button" id="copyJsonButton">Copy JSON</button>
+          <button class="secondary" type="button" id="downloadJsonButton">Download JSON</button>
+        </div>
+        <p id="exportStatus" class="feedback-status"></p>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">Approve Trello comment</h2>
         <p id="postbackStatus" class="section-body">Review the exact draft before copying or posting it.</p>
         <textarea id="postbackPreview" class="postback-preview" readonly></textarea>
@@ -567,6 +579,16 @@
       document.getElementById("postbackApproval").addEventListener("change", updatePostbackControls);
       document.getElementById("copyPostbackButton").addEventListener("click", copyPostbackDraft);
       document.getElementById("postCommentButton").addEventListener("click", postApprovedComment);
+      document.getElementById("copyPlainTextButton").addEventListener("click", function () {
+        copyLedgerExport("plain-text");
+      });
+      document.getElementById("copyStatusUpdateButton").addEventListener("click", function () {
+        copyLedgerExport("status-update");
+      });
+      document.getElementById("copyJsonButton").addEventListener("click", function () {
+        copyLedgerExport("ledger-json");
+      });
+      document.getElementById("downloadJsonButton").addEventListener("click", downloadLedgerJson);
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
@@ -628,6 +650,7 @@
         elements.confidencePill.textContent = "Starting";
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
+        document.getElementById("exportStatus").textContent = "";
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
@@ -1084,6 +1107,86 @@
             document.getElementById("postbackStatus").textContent = "Reviewed comment posted to Trello.";
           }
         }
+      }
+
+      function copyLedgerExport(format) {
+        if (!lastLedgerRun) {
+          document.getElementById("exportStatus").textContent = "Analyze the card first to create an export.";
+          return;
+        }
+
+        var text = getLedgerExportText(format);
+        var label = format === "ledger-json"
+          ? "JSON"
+          : format === "status-update"
+            ? "Status update"
+            : "Plain text";
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            elements.confidencePill.textContent = label + " copied";
+            document.getElementById("exportStatus").textContent = label + " export copied.";
+            recordExport(format, "clipboard");
+          }).catch(function () {
+            fallbackLedgerExportCopy(text, format, label);
+          });
+        } else {
+          fallbackLedgerExportCopy(text, format, label);
+        }
+      }
+
+      function fallbackLedgerExportCopy(text, format, label) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        elements.confidencePill.textContent = label + " copied";
+        document.getElementById("exportStatus").textContent = label + " export copied.";
+        recordExport(format, "clipboard");
+      }
+
+      function getLedgerExportText(format) {
+        if (format === "ledger-json") {
+          return CardIntelligenceLedger.jsonForLedgerRun(lastLedgerRun);
+        }
+        if (format === "status-update") {
+          return CardIntelligenceLedger.statusUpdateForLedgerRun(lastLedgerRun);
+        }
+        return CardIntelligenceLedger.plainTextForLedgerRun(lastLedgerRun);
+      }
+
+      function downloadLedgerJson() {
+        if (!lastLedgerRun) {
+          document.getElementById("exportStatus").textContent = "Analyze the card first to create an export.";
+          return;
+        }
+
+        var text = CardIntelligenceLedger.jsonForLedgerRun(lastLedgerRun);
+        var blob = new Blob([text], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement("a");
+        var title = lastLedgerRun.cardSnapshot && lastLedgerRun.cardSnapshot.title
+          ? lastLedgerRun.cardSnapshot.title
+          : "trello-card";
+        link.href = url;
+        link.download = safeFileName(title) + "-card-intelligence.json";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        elements.confidencePill.textContent = "JSON downloaded";
+        document.getElementById("exportStatus").textContent = "Structured JSON export downloaded.";
+        recordExport("ledger-json", "download");
+      }
+
+      function safeFileName(value) {
+        var name = String(value || "trello-card").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        return name || "trello-card";
       }
 
       async function saveLedgerRun(cardData, ledgerRun) {

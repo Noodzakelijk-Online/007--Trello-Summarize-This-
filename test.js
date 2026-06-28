@@ -200,6 +200,25 @@ const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
 assert.ok(ledgerMarkdown.includes("VA collect"));
 
+const ledgerPlainText = CardIntelligenceLedger.plainTextForLedgerRun(run);
+assert.ok(ledgerPlainText.includes("Trello Card Intelligence"));
+assert.ok(ledgerPlainText.includes("Missing information:"));
+assert.ok(ledgerPlainText.includes("Robert decisions:"));
+
+const ledgerStatusUpdate = CardIntelligenceLedger.statusUpdateForLedgerRun(run);
+assert.ok(ledgerStatusUpdate.includes("Status update:"));
+assert.ok(ledgerStatusUpdate.includes("Top next action:"));
+assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
+
+const ledgerJson = JSON.parse(CardIntelligenceLedger.jsonForLedgerRun(run, {
+  now: "2026-06-29T12:07:00.000Z"
+}));
+assert.equal(ledgerJson.schemaVersion, "summarize-this-card-intelligence-export-v1");
+assert.equal(ledgerJson.exportedAt, "2026-06-29T12:07:00.000Z");
+assert.equal(ledgerJson.analysisRun.id, run.id);
+assert.equal(ledgerJson.cardSnapshot.description, undefined);
+assert.ok(Array.isArray(ledgerJson.result.blockers));
+
 const trelloCommentDraft = CardIntelligenceLedger.createTrelloCommentDraft(run);
 assert.ok(trelloCommentDraft.includes("Summarize This - Card Intelligence"));
 assert.ok(trelloCommentDraft.includes("Robert decisions:"));
