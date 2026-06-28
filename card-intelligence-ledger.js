@@ -303,12 +303,26 @@
     sections.forEach(function (section) {
       var text = cleanText(summary && summary[section.key]);
       if (!text) return;
+      var support = findEvidenceIds(evidence, section.types);
       claims.push({
         id: "claim-" + section.key,
         section: section.key,
         claim: text.length > 260 ? text.slice(0, 257).trim() + "..." : text,
-        support: findEvidenceIds(evidence, section.types),
-        confidence: findEvidenceIds(evidence, section.types).length ? "supported" : "uncertain"
+        support: support,
+        confidence: support.length ? "supported" : "uncertain"
+      });
+    });
+
+    toArray(summary && summary.evidenceClaims).forEach(function (item, index) {
+      var claim = typeof item === "string" ? cleanText(item) : cleanText(item && item.claim);
+      if (!claim) return;
+      claims.push({
+        id: "claim-ai-" + (index + 1),
+        section: "ai-evidence",
+        claim: claim.length > 260 ? claim.slice(0, 257).trim() + "..." : claim,
+        support: findEvidenceIds(evidence, ["title", "description", "comment", "checklist", "attachment", "due", "label", "member"]),
+        confidence: cleanText(item && item.confidence) || "uncertain",
+        source: cleanText(item && item.source)
       });
     });
 
@@ -336,9 +350,17 @@
     var sourceText = [
       card.title,
       card.description,
+      toArray(summary && summary.blockers).join(" "),
       toArray(summary && summary.risks).join(" "),
       card.comments.map(function (comment) { return comment.text; }).join(" ")
     ].join(" ");
+
+    toArray(summary && summary.blockers).forEach(function (text, index) {
+      blockers.push(makeItem("blocker-ai-" + (index + 1), text, findEvidenceIds(evidence, ["description", "comment", "checklist", "attachment"]), {
+        severity: includesAny(text, ["legal", "payment", "invoice", "overdue", "client"]) ? "high" : "medium",
+        type: "ai-structured"
+      }));
+    });
 
     if (includesAny(sourceText, BLOCKER_WORDS)) {
       blockers.push(makeItem("blocker-text", "Card text or comments mention a blocker, waiting state, missing item, or external dependency.", findEvidenceIds(evidence, ["description", "comment"]), {
@@ -431,6 +453,7 @@
 
   function extractRobertDecisions(input, summary, evidence) {
     var sources = []
+      .concat(toArray(summary && summary.robertDecisions))
       .concat(toArray(summary && summary.nextSteps))
       .concat(toArray(summary && summary.recommendations))
       .concat(toArray(summary && summary.risks));
@@ -451,6 +474,15 @@
 
   function extractVaReadyActions(input, summary, evidence) {
     var actions = [];
+    toArray(summary && summary.vaReadyActions).forEach(function (text, index) {
+      var cleaned = cleanText(text);
+      if (!cleaned) return;
+      actions.push(makeItem("va-ai-" + (index + 1), cleaned, findEvidenceIds(evidence, ["checklist", "description", "comment"]), {
+        owner: "VA/team",
+        needsRobert: false
+      }));
+    });
+
     toArray(summary && summary.nextSteps).forEach(function (text, index) {
       var cleaned = cleanText(text);
       if (!cleaned || includesAny(cleaned, ROBERT_DECISION_WORDS)) return;
@@ -467,6 +499,10 @@
   function createValidationFindings(input, summary, evidence, blockers, decisions) {
     var card = normalizeCard(input);
     var findings = [];
+
+    toArray(summary && summary.validationFindings).forEach(function (text, index) {
+      findings.push(finding("ai-validation-" + (index + 1), includesAny(text, ["unsupported", "conflict", "sensitive", "legal", "financial"]) ? "high" : "medium", text, findEvidenceIds(evidence, ["title", "description", "comment", "checklist", "attachment"])));
+    });
 
     if (!card.description) {
       findings.push(finding("missing-description", "medium", "Card has no description; analysis is based on weaker context.", findEvidenceIds(evidence, ["title"])));
@@ -611,16 +647,21 @@
         about: cleanText(summary.about),
         history: cleanText(summary.history),
         currentStatus: cleanText(summary.status || summary.currentStatus),
-        completedWork: card.checklistSummary.complete ? [card.checklistSummary.complete + " checklist item(s) complete."] : [],
+        completedWork: toArray(summary.completedWork).length
+          ? toArray(summary.completedWork)
+          : card.checklistSummary.complete ? [card.checklistSummary.complete + " checklist item(s) complete."] : [],
         blockers: operational.blockers,
         nextActions: operational.nextActions,
         robertDecisions: operational.robertDecisions,
         vaReadyActions: operational.vaReadyActions,
         risks: toArray(summary.risks),
-        missingInfo: operational.validationFindings.filter(function (item) {
+        missingInfo: toArray(summary.missingInfo).map(function (item, index) {
+          return finding("ai-missing-" + (index + 1), "medium", item, findEvidenceIds(operational.evidence, ["title", "description", "comment", "attachment"]));
+        }).concat(operational.validationFindings.filter(function (item) {
           return item.id.indexOf("missing") === 0 || item.id === "no-comments" || item.id === "attachments-metadata-only";
-        }),
+        })),
         confidence: operational.confidence,
+        confidenceReason: cleanText(summary.confidenceReason),
         evidenceClaims: operational.evidenceClaims,
         validationFindings: operational.validationFindings,
         evidence: operational.evidence

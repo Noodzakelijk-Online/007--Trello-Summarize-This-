@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 84.7 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 180.0 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.30 MB.
-- Large-card AI prompt after caps: 12,572 characters.
+- Active popup initial local files: about 90.6 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 185.9 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.31 MB.
+- Large-card AI prompt after caps: 14,014 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -31,6 +31,7 @@ Current results:
    - AI prompt comments are capped to the first 12 comments.
    - Each included comment is capped at 700 characters.
    - Labels and members are capped to 25 each.
+   - The prompt now asks for a structured operational schema so fewer downstream repair steps are needed.
 
 2. Bounded AI response size and time:
    - OpenAI and Google outputs are capped at 900 output tokens.
@@ -69,7 +70,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 180 KB, and the generated `SummarizeThisSetup.exe` is about 132 KB because the payload is compressed into a small self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 186 KB, and the generated `SummarizeThisSetup.exe` is about 135 KB because the payload is compressed into a small self-extracting .NET Framework executable.
 
 ### Network
 

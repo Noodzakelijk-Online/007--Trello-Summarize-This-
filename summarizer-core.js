@@ -373,10 +373,31 @@
     };
 
     return [
-      "Analyze this Trello card for a project team.",
-      "Return only valid JSON with these fields:",
-      "about: string, history: string, status: string, nextSteps: string[], insights: string[], risks: string[], recommendations: string[], confidence: high|medium|low.",
-      "Be concrete and reference the card data. Do not invent facts that are not supported by the data.",
+      "Analyze this Trello card as an evidence-backed operational intelligence ledger for Robert's Trello workflow.",
+      "Return only valid JSON. Do not include markdown or commentary outside JSON.",
+      "Use this schema:",
+      "{",
+      "  \"about\": \"what the card is about and why it matters\",",
+      "  \"history\": \"what happened so far, based only on card data\",",
+      "  \"currentStatus\": \"current list/stage, progress, owner, due state, and waiting state\",",
+      "  \"completedWork\": [\"specific completed work\"],",
+      "  \"blockers\": [\"specific blocker, missing information, or waiting state\"],",
+      "  \"nextSteps\": [\"specific next action with owner if detectable\"],",
+      "  \"robertDecisions\": [\"Yes/No decision that needs Robert, including why\"],",
+      "  \"vaReadyActions\": [\"delegable VA/team action that does not need Robert approval\"],",
+      "  \"insights\": [\"important operational insight\"],",
+      "  \"risks\": [\"deadline, quality, communication, financial, legal, or client-sensitive risk\"],",
+      "  \"missingInfo\": [\"missing data that limits confidence\"],",
+      "  \"recommendations\": [\"practical recommendation\"],",
+      "  \"evidenceClaims\": [{\"claim\":\"factual claim\",\"source\":\"title|description|comment|checklist|label|member|due|attachment\",\"confidence\":\"supported|uncertain\"}],",
+      "  \"validationFindings\": [\"unsupported, conflicting, incomplete, or attachment-extraction issue\"],",
+      "  \"confidence\": \"high|medium|low\",",
+      "  \"confidenceReason\": \"brief explanation from data completeness and evidence coverage\"",
+      "}",
+      "Be concrete. Prefer short operational sentences. Do not invent dates, people, amounts, attachment contents, or history.",
+      "If attachments are present but text is not provided, say attachment contents were not verified.",
+      "If Robert is mentioned or approval/client/financial/legal risk appears, create a Robert Yes/No decision.",
+      "If an action can be delegated without Robert, include it in vaReadyActions.",
       "",
       JSON.stringify(payload, null, 2)
     ].join("\n");
@@ -404,15 +425,56 @@
     return text || fallback || "";
   }
 
+  function itemText(value) {
+    if (typeof value === "string") return cleanText(value);
+    if (!value || typeof value !== "object") return cleanText(value);
+    return cleanText(
+      value.text ||
+      value.action ||
+      value.claim ||
+      value.summary ||
+      value.description ||
+      value.question ||
+      value.reason ||
+      value.title ||
+      value.name
+    );
+  }
+
   function ensureList(value, fallback) {
     if (Array.isArray(value)) {
-      return value.map(cleanText).filter(Boolean);
+      return value.map(itemText).filter(Boolean);
     }
     if (typeof value === "string") {
       var lines = value.split(/\n|;|\d+\.\s+/).map(cleanText).filter(Boolean);
       if (lines.length) return lines;
     }
     return Array.isArray(fallback) ? fallback.slice() : [];
+  }
+
+  function ensureEvidenceClaims(value, fallback) {
+    if (!Array.isArray(value)) {
+      return Array.isArray(fallback) ? fallback.slice() : [];
+    }
+
+    return value.map(function (item) {
+      if (typeof item === "string") {
+        return {
+          claim: cleanText(item),
+          source: "",
+          confidence: "uncertain"
+        };
+      }
+
+      if (!item || typeof item !== "object") return null;
+      var claim = cleanText(item.claim || item.text || item.summary);
+      if (!claim) return null;
+      return {
+        claim: claim,
+        source: cleanText(item.source || item.evidence || item.path),
+        confidence: cleanText(item.confidence || "uncertain").toLowerCase()
+      };
+    }).filter(Boolean);
   }
 
   function normalizeAIAnalysis(rawValue, fallbackSummary) {
@@ -424,10 +486,19 @@
       about: ensureString(source.about, fallback.about),
       history: ensureString(source.history || source.whatHappened, fallback.history),
       status: ensureString(source.status || source.currentStatus, fallback.status),
+      currentStatus: ensureString(source.currentStatus || source.status, fallback.currentStatus || fallback.status),
+      completedWork: ensureList(source.completedWork || source.completed_work, fallback.completedWork),
+      blockers: ensureList(source.blockers, fallback.blockers),
       nextSteps: ensureList(source.nextSteps || source.next_steps, fallback.nextSteps),
+      robertDecisions: ensureList(source.robertDecisions || source.robert_decisions, fallback.robertDecisions),
+      vaReadyActions: ensureList(source.vaReadyActions || source.va_ready_actions, fallback.vaReadyActions),
       insights: ensureList(source.insights, fallback.insights),
       risks: ensureList(source.risks || source.blockers, fallback.risks),
+      missingInfo: ensureList(source.missingInfo || source.missing_info, fallback.missingInfo),
       recommendations: ensureList(source.recommendations, fallback.recommendations),
+      evidenceClaims: ensureEvidenceClaims(source.evidenceClaims || source.evidence_claims, fallback.evidenceClaims),
+      validationFindings: ensureList(source.validationFindings || source.validation_findings, fallback.validationFindings),
+      confidenceReason: ensureString(source.confidenceReason || source.confidence_reason, fallback.confidenceReason),
       confidence: cleanText(source.confidence || fallback.confidence || "medium").toLowerCase()
     };
   }

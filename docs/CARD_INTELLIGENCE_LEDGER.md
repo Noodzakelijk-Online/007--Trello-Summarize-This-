@@ -19,6 +19,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `HumanFeedback`: private correction/rating records.
 - `ExportRecord`: private copy/export history.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
+- Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
 
 ## Storage
 
@@ -35,4 +36,4 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 - The history UI shows the current run, recent previous runs, change summary, confidence trend, and copy controls for older runs.
 - Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
 - No Trello comment or description writeback is implemented. Copy/export remains the safe default.
-- The ledger uses deterministic rules around the existing summary; future prompt updates should ask AI providers to return the same structured schema directly.
+- The ledger still keeps deterministic extraction as a fallback when an AI provider omits structured operational fields.

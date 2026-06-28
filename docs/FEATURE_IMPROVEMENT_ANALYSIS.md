@@ -72,7 +72,14 @@ Impact: Medium-high. Useful for project managers and async status tracking.
 
 Problem: Different users need different outputs from the same card.
 
-Recommendation:
+Status: Partially implemented through the operational AI schema and ledger extraction.
+
+Implemented:
+
+- AI providers are now prompted to return blockers, next actions, Robert decisions, VA/team-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
+- The ledger preserves these structured AI fields when present and still falls back to deterministic extraction.
+
+Still recommended:
 
 - Add output modes:
   - Status update.
@@ -80,7 +87,7 @@ Recommendation:
   - Meeting brief.
   - Next-action checklist.
   - Client-friendly summary.
-- Reuse the same card data and local fallback logic.
+- Add user-selectable output mode controls in settings or the popup.
 
 Impact: High. This expands usefulness without changing the core architecture.
 

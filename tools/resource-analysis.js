@@ -57,7 +57,7 @@ const largeCard = Object.assign({}, SummarizeThis.sampleCardData(), {
 });
 
 const prompt = SummarizeThis.buildAIPrompt(largeCard);
-const payload = JSON.parse(prompt.split("\n").slice(5).join("\n"));
+const payload = JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1));
 
 const report = {
   activePopupInitialLoad: formatBytes(activeLoad),
