@@ -103,6 +103,15 @@ Recommendation:
 
 Impact: Medium. Stronger summaries for planning workflows.
 
+### 5a. Large-Card AI Context Controls
+
+Status: Implemented in `settings-powerup.html` and active AI provider calls.
+
+- AI prompt comments can be set to 6, 12, 20, or 25 latest comments.
+- Comment excerpts can be set to 400, 700, 1,200, or 1,500 characters each.
+- Description context can be set to 1,500, 2,500, 4,000, or 5,000 characters.
+- The settings panel warns that larger context sends more Trello content to the configured AI provider.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.

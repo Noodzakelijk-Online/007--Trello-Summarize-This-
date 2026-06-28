@@ -41,6 +41,30 @@ const largePromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(largeC
 assert.ok(largePromptPayload.description.length <= 2500);
 assert.equal(largePromptPayload.comments.length, 12);
 assert.ok(largePromptPayload.comments.every(comment => comment.text.length <= 700));
+assert.equal(largePromptPayload.contextIncluded.commentLimit, 12);
+assert.equal(largePromptPayload.contextIncluded.commentCharacters, 700);
+
+const expandedPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(largeCard, {
+  promptContext: {
+    descriptionCharacters: 4000,
+    commentLimit: 20,
+    commentCharacters: 1200
+  }
+}));
+assert.ok(expandedPromptPayload.description.length <= 4000);
+assert.equal(expandedPromptPayload.comments.length, 20);
+assert.ok(expandedPromptPayload.comments.every(comment => comment.text.length <= 1200));
+assert.equal(expandedPromptPayload.contextIncluded.commentsAvailable, 25);
+assert.equal(expandedPromptPayload.contextIncluded.commentsIncluded, 20);
+
+const clampedContext = SummarizeThis.normalizePromptContext({
+  descriptionCharacters: 999999,
+  commentLimit: 999,
+  commentCharacters: 999999
+});
+assert.equal(clampedContext.descriptionCharacters, 5000);
+assert.equal(clampedContext.commentLimit, 25);
+assert.equal(clampedContext.commentCharacters, 1500);
 
 const fallback = local.summary;
 const aiSummary = SummarizeThis.normalizeAIAnalysis({

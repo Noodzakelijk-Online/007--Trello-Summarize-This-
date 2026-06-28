@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 117.4 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 212.6 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.34 MB.
-- Large-card AI prompt after caps: 14,014 characters.
+- Active popup initial local files: about 119.2 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 217.7 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.35 MB.
+- Large-card AI prompt after caps: 14,187 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -27,11 +27,12 @@ Current results:
 ## Optimizations Applied
 
 1. Bounded AI prompt size:
-   - Card descriptions sent to AI are capped at 2,500 characters.
-   - AI prompt comments are capped to the first 12 comments.
-   - Each included comment is capped at 700 characters.
+   - Card descriptions sent to AI default to 2,500 characters and can be set from 1,500 to 5,000 characters.
+   - AI prompt comments default to the latest 12 comments and can be set from 6 to 25 comments.
+   - Each included comment defaults to 700 characters and can be set from 400 to 1,500 characters.
    - Labels and members are capped to 25 each.
    - The prompt now asks for a structured operational schema so fewer downstream repair steps are needed.
+   - Larger context settings are user-selected and warn that more Trello content is sent to the configured AI provider.
 
 2. Bounded AI response size and time:
    - OpenAI and Google outputs are capped at 900 output tokens.
@@ -73,7 +74,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 213 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 218 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
@@ -85,12 +86,11 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 
 ## Tradeoffs
 
-- The prompt caps preserve the feature but may omit very old or very long comment text from AI analysis. This is intentional: the latest 12 comments and card description usually carry the strongest context, and the local summary still uses structured metadata.
+- The default prompt caps preserve the feature but may omit very old or very long comment text from AI analysis. This is intentional: the latest 12 comments and card description usually carry the strongest context, and the local summary still uses structured metadata. Users can raise the caps for unusually large cards.
 - The Windows `.exe` installer runs the standalone/local version. Trello Power-Up usage still requires hosting the static files on HTTPS, because Trello cannot load a private local Windows installer path inside Trello.
 
 ## Remaining Opportunities
 
 - Move AI calls behind an optional backend proxy to reduce browser-held key risk and enable better request caching.
-- Add a user-facing “include more comments” setting for unusually large cards.
 - Split the standalone `index.html` demo from the production install if the installer should become even smaller.
 - Add browser performance timing metrics in the popup for future regression checks.

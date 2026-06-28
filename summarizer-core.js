@@ -68,10 +68,32 @@
     });
   }
 
-  function compactCommentsForPrompt(comments) {
-    return toArray(comments).slice(0, 12).map(function (comment) {
+  var DEFAULT_PROMPT_CONTEXT = {
+    descriptionCharacters: 2500,
+    commentLimit: 12,
+    commentCharacters: 700
+  };
+
+  function boundedNumber(value, fallback, min, max) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.max(min, Math.min(Math.round(number), max));
+  }
+
+  function normalizePromptContext(options) {
+    var input = options && options.promptContext ? options.promptContext : options || {};
+    return {
+      descriptionCharacters: boundedNumber(input.descriptionCharacters, DEFAULT_PROMPT_CONTEXT.descriptionCharacters, 500, 5000),
+      commentLimit: boundedNumber(input.commentLimit, DEFAULT_PROMPT_CONTEXT.commentLimit, 0, 25),
+      commentCharacters: boundedNumber(input.commentCharacters, DEFAULT_PROMPT_CONTEXT.commentCharacters, 200, 1500)
+    };
+  }
+
+  function compactCommentsForPrompt(comments, context) {
+    var limits = normalizePromptContext(context);
+    return toArray(comments).slice(0, limits.commentLimit).map(function (comment) {
       return {
-        text: truncate(comment.text, 700),
+        text: truncate(comment.text, limits.commentCharacters),
         date: comment.date || "",
         author: comment.author || ""
       };
@@ -355,11 +377,13 @@
     return Math.max(35, Math.min(score, 95));
   }
 
-  function buildAIPrompt(input) {
+  function buildAIPrompt(input, options) {
     var card = normalizeCardData(input);
+    var context = normalizePromptContext(options);
+    var comments = compactCommentsForPrompt(card.comments, context);
     var payload = {
       name: card.name,
-      description: truncate(card.desc, 2500),
+      description: truncate(card.desc, context.descriptionCharacters),
       board: card.boardName,
       list: card.listName,
       labels: card.labels.slice(0, 25),
@@ -367,9 +391,16 @@
       due: card.due,
       dueComplete: card.dueComplete,
       checklistProgress: card.checklistStats,
-      comments: compactCommentsForPrompt(card.comments),
+      comments: comments,
       attachmentCount: card.attachmentCount,
-      url: card.url
+      url: card.url,
+      contextIncluded: {
+        descriptionCharacters: Math.min(card.desc.length, context.descriptionCharacters),
+        commentLimit: context.commentLimit,
+        commentCharacters: context.commentCharacters,
+        commentsAvailable: card.comments.length,
+        commentsIncluded: comments.length
+      }
     };
 
     return [
@@ -574,6 +605,7 @@
   return {
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
+    normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,
     normalizeCardData: normalizeCardData,

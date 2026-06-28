@@ -88,6 +88,13 @@
       font-size: 12px;
     }
 
+    .warning {
+      margin: 8px 0 0;
+      color: #974f0c;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
     .field-actions {
       display: flex;
       align-items: center;
@@ -203,6 +210,40 @@
 
     <section class="panel">
       <div class="group">
+        <label for="promptCommentLimit">AI comment context</label>
+        <select id="promptCommentLimit">
+          <option value="6">Lean: latest 6 comments</option>
+          <option value="12">Balanced: latest 12 comments</option>
+          <option value="20">Large cards: latest 20 comments</option>
+          <option value="25">Maximum: latest 25 comments</option>
+        </select>
+        <p class="help">Only applies when AI mode sends card context to the selected provider.</p>
+      </div>
+
+      <div class="group">
+        <label for="promptCommentCharacters">Comment length per item</label>
+        <select id="promptCommentCharacters">
+          <option value="400">Compact: 400 characters</option>
+          <option value="700">Balanced: 700 characters</option>
+          <option value="1200">Detailed: 1,200 characters</option>
+          <option value="1500">Maximum: 1,500 characters</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label for="promptDescriptionCharacters">Description context</label>
+        <select id="promptDescriptionCharacters">
+          <option value="1500">Compact: 1,500 characters</option>
+          <option value="2500">Balanced: 2,500 characters</option>
+          <option value="4000">Detailed: 4,000 characters</option>
+          <option value="5000">Maximum: 5,000 characters</option>
+        </select>
+        <p class="warning">Larger context can improve messy-card analysis, but sends more Trello content to the configured AI provider.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="group">
         <label for="openaiKey">OpenAI API key</label>
         <input id="openaiKey" type="password" autocomplete="off" placeholder="sk-...">
         <p class="help">Used directly from the Power-Up iframe when OpenAI is selected.</p>
@@ -268,6 +309,9 @@
         analysisMode: document.getElementById("analysisMode"),
         provider: document.getElementById("provider"),
         strategy: document.getElementById("strategy"),
+        promptCommentLimit: document.getElementById("promptCommentLimit"),
+        promptCommentCharacters: document.getElementById("promptCommentCharacters"),
+        promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
         openaiKey: document.getElementById("openaiKey"),
         openaiModel: document.getElementById("openaiModel"),
         googleKey: document.getElementById("googleKey"),
@@ -303,6 +347,10 @@
         fields.openaiModel.value = settings.openaiModel || "";
         fields.googleModel.value = settings.googleModel || "";
         fields.anthropicModel.value = settings.anthropicModel || "";
+        var promptContext = normalizePromptContext(settings.promptContext);
+        fields.promptCommentLimit.value = String(promptContext.commentLimit);
+        fields.promptCommentCharacters.value = String(promptContext.commentCharacters);
+        fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
       }
 
       async function readSettings() {
@@ -310,6 +358,11 @@
           analysisMode: "auto",
           provider: "openai",
           strategy: "cost-effective",
+          promptContext: {
+            descriptionCharacters: 2500,
+            commentLimit: 12,
+            commentCharacters: 700
+          },
           apiKeys: {}
         };
 
@@ -342,6 +395,11 @@
           analysisMode: fields.analysisMode.value,
           provider: fields.provider.value,
           strategy: fields.strategy.value,
+          promptContext: normalizePromptContext({
+            descriptionCharacters: fields.promptDescriptionCharacters.value,
+            commentLimit: fields.promptCommentLimit.value,
+            commentCharacters: fields.promptCommentCharacters.value
+          }),
           apiKeys: {
             openai: fields.openaiKey.value.trim(),
             google: fields.googleKey.value.trim(),
@@ -386,6 +444,20 @@
         setProviderStatus("google", "", "");
         setProviderStatus("anthropic", "", "");
         await saveSettings();
+      }
+
+      function normalizePromptContext(input) {
+        var source = input || {};
+        return {
+          descriptionCharacters: allowedNumber(source.descriptionCharacters, 2500, [1500, 2500, 4000, 5000]),
+          commentLimit: allowedNumber(source.commentLimit, 12, [6, 12, 20, 25]),
+          commentCharacters: allowedNumber(source.commentCharacters, 700, [400, 700, 1200, 1500])
+        };
+      }
+
+      function allowedNumber(value, fallback, allowed) {
+        var number = Number(value);
+        return allowed.indexOf(number) === -1 ? fallback : number;
       }
 
       async function testProvider(provider) {

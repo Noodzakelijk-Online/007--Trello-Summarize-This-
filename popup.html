@@ -725,6 +725,11 @@
           provider: "openai",
           analysisMode: "auto",
           strategy: "cost-effective",
+          promptContext: {
+            descriptionCharacters: 2500,
+            commentLimit: 12,
+            commentCharacters: 700
+          },
           apiKeys: {}
         };
 
@@ -885,6 +890,13 @@
         return Boolean(keys.openai || keys.anthropic || keys.google);
       }
 
+      function promptContextOptions(settings) {
+        var context = SummarizeThis.normalizePromptContext(settings && settings.promptContext);
+        return {
+          promptContext: context
+        };
+      }
+
       async function runConfiguredAI(cardData, settings, localAnalysis) {
         var providerOrder = settings.provider === "auto"
           ? ["openai", "google", "anthropic"]
@@ -931,7 +943,7 @@
               },
               {
                 role: "user",
-                content: SummarizeThis.buildAIPrompt(cardData)
+                content: SummarizeThis.buildAIPrompt(cardData, promptContextOptions(settings))
               }
             ],
             response_format: { type: "json_object" },
@@ -965,7 +977,7 @@
             "x-goog-api-key": apiKey
           },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: SummarizeThis.buildAIPrompt(cardData) }] }],
+            contents: [{ parts: [{ text: SummarizeThis.buildAIPrompt(cardData, promptContextOptions(settings)) }] }],
             generationConfig: {
               temperature: 0.2,
               responseMimeType: "application/json",
@@ -1003,7 +1015,7 @@
             model: model,
             max_tokens: 900,
             temperature: 0.2,
-            messages: [{ role: "user", content: SummarizeThis.buildAIPrompt(cardData) }]
+            messages: [{ role: "user", content: SummarizeThis.buildAIPrompt(cardData, promptContextOptions(settings)) }]
           })
         }, 30000);
 
