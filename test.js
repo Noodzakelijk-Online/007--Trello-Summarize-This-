@@ -200,4 +200,12 @@ const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
 assert.ok(ledgerMarkdown.includes("VA collect"));
 
+const trelloCommentDraft = CardIntelligenceLedger.createTrelloCommentDraft(run);
+assert.ok(trelloCommentDraft.includes("Summarize This - Card Intelligence"));
+assert.ok(trelloCommentDraft.includes("Robert decisions:"));
+assert.ok(trelloCommentDraft.includes("VA/team-ready actions:"));
+assert.ok(trelloCommentDraft.includes("Confidence:"));
+assert.ok(trelloCommentDraft.includes("Review note:"));
+assert.ok(trelloCommentDraft.length <= 4000);
+
 console.log("All summarizer tests passed.");

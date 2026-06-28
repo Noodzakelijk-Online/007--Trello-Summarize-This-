@@ -20,6 +20,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `ExportRecord`: private copy/export history.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
 - Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
+- Trello comment approval: the popup generates an exact comment draft, supports copy-only use, and only attempts Trello posting after the user checks an approval box and confirms the action.
 
 ## Storage
 
@@ -35,5 +36,6 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 
 - The history UI shows the current run, recent previous runs, change summary, confidence trend, and copy controls for older runs.
 - Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
-- No Trello comment or description writeback is implemented. Copy/export remains the safe default.
+- Trello comment writeback is capability-dependent. If the Trello Power-Up runtime does not expose a supported comment API, the popup remains copy-only.
+- Trello description writeback is not implemented.
 - The ledger still keeps deterministic extraction as a fallback when an AI provider omits structured operational fields.

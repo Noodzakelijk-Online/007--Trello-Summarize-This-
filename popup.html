@@ -217,6 +217,11 @@
       background: #f1f2f4;
     }
 
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.56;
+    }
+
     .notice {
       border-left: 4px solid var(--yellow);
       background: #fff7d6;
@@ -268,6 +273,30 @@
       color: var(--muted);
       font-size: 13px;
       font-weight: 700;
+    }
+
+    .checkbox-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-top: 10px;
+      color: #243757;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .checkbox-row input {
+      flex: 0 0 auto;
+      margin-top: 2px;
+    }
+
+    .postback-preview {
+      min-height: 178px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      background: #f7f8fa;
     }
 
     .history-list {
@@ -459,6 +488,20 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">Approve Trello comment</h2>
+        <p id="postbackStatus" class="section-body">Review the exact draft before copying or posting it.</p>
+        <textarea id="postbackPreview" class="postback-preview" readonly></textarea>
+        <label class="checkbox-row" for="postbackApproval">
+          <input id="postbackApproval" type="checkbox">
+          <span>I reviewed this comment and approve posting it to Trello.</span>
+        </label>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyPostbackButton">Copy comment draft</button>
+          <button class="primary" type="button" id="postCommentButton" disabled>Post Trello comment</button>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">Review / correction</h2>
         <p class="section-body">Feedback is stored in your private Power-Up data and is not posted to Trello.</p>
         <textarea id="correctionText" placeholder="Optional correction or missing context"></textarea>
@@ -521,6 +564,9 @@
         saveFeedback("wrong");
       });
       document.getElementById("historyList").addEventListener("click", copyHistoryRun);
+      document.getElementById("postbackApproval").addEventListener("change", updatePostbackControls);
+      document.getElementById("copyPostbackButton").addEventListener("click", copyPostbackDraft);
+      document.getElementById("postCommentButton").addEventListener("click", postApprovedComment);
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
@@ -585,6 +631,10 @@
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
+        document.getElementById("postbackPreview").value = "";
+        document.getElementById("postbackApproval").checked = false;
+        document.getElementById("postbackStatus").textContent = "Review the exact draft before copying or posting it.";
+        updatePostbackControls();
       }
 
       function setStatus(title, detail) {
@@ -879,6 +929,7 @@
         renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
+        renderPostbackDraft(ledgerRun);
       }
 
       function renderList(id, items, emptyText) {
@@ -925,6 +976,114 @@
           li.appendChild(document.createTextNode(item.excerpt));
           list.appendChild(li);
         });
+      }
+
+      function renderPostbackDraft(ledgerRun) {
+        var preview = document.getElementById("postbackPreview");
+        preview.value = ledgerRun ? CardIntelligenceLedger.createTrelloCommentDraft(ledgerRun) : "";
+        document.getElementById("postbackApproval").checked = false;
+        document.getElementById("postbackStatus").textContent = "Review the exact draft before copying or posting it.";
+        updatePostbackControls();
+      }
+
+      function canPostTrelloComment() {
+        return Boolean(t && inTrello && lastCardData && lastCardData.id && typeof t.getRestApi === "function");
+      }
+
+      function updatePostbackControls() {
+        var preview = document.getElementById("postbackPreview");
+        var approval = document.getElementById("postbackApproval");
+        var copyButton = document.getElementById("copyPostbackButton");
+        var postButton = document.getElementById("postCommentButton");
+        var status = document.getElementById("postbackStatus");
+        var hasDraft = Boolean(preview.value);
+        var approved = Boolean(approval.checked);
+        var canPost = canPostTrelloComment();
+
+        copyButton.disabled = !hasDraft;
+        postButton.disabled = !hasDraft || !approved || !canPost;
+
+        if (!hasDraft) {
+          status.textContent = "Analyze the card first to create a Trello comment draft.";
+        } else if (!canPost) {
+          status.textContent = "Posting is not available in this Power-Up runtime. Copy the approved draft instead.";
+        } else if (!approved) {
+          status.textContent = "Review the exact draft and tick the approval box before posting to Trello.";
+        } else {
+          status.textContent = "Ready to post the reviewed draft as a Trello comment.";
+        }
+      }
+
+      function copyPostbackDraft() {
+        var text = document.getElementById("postbackPreview").value;
+        if (!text || !lastLedgerRun) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            elements.confidencePill.textContent = "Draft copied";
+            document.getElementById("postbackStatus").textContent = "Comment draft copied. No Trello card was changed.";
+            recordExport("trello-comment-draft", "clipboard");
+          }).catch(function () {
+            fallbackPostbackCopy(text);
+          });
+        } else {
+          fallbackPostbackCopy(text);
+        }
+      }
+
+      function fallbackPostbackCopy(text) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        elements.confidencePill.textContent = "Draft copied";
+        document.getElementById("postbackStatus").textContent = "Comment draft copied. No Trello card was changed.";
+        recordExport("trello-comment-draft", "clipboard");
+      }
+
+      async function postApprovedComment() {
+        if (!lastLedgerRun || !lastCardData) return;
+        var approval = document.getElementById("postbackApproval");
+        var text = document.getElementById("postbackPreview").value;
+        if (!approval.checked || !text) {
+          updatePostbackControls();
+          return;
+        }
+        if (!canPostTrelloComment()) {
+          document.getElementById("postbackStatus").textContent = "Posting is not available in this Power-Up runtime. Copy the approved draft instead.";
+          return;
+        }
+        if (!window.confirm("Post this exact reviewed comment to Trello?")) {
+          return;
+        }
+
+        document.getElementById("postCommentButton").disabled = true;
+        document.getElementById("postbackStatus").textContent = "Posting reviewed comment to Trello...";
+
+        var posted = false;
+        try {
+          var rest = await t.getRestApi();
+          if (!rest || typeof rest.addCardComment !== "function") {
+            throw new Error("This Trello runtime does not expose addCardComment.");
+          }
+          await rest.addCardComment(lastCardData.id, text);
+          elements.confidencePill.textContent = "Comment posted";
+          document.getElementById("postbackStatus").textContent = "Reviewed comment posted to Trello.";
+          await recordExport("trello-comment", "trello-comment");
+          approval.checked = false;
+          posted = true;
+        } catch (error) {
+          document.getElementById("postbackStatus").textContent = "Could not post the comment: " + (error.message || String(error)) + " Copy the approved draft instead.";
+        } finally {
+          updatePostbackControls();
+          if (posted) {
+            document.getElementById("postbackStatus").textContent = "Reviewed comment posted to Trello.";
+          }
+        }
       }
 
       async function saveLedgerRun(cardData, ledgerRun) {
