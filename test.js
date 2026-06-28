@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const SummarizeThis = require("./summarizer-core");
+const CardIntelligenceLedger = require("./card-intelligence-ledger");
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -53,5 +54,85 @@ assert.equal(aiSummary.confidence, "high");
 const markdown = SummarizeThis.markdownForAnalysis(sample, local);
 assert.ok(markdown.includes("## Current status"));
 assert.ok(markdown.includes("- Billing flow checked"));
+
+const operationalCard = Object.assign({}, sample, {
+  id: "card-robert-va",
+  desc: "Client launch is waiting on invoice approval. Robert must approve whether the VA may send the follow-up today.",
+  due: new Date(Date.now() - 86400000).toISOString(),
+  members: [],
+  comments: [{
+    text: "Blocked until Robert confirms yes/no on sending the payment reminder.",
+    date: new Date().toISOString(),
+    memberCreator: { fullName: "Jamie" }
+  }],
+  attachments: [{
+    id: "invoice",
+    name: "invoice.pdf",
+    processed: true,
+    extractedText: "",
+    error: ""
+  }]
+});
+const operationalAnalysis = {
+  summary: {
+    about: "Client launch follow-up needs payment reminder approval.",
+    history: "The latest comment says the card is blocked until Robert confirms.",
+    status: "Waiting on Robert approval and overdue.",
+    nextSteps: [
+      "Robert approve whether VA may send the follow-up message.",
+      "VA collect the missing screenshot and update the card."
+    ],
+    insights: ["Payment and client communication need review."],
+    risks: ["Blocked by approval.", "Invoice attachment content was not verified."],
+    recommendations: ["Approve: Yes/No for VA follow-up."]
+  },
+  metadata: {
+    provider: "Local rules",
+    model: "built-in summarizer",
+    tokens: 0,
+    cost: 0
+  }
+};
+const snapshot = CardIntelligenceLedger.createCardSnapshot(operationalCard, {
+  now: "2026-06-29T12:00:00.000Z"
+});
+assert.equal(snapshot.cardId, "card-robert-va");
+assert.equal(snapshot.descriptionPresent, true);
+assert.ok(snapshot.descriptionHash);
+assert.equal(snapshot.description, undefined);
+
+const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
+  now: "2026-06-29T12:00:00.000Z"
+});
+assert.equal(run.status, "completed");
+assert.ok(run.result.blockers.length >= 2);
+assert.ok(run.result.robertDecisions.length >= 1);
+assert.ok(run.result.vaReadyActions.length >= 1);
+assert.ok(run.result.evidenceClaims.every(claim => Array.isArray(claim.support)));
+assert.ok(run.result.validationFindings.some(finding => finding.id === "decision-review"));
+assert.ok(run.result.confidence.overall >= 25);
+
+const history = CardIntelligenceLedger.mergeLedgerHistory([], { lastRun: run }, 25);
+assert.equal(history.length, 1);
+assert.equal(history[0].id, run.id);
+
+const feedback = CardIntelligenceLedger.createHumanFeedback(run.id, {
+  rating: "wrong",
+  correctionText: "The invoice amount is still missing.",
+  incorrectSections: ["risks"]
+}, {
+  now: "2026-06-29T12:05:00.000Z"
+});
+assert.equal(feedback.analysisRunId, run.id);
+assert.equal(feedback.correctionText, "The invoice amount is still missing.");
+
+const exportRecord = CardIntelligenceLedger.createExportRecord(run.id, "markdown", "clipboard", {
+  now: "2026-06-29T12:06:00.000Z"
+});
+assert.equal(exportRecord.destination, "clipboard");
+
+const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
+assert.ok(ledgerMarkdown.includes("## Robert decisions"));
+assert.ok(ledgerMarkdown.includes("VA collect"));
 
 console.log("All summarizer tests passed.");

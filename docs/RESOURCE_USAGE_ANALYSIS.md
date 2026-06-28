@@ -16,9 +16,9 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 41.9 KB (`popup.html`, `summarizer-core.js`, `icon.svg`).
-- Windows installer runtime payload: about 137.2 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.25 MB.
+- Active popup initial local files: about 77.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 172.8 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.29 MB.
 - Large-card AI prompt after caps: 12,572 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -51,19 +51,24 @@ Current results:
    - The installed app starts only when the user launches it.
    - Closing the launcher window stops the local server.
 
+6. Lightweight ledger:
+   - The card intelligence ledger runs in the popup only when an analysis is created.
+   - It stores compact card snapshots with hashes instead of full descriptions.
+   - History, feedback, and export records use member-private Power-Up storage.
+
 ## Resource Risk Review
 
 ### CPU
 
-Low. The local summarizer uses simple string processing and checklist counting. There are no animation loops, polling loops, workers, or recurring CPU tasks in the popup. AI work runs on provider APIs, not locally.
+Low. The local summarizer and ledger use simple string processing, checklist counting, and keyword extraction. There are no animation loops, polling loops, workers, or recurring CPU tasks in the popup. AI work runs on provider APIs, not locally.
 
 ### Memory
 
-Low. The active popup loads a small static HTML page and one shared JS helper. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
+Low. The active popup loads a small static HTML page and two shared JS helpers. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 137 KB, and the generated `SummarizeThisSetup.exe` is about 109 KB because the payload is compressed into a small self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 173 KB, and the generated `SummarizeThisSetup.exe` is about 128 KB because the payload is compressed into a small self-extracting .NET Framework executable.
 
 ### Network
 

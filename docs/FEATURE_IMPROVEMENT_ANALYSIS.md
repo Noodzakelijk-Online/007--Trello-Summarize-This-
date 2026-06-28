@@ -8,6 +8,22 @@ The tool is strongest as a Trello card understanding assistant: it should quickl
 
 ## Highest-Value Improvements
 
+### 0. Card Intelligence Ledger
+
+Problem: The active Power-Up previously produced a summary but did not preserve a structured, evidence-backed operational record for the card.
+
+Status: First working slice implemented in `card-intelligence-ledger.js` and `popup.html`.
+
+Implemented:
+
+- Creates a private analysis run per card with a card snapshot, input hash, provider/model metadata, structured result, evidence claims, validation findings, and audit event.
+- Extracts blockers, next actions, Robert decision items, and VA/team-ready actions from the existing summary and card data.
+- Stores history, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
+- Avoids silently writing analysis results to shared card storage.
+- Shows evidence, validation, decision, blocker, and correction panels in the active popup.
+
+Impact: High. This turns the active popup into the first real card intelligence layer instead of only a summary display.
+
 ### 1. Trello Setup Assistant
 
 Problem: The Windows installer can run the standalone tool locally, but Trello Power-Up use still needs HTTPS hosting and Trello admin configuration.
@@ -41,10 +57,12 @@ Impact: High. Makes onboarding calmer and reduces failed first runs.
 
 Problem: The current tool can store the latest summary, but users benefit from seeing how the summary changed over time.
 
-Recommendation:
+Status: Partially implemented through the private card intelligence ledger.
 
-- Add a small “History” view in the popup.
-- Store timestamp, provider, quality score, and summary snapshot.
+Still recommended:
+
+- Add a full "History" view in the popup.
+- Show previous runs and what changed since the last analysis.
 - Allow copying older summaries.
 
 Impact: Medium-high. Useful for project managers and async status tracking.

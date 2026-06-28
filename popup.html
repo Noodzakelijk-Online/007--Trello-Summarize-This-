@@ -6,6 +6,7 @@
   <title>Summarize This</title>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
   <script src="./summarizer-core.js?v=1.0.0"></script>
+  <script src="./card-intelligence-ledger.js?v=1.0.0"></script>
   <style>
     :root {
       color-scheme: light;
@@ -221,6 +222,54 @@
       background: #fff7d6;
     }
 
+    .compact-list {
+      margin-top: 8px;
+    }
+
+    .evidence-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .evidence-list li {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      background: #ffffff;
+      overflow-wrap: anywhere;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 84px;
+      margin-top: 8px;
+      border: 1px solid #b6c2cf;
+      border-radius: 6px;
+      padding: 8px 10px;
+      resize: vertical;
+      font: inherit;
+    }
+
+    .feedback-status {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
     .error {
       border-left: 4px solid var(--red);
       background: #ffebe6;
@@ -244,7 +293,8 @@
       }
 
       .grid,
-      .metrics {
+      .metrics,
+      .evidence-list {
         grid-template-columns: 1fr;
       }
     }
@@ -300,6 +350,10 @@
           <span id="costMetric" class="metric-value">$0.0000</span>
           <span class="metric-label">Estimated cost</span>
         </div>
+        <div class="metric">
+          <span id="historyMetric" class="metric-value">0</span>
+          <span class="metric-label">Runs saved</span>
+        </div>
       </div>
 
       <section class="grid">
@@ -339,6 +393,44 @@
         <ul id="recommendationsList"></ul>
       </section>
 
+      <section class="grid">
+        <article class="panel">
+          <h2 class="section-title">Blockers</h2>
+          <ul id="blockersList" class="compact-list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2 class="section-title">Robert decisions</h2>
+          <ul id="robertDecisionsList" class="compact-list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2 class="section-title">VA/team-ready actions</h2>
+          <ul id="vaReadyActionsList" class="compact-list"></ul>
+        </article>
+
+        <article class="panel">
+          <h2 class="section-title">Validation</h2>
+          <ul id="validationList" class="compact-list"></ul>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Evidence used</h2>
+        <ul id="evidenceList" class="evidence-list"></ul>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Review / correction</h2>
+        <p class="section-body">Feedback is stored in your private Power-Up data and is not posted to Trello.</p>
+        <textarea id="correctionText" placeholder="Optional correction or missing context"></textarea>
+        <div class="actions">
+          <button class="secondary" type="button" id="usefulButton">Mark useful</button>
+          <button class="secondary" type="button" id="wrongButton">This is wrong</button>
+        </div>
+        <p id="feedbackStatus" class="feedback-status"></p>
+      </section>
+
       <div class="actions">
         <button class="primary" type="button" id="copyButton">Copy summary</button>
         <button class="secondary" type="button" id="reanalyzeButton">Analyze again</button>
@@ -348,7 +440,7 @@
   </div>
 
   <script>
-    /* global TrelloPowerUp, SummarizeThis */
+    /* global TrelloPowerUp, SummarizeThis, CardIntelligenceLedger */
 
     (function () {
       "use strict";
@@ -356,6 +448,7 @@
       var t = null;
       var lastCardData = null;
       var lastAnalysis = null;
+      var lastLedgerRun = null;
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -382,6 +475,12 @@
       document.getElementById("retryButton").addEventListener("click", runAnalysis);
       document.getElementById("settingsButton").addEventListener("click", openSettings);
       document.getElementById("settingsButtonError").addEventListener("click", openSettings);
+      document.getElementById("usefulButton").addEventListener("click", function () {
+        saveFeedback("useful");
+      });
+      document.getElementById("wrongButton").addEventListener("click", function () {
+        saveFeedback("wrong");
+      });
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
@@ -424,8 +523,10 @@
           }
 
           lastAnalysis = analysis;
-          renderAnalysis(cardData, analysis, warning);
-          await saveHistory(cardData, analysis);
+          lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis);
+          renderAnalysis(cardData, analysis, warning, lastLedgerRun);
+          var historyCount = await saveLedgerRun(cardData, lastLedgerRun);
+          document.getElementById("historyMetric").textContent = String(historyCount);
         } catch (error) {
           showError(error.message || String(error));
         }
@@ -438,6 +539,8 @@
         elements.statusPanel.classList.remove("hidden");
         elements.statusSpinner.classList.remove("hidden");
         elements.confidencePill.textContent = "Starting";
+        document.getElementById("feedbackStatus").textContent = "";
+        document.getElementById("correctionText").value = "";
       }
 
       function setStatus(title, detail) {
@@ -701,8 +804,9 @@
         return ((usage.prompt_tokens || 0) * rate.input) + ((usage.completion_tokens || 0) * rate.output);
       }
 
-      function renderAnalysis(cardData, analysis, warning) {
+      function renderAnalysis(cardData, analysis, warning, ledgerRun) {
         var summary = analysis.summary;
+        var result = ledgerRun && ledgerRun.result ? ledgerRun.result : null;
         elements.statusPanel.classList.add("hidden");
         elements.results.classList.remove("hidden");
 
@@ -711,9 +815,11 @@
           elements.warningPanel.classList.remove("hidden");
         }
 
-        elements.confidencePill.textContent = analysis.qualityLevel + " confidence";
+        elements.confidencePill.textContent = result && result.confidence
+          ? result.confidence.level + " confidence"
+          : analysis.qualityLevel + " confidence";
         document.getElementById("providerMetric").textContent = analysis.metadata.provider;
-        document.getElementById("qualityMetric").textContent = analysis.qualityScore + "%";
+        document.getElementById("qualityMetric").textContent = result && result.confidence ? result.confidence.overall + "%" : analysis.qualityScore + "%";
         document.getElementById("tokensMetric").textContent = String(analysis.metadata.tokens || 0);
         document.getElementById("costMetric").textContent = "$" + Number(analysis.metadata.cost || 0).toFixed(4);
 
@@ -724,6 +830,11 @@
         renderList("insightsList", summary.insights, "No insights available.");
         renderList("risksList", summary.risks, "No material risks detected.");
         renderList("recommendationsList", summary.recommendations, "No recommendations available.");
+        renderOperationalList("blockersList", result ? result.blockers : [], "No blockers detected.");
+        renderOperationalList("robertDecisionsList", result ? result.robertDecisions : [], "No Robert-specific decision detected.");
+        renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
+        renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
+        renderEvidence(result ? result.evidence : []);
       }
 
       function renderList(id, items, emptyText) {
@@ -738,37 +849,107 @@
         });
       }
 
-      async function saveHistory(cardData, analysis) {
-        if (!t) return;
-        var historyItem = {
+      function renderOperationalList(id, items, emptyText) {
+        var list = document.getElementById(id);
+        list.innerHTML = "";
+        var values = Array.isArray(items) ? items : [];
+        if (!values.length) values = [{ text: emptyText }];
+        values.forEach(function (item) {
+          var li = document.createElement("li");
+          li.textContent = item.text || item.claim || String(item);
+          list.appendChild(li);
+        });
+      }
+
+      function renderEvidence(evidence) {
+        var list = document.getElementById("evidenceList");
+        list.innerHTML = "";
+        var values = Array.isArray(evidence) ? evidence.slice(0, 10) : [];
+        if (!values.length) {
+          var empty = document.createElement("li");
+          empty.textContent = "No evidence references were created.";
+          list.appendChild(empty);
+          return;
+        }
+
+        values.forEach(function (item) {
+          var li = document.createElement("li");
+          var tag = document.createElement("span");
+          tag.className = "tag";
+          tag.textContent = item.type;
+          li.appendChild(tag);
+          li.appendChild(document.createTextNode(item.excerpt));
+          list.appendChild(li);
+        });
+      }
+
+      async function saveLedgerRun(cardData, ledgerRun) {
+        var key = "summarizeThisLedgerHistory";
+        var cardId = cardData.id || "local-preview";
+        var allHistory = await readPrivateObject(key, {});
+        var cardHistory = Array.isArray(allHistory[cardId]) ? allHistory[cardId] : [];
+        allHistory[cardId] = CardIntelligenceLedger.mergeLedgerHistory(cardHistory, ledgerRun, 25);
+        await writePrivateObject(key, allHistory);
+
+        await saveLegacyPrivateHistory(cardData, ledgerRun);
+        return allHistory[cardId].length;
+      }
+
+      async function saveLegacyPrivateHistory(cardData, ledgerRun) {
+        var history = await readPrivateObject("analysisHistory", []);
+        if (!Array.isArray(history)) history = [];
+        history.unshift({
           cardId: cardData.id,
           cardName: cardData.name,
-          timestamp: new Date().toISOString(),
-          provider: analysis.metadata.provider,
-          qualityScore: analysis.qualityScore,
-          summary: analysis.summary
-        };
+          timestamp: ledgerRun.completedAt,
+          provider: ledgerRun.provider,
+          qualityScore: ledgerRun.result.confidence.overall,
+          summary: {
+            about: ledgerRun.result.about,
+            history: ledgerRun.result.history,
+            status: ledgerRun.result.currentStatus,
+            nextSteps: ledgerRun.result.nextActions.map(function (item) { return item.text; }),
+            risks: ledgerRun.result.blockers.map(function (item) { return item.text; })
+          }
+        });
+        await writePrivateObject("analysisHistory", history.slice(0, 50));
+      }
+
+      async function readPrivateObject(key, fallback) {
+        if (!t) {
+          try {
+            var localValue = localStorage.getItem(key);
+            return localValue ? JSON.parse(localValue) : fallback;
+          } catch (error) {
+            return fallback;
+          }
+        }
+
+        return await safe(function () {
+          return t.get("member", "private", key);
+        }, fallback);
+      }
+
+      async function writePrivateObject(key, value) {
+        if (!t) {
+          localStorage.setItem(key, JSON.stringify(value));
+          return;
+        }
 
         await safe(function () {
-          return t.set("card", "shared", "lastSummarizeThisAnalysis", historyItem);
-        }, null);
-
-        var history = await safe(function () {
-          return t.get("member", "private", "analysisHistory");
-        }, []);
-        if (!Array.isArray(history)) history = [];
-        history.unshift(historyItem);
-        await safe(function () {
-          return t.set("member", "private", "analysisHistory", history.slice(0, 50));
+          return t.set("member", "private", key, value);
         }, null);
       }
 
       function copySummary() {
         if (!lastAnalysis || !lastCardData) return;
-        var text = SummarizeThis.markdownForAnalysis(lastCardData, lastAnalysis);
+        var text = lastLedgerRun
+          ? CardIntelligenceLedger.markdownForLedgerRun(lastLedgerRun)
+          : SummarizeThis.markdownForAnalysis(lastCardData, lastAnalysis);
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = "Copied";
+            recordExport("markdown", "clipboard");
           }).catch(function () {
             fallbackCopy(text);
           });
@@ -788,6 +969,32 @@
         document.execCommand("copy");
         document.body.removeChild(textarea);
         elements.confidencePill.textContent = "Copied";
+        recordExport("markdown", "clipboard");
+      }
+
+      async function recordExport(exportType, destination) {
+        if (!lastLedgerRun) return;
+        var record = CardIntelligenceLedger.createExportRecord(lastLedgerRun.id, exportType, destination);
+        var records = await readPrivateObject("summarizeThisExportRecords", []);
+        if (!Array.isArray(records)) records = [];
+        records.unshift(record);
+        await writePrivateObject("summarizeThisExportRecords", records.slice(0, 100));
+      }
+
+      async function saveFeedback(rating) {
+        if (!lastLedgerRun) return;
+        var correctionText = document.getElementById("correctionText").value;
+        var feedback = CardIntelligenceLedger.createHumanFeedback(lastLedgerRun.id, {
+          rating: rating,
+          correctionText: correctionText,
+          incorrectSections: rating === "wrong" ? ["summary"] : [],
+          acceptedAt: rating === "useful" ? new Date().toISOString() : null
+        });
+        var records = await readPrivateObject("summarizeThisFeedback", []);
+        if (!Array.isArray(records)) records = [];
+        records.unshift(feedback);
+        await writePrivateObject("summarizeThisFeedback", records.slice(0, 100));
+        document.getElementById("feedbackStatus").textContent = "Feedback saved privately.";
       }
 
       function openSettings() {
