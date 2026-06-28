@@ -216,8 +216,125 @@
       boardName: card.boardName,
       listName: card.listName,
       url: card.url,
-      sourceCompleteness: scoreSourceCompleteness(card)
+      sourceCompleteness: scoreSourceCompleteness(card),
+      sourceCoverage: createSourceCoverage(input)
     };
+  }
+
+  function createSourceCoverage(input) {
+    var card = normalizeCard(input);
+    var raw = input || {};
+    var status = raw.__sourceStatus || {};
+    var items = [];
+
+    addCoverage(items, "card", "Card fields", statusFromRead(status.card, Boolean(card.id || card.title), "Card title, description, labels, due date, and badges were available."));
+    addCoverage(items, "description", "Description", card.description
+      ? coverage("available", "Description text was included.")
+      : coverage("missing", "No description text was available."));
+    addCoverage(items, "board", "Board", statusFromRead(status.board, Boolean(card.boardName), card.boardName ? "Board context: " + card.boardName + "." : "Board context was not available."));
+    addCoverage(items, "list", "List", statusFromRead(status.list, Boolean(card.listName), card.listName ? "List context: " + card.listName + "." : "List context was not available."));
+    addCoverage(items, "members", "Members", card.members.length
+      ? coverage("available", card.members.length + " member(s) included.")
+      : coverage("missing", "No assigned members were visible."));
+    addCoverage(items, "labels", "Labels", card.labels.length
+      ? coverage("available", card.labels.length + " label(s) included.")
+      : coverage("missing", "No labels were visible."));
+    addCoverage(items, "due", "Due date", card.due
+      ? coverage("available", card.dueComplete ? "Due date is complete." : "Due date is present.")
+      : coverage("missing", "No due date was set."));
+    addCoverage(items, "checklists", "Checklists", collectionCoverage(
+      card.checklists.length,
+      card.checklistSummary.total,
+      "checklist",
+      "checklist item",
+      "No checklist details were available."
+    ));
+    addCoverage(items, "comments", "Comments", sourceCollectionCoverage(
+      status.comments,
+      card.comments.length,
+      card.commentCount,
+      "comment",
+      "No comments were available, so history may be incomplete."
+    ));
+    addCoverage(items, "attachments", "Attachments", attachmentCoverage(card));
+    addCoverage(items, "customFields", "Custom fields", sourceCollectionCoverage(
+      status.customFields,
+      card.customFields.length,
+      card.customFields.length,
+      "custom field",
+      "No custom fields were available."
+    ));
+
+    return items;
+  }
+
+  function coverage(status, detail) {
+    return {
+      status: status,
+      detail: cleanText(detail)
+    };
+  }
+
+  function addCoverage(items, key, label, value) {
+    items.push({
+      key: key,
+      label: label,
+      status: value.status,
+      detail: value.detail
+    });
+  }
+
+  function statusFromRead(readStatus, hasData, availableDetail) {
+    if (readStatus && readStatus.ok === false) {
+      return coverage("failed", readStatus.error || "Source could not be read.");
+    }
+    if (hasData) {
+      return coverage("available", availableDetail);
+    }
+    return coverage("missing", availableDetail);
+  }
+
+  function collectionCoverage(collectionCount, reportedCount, collectionLabel, itemLabel, emptyDetail) {
+    if (collectionCount > 0) {
+      return coverage("available", collectionCount + " " + collectionLabel + "(s), " + reportedCount + " " + itemLabel + "(s) included.");
+    }
+    if (reportedCount > 0) {
+      return coverage("partial", "Trello reported " + reportedCount + " " + itemLabel + "(s), but detailed " + collectionLabel + " data was not loaded.");
+    }
+    return coverage("missing", emptyDetail);
+  }
+
+  function sourceCollectionCoverage(readStatus, loadedCount, reportedCount, label, emptyDetail) {
+    if (readStatus && readStatus.ok === false) {
+      return coverage("failed", readStatus.error || label + " data could not be read.");
+    }
+    if (loadedCount > 0) {
+      return coverage("available", loadedCount + " " + label + "(s) included.");
+    }
+    if (reportedCount > 0) {
+      return coverage("partial", "Trello reported " + reportedCount + " " + label + "(s), but details were not loaded.");
+    }
+    return coverage("missing", emptyDetail);
+  }
+
+  function attachmentCoverage(card) {
+    var extracted = card.attachments.filter(function (attachment) {
+      return attachment.extractedTextAvailable;
+    }).length;
+    var failed = card.attachments.filter(function (attachment) {
+      return attachment.error;
+    }).length;
+
+    if (card.attachments.length > 0 && extracted > 0) {
+      return coverage("available", card.attachments.length + " attachment(s) included; " + extracted + " had extracted text.");
+    }
+    if (card.attachments.length > 0) {
+      return coverage("partial", card.attachments.length + " attachment(s) included as metadata only; " + failed + " failed extraction.");
+    }
+    if (card.attachmentCount > 0) {
+      return coverage("partial", "Trello reported " + card.attachmentCount + " attachment(s), but attachment details were not loaded.");
+    }
+    return coverage("missing", "No attachments were available.");
   }
 
   function createEvidenceMap(input) {
@@ -944,6 +1061,7 @@
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,
     createHumanFeedback: createHumanFeedback,
+    createSourceCoverage: createSourceCoverage,
     createTrelloCommentDraft: createTrelloCommentDraft,
     createLedgerEntry: createLedgerEntry,
     createOperationalAnalysis: createOperationalAnalysis,

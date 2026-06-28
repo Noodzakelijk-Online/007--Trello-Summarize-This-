@@ -18,6 +18,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `ValidationFinding`: missing context, attachment metadata-only state, weak next actions, and decision review signals.
 - `HumanFeedback`: private correction/rating records.
 - `ExportRecord`: private copy/export history.
+- `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, attachments, and custom fields.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
 - Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
 - Ledger export formats: the popup can copy markdown, plain text, status/email text, copy structured JSON, and download compact JSON for Sneup/HAI-style ingestion.
@@ -36,6 +37,7 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 ## Current Limits
 
 - The history UI shows the current run, recent previous runs, change summary, confidence trend, and copy controls for older runs.
+- The Source coverage UI shows available, partial, missing, and failed source reads so missing comments or metadata-only attachments are explicit.
 - Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
 - JSON export uses the compact ledger run and card snapshot. It does not include full card descriptions, but evidence excerpts may still contain card context selected by the analysis.
 - Trello comment writeback is capability-dependent. If the Trello Power-Up runtime does not expose a supported comment API, the popup remains copy-only.

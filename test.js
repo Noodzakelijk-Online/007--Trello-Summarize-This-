@@ -125,6 +125,28 @@ assert.equal(snapshot.cardId, "card-robert-va");
 assert.equal(snapshot.descriptionPresent, true);
 assert.ok(snapshot.descriptionHash);
 assert.equal(snapshot.description, undefined);
+assert.ok(snapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "available"));
+
+const partialCoverage = CardIntelligenceLedger.createSourceCoverage(Object.assign({}, sample, {
+  comments: [],
+  checklists: [],
+  attachments: [],
+  badges: {
+    comments: 3,
+    checkItems: 2,
+    checkItemsChecked: 1,
+    attachments: 1
+  },
+  __sourceStatus: {
+    comments: { ok: false, error: "Comment API was not available." },
+    board: { ok: false, error: "Board read failed." },
+    list: { ok: true }
+  }
+}));
+assert.ok(partialCoverage.some(item => item.key === "comments" && item.status === "failed"));
+assert.ok(partialCoverage.some(item => item.key === "checklists" && item.status === "partial"));
+assert.ok(partialCoverage.some(item => item.key === "attachments" && item.status === "partial"));
+assert.ok(partialCoverage.some(item => item.key === "board" && item.detail.includes("Board read failed")));
 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
   now: "2026-06-29T12:00:00.000Z"

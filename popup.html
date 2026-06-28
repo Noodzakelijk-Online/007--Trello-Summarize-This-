@@ -231,6 +231,44 @@
       margin-top: 8px;
     }
 
+    .source-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .source-list li {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      background: #ffffff;
+      overflow-wrap: anywhere;
+    }
+
+    .source-status {
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .source-status.available {
+      color: #216e4e;
+    }
+
+    .source-status.partial {
+      color: #974f0c;
+    }
+
+    .source-status.failed {
+      color: var(--red);
+    }
+
     .evidence-list {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -350,6 +388,7 @@
 
       .grid,
       .metrics,
+      .source-list,
       .evidence-list {
         grid-template-columns: 1fr;
       }
@@ -478,6 +517,12 @@
       <section class="panel">
         <h2 class="section-title">Evidence used</h2>
         <ul id="evidenceList" class="evidence-list"></ul>
+      </section>
+
+      <section class="panel">
+        <h2 class="section-title">Source coverage</h2>
+        <p id="sourceCoverageSummary" class="section-body">Source coverage will appear after analysis.</p>
+        <ul id="sourceCoverageList" class="source-list"></ul>
       </section>
 
       <section class="panel">
@@ -651,6 +696,8 @@
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
         document.getElementById("exportStatus").textContent = "";
+        document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
+        document.getElementById("sourceCoverageList").innerHTML = "";
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
@@ -710,23 +757,118 @@
 
       async function gatherCardData() {
         if (!t) {
-          return SummarizeThis.sampleCardData();
+          return Object.assign({}, SummarizeThis.sampleCardData(), {
+            __sourceStatus: {
+              card: { ok: true },
+              board: { ok: true },
+              list: { ok: true },
+              comments: { ok: true },
+              customFields: { ok: true }
+            }
+          });
         }
 
-        var card = await safe(function () {
+        var cardRead = await readSource(function () {
           return t.card("all");
         }, {});
-        var board = await safe(function () {
+        var boardRead = await readSource(function () {
           return t.board("all");
         }, null);
-        var list = await safe(function () {
+        var listRead = await readSource(function () {
           return t.list("all");
         }, null);
+        var card = cardRead.value || {};
+        var commentsRead = await readCardComments(card);
+        var customFieldItems = card.customFieldItems || card.customFields || [];
 
         return Object.assign({}, card, {
-          board: board,
-          list: list
+          board: boardRead.value,
+          list: listRead.value,
+          comments: commentsRead.value,
+          customFields: customFieldItems,
+          __sourceStatus: {
+            card: sourceReadStatus(cardRead),
+            board: sourceReadStatus(boardRead),
+            list: sourceReadStatus(listRead),
+            comments: sourceReadStatus(commentsRead),
+            customFields: { ok: Array.isArray(customFieldItems) }
+          }
         });
+      }
+
+      async function readSource(fn, fallback) {
+        try {
+          var value = await fn();
+          return {
+            ok: value !== undefined && value !== null,
+            value: value === undefined || value === null ? fallback : value,
+            error: value === undefined || value === null ? "Source returned no data." : ""
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            value: fallback,
+            error: error.message || String(error)
+          };
+        }
+      }
+
+      function sourceReadStatus(result) {
+        return {
+          ok: Boolean(result && result.ok),
+          error: result && result.error ? result.error : ""
+        };
+      }
+
+      async function readCardComments(card) {
+        var existingComments = Array.isArray(card.comments) ? card.comments : [];
+        if (existingComments.length) {
+          return {
+            ok: true,
+            value: existingComments,
+            error: ""
+          };
+        }
+        if (!card.id) {
+          return {
+            ok: false,
+            value: [],
+            error: "Card id was not available for comment lookup."
+          };
+        }
+        if (typeof t.getRestApi !== "function") {
+          return {
+            ok: false,
+            value: [],
+            error: "Comment API was not available in this Power-Up runtime."
+          };
+        }
+
+        try {
+          var rest = await t.getRestApi();
+          if (!rest || typeof rest.getCardActions !== "function") {
+            return {
+              ok: false,
+              value: [],
+              error: "Comment action API was not available in this Power-Up runtime."
+            };
+          }
+          var actions = await rest.getCardActions(card.id, {
+            filter: "commentCard",
+            limit: 50
+          });
+          return {
+            ok: true,
+            value: Array.isArray(actions) ? actions : [],
+            error: ""
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            value: [],
+            error: error.message || String(error)
+          };
+        }
       }
 
       async function safe(fn, fallback) {
@@ -952,6 +1094,7 @@
         renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
+        renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
         renderPostbackDraft(ledgerRun);
       }
 
@@ -997,6 +1140,39 @@
           tag.textContent = item.type;
           li.appendChild(tag);
           li.appendChild(document.createTextNode(item.excerpt));
+          list.appendChild(li);
+        });
+      }
+
+      function renderSourceCoverage(coverage) {
+        var values = Array.isArray(coverage) ? coverage : [];
+        var summary = document.getElementById("sourceCoverageSummary");
+        var list = document.getElementById("sourceCoverageList");
+        var available = values.filter(function (item) { return item.status === "available"; }).length;
+        var partial = values.filter(function (item) { return item.status === "partial"; }).length;
+        var failed = values.filter(function (item) { return item.status === "failed"; }).length;
+
+        list.innerHTML = "";
+        summary.textContent = available + " source(s) available, " + partial + " partial, " + failed + " failed.";
+
+        if (!values.length) {
+          var empty = document.createElement("li");
+          empty.textContent = "No source coverage data was created.";
+          list.appendChild(empty);
+          return;
+        }
+
+        values.forEach(function (item) {
+          var li = document.createElement("li");
+          var tag = document.createElement("span");
+          var label = document.createElement("strong");
+          var status = item.status || "missing";
+          tag.className = "source-status " + status;
+          tag.textContent = status;
+          label.textContent = item.label + ": ";
+          li.appendChild(tag);
+          li.appendChild(label);
+          li.appendChild(document.createTextNode(item.detail || ""));
           list.appendChild(li);
         });
       }

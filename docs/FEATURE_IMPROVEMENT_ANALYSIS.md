@@ -119,6 +119,8 @@ Impact: Medium-high, but should be implemented carefully for security and resour
 
 Problem: Users need to know why the summary is confident or uncertain.
 
+Status: Partially implemented. The active popup now shows Source coverage with available, partial, missing, and failed source reads for card fields, board/list context, comments, checklists, attachments, members, labels, due date, and custom fields.
+
 Recommendation:
 
 - Show “Based on” chips: description, comments, checklist, labels, due date, attachments.
