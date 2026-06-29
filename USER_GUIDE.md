@@ -39,7 +39,7 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 2. Choose the hosting preset or enter the public HTTPS URL where the static files are deployed.
 3. Use the deployment guide to copy host-specific steps and verify `connector.js` and `manifest.json` load publicly.
 4. Copy the connector URL, admin checklist, or setup package JSON.
-5. Use the autofill helper only to populate matching Trello admin fields; review and save manually in Trello.
+5. Use the autofill helper only on Trello's Power-Up admin page to populate matching fields; review its filled/missing report and save manually in Trello.
 
 ### First-Time Setup
 

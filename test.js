@@ -865,9 +865,44 @@ assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
+assert.ok(adminAutofillScript.includes("https://trello.com/power-ups/admin"));
+assert.ok(adminAutofillScript.includes("Missing:"));
 assert.ok(adminAutofillScript.includes("Review every field in Trello"));
 assert.doesNotMatch(adminAutofillScript, /form\.submit|submit\s*\(/i);
 assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
+assert.doesNotThrow(() => new Function(adminAutofillScript));
+
+let autofillBannerText = "";
+const autofillFakeDocument = {
+  body: {
+    appendChild(element) {
+      autofillBannerText = element.textContent;
+      this.lastChild = element;
+    }
+  },
+  getElementById() {
+    return null;
+  },
+  createElement() {
+    const element = {
+      style: {},
+      set textContent(value) {
+        autofillBannerText = value;
+      },
+      get textContent() {
+        return autofillBannerText;
+      }
+    };
+    return element;
+  }
+};
+new Function("document", "location", "Event", "console", adminAutofillScript)(
+  autofillFakeDocument,
+  { hostname: "example.com", pathname: "/" },
+  function Event() {},
+  { table() {} }
+);
+assert.ok(autofillBannerText.includes("only runs on https://trello.com/power-ups/admin"));
 
 const adminBookmarklet = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
 assert.ok(adminBookmarklet.startsWith("javascript:"));

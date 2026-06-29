@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Configure Trello Power-Up</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <style>
     :root {
       color-scheme: light;
@@ -372,13 +373,14 @@
 
         <div class="panel">
           <h2>Admin autofill helper</h2>
-          <p class="help">Drag the helper to your bookmarks bar, open Trello Power-Up admin, then click the bookmark. It fills matching fields and capability checkboxes only; it does not save or submit the page.</p>
+          <p class="help">Drag the helper to your bookmarks bar, open Trello Power-Up admin, then click the bookmark. It runs only on Trello's Power-Up admin page, fills matching fields and capability checkboxes, reports any missing fields, and does not save or submit the page.</p>
           <div class="actions">
             <a id="adminBookmarkletLink" class="bookmarklet" href="#">Summarize This admin autofill</a>
             <button id="copyAutofillButton" class="secondary" type="button">Copy helper bookmarklet</button>
           </div>
           <ul class="checklist">
             <li>Review every populated Trello admin field before saving.</li>
+            <li>If the helper reports missing fields, copy those values manually from the admin values section.</li>
             <li>Use the generated HTTPS connector URL, not a local Windows address.</li>
             <li>If Trello changes its admin page labels, use the copied admin values manually.</li>
           </ul>
