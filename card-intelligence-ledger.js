@@ -1658,6 +1658,7 @@
       "markdown": "Markdown summary",
       "plain-text": "Plain text export",
       "mode-brief": "Selected mode brief",
+      "operational-digest": "Operational digest",
       "status-update": "Status update",
       "robert-decision-brief": "Robert decision brief",
       "va-handoff-brief": "VA/team handoff brief",
@@ -1828,6 +1829,19 @@
         tone: result.confidence && result.confidence.reviewNeeded ? "warning" : "neutral"
       }
     ];
+  }
+
+  function operationalDigestForLedgerRun(run) {
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
+    var lines = [
+      "Operational digest: " + title,
+      ""
+    ];
+    createOperationalDigest(run).forEach(function (item) {
+      lines.push(item.label + ": " + cleanText(item.value || "No value available."));
+    });
+    appendSourceCoverageSummary(lines, run, "Source coverage:", 5);
+    return lines.join("\n");
   }
 
   function robertDecisionBriefForLedgerRun(run) {
@@ -2296,6 +2310,7 @@
     mergeLedgerHistory: mergeLedgerHistory,
     modeBriefForLedgerRun: modeBriefForLedgerRun,
     normalizeCard: normalizeCard,
+    operationalDigestForLedgerRun: operationalDigestForLedgerRun,
     plainTextForLedgerRun: plainTextForLedgerRun,
     robertDecisionBriefForLedgerRun: robertDecisionBriefForLedgerRun,
     statusUpdateForLedgerRun: statusUpdateForLedgerRun,

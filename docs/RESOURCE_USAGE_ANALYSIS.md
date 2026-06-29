@@ -16,8 +16,8 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 310.7 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 460.6 KB.
+- Active popup initial local files: about 312.1 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 462.0 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.67 MB.
 - Generated Windows installer executable: 275,968 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
@@ -83,7 +83,7 @@ Current results:
    - Human-readable export evidence/source notes are bounded to compact claim and source-coverage summaries instead of duplicating full card content.
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
-   - The operational digest is generated on demand from the existing compact ledger result, so it adds a first-screen triage view without storing another summary copy.
+   - The operational digest and its copy-ready text export are generated on demand from the existing compact ledger result, so they add a first-screen triage and handoff view without storing another summary copy.
    - The list planning brief is generated on demand from existing bounded list context, capped to 12 sampled preview cards in the exported brief, and does not include neighboring descriptions, comments, attachments, or AI output.
    - List trend signals are generated on demand from the same bounded list metadata and add no Trello reads, AI calls, polling, or full-card content retention.
    - The batch analysis plan is generated on demand from the same bounded list context, capped to 12 queue seed cards, and does not run AI, fetch neighboring full card bodies, or start background processing.

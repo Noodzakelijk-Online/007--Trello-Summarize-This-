@@ -602,6 +602,10 @@
       <section id="operationalDigestPanel" class="panel">
         <h2 class="section-title">Operational digest</h2>
         <ul id="operationalDigestList" class="digest-list"></ul>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyDigestButton">Copy digest</button>
+        </div>
+        <p id="operationalDigestStatus" class="feedback-status"></p>
       </section>
 
       <section class="grid">
@@ -948,6 +952,9 @@
       document.getElementById("copyPlainTextButton").addEventListener("click", function () {
         copyLedgerExport("plain-text");
       });
+      document.getElementById("copyDigestButton").addEventListener("click", function () {
+        copyLedgerExport("operational-digest", "operationalDigestStatus");
+      });
       document.getElementById("copyModeBriefButton").addEventListener("click", function () {
         copyLedgerExport("mode-brief");
       });
@@ -1083,6 +1090,7 @@
         document.getElementById("exportSensitiveApprovalRow").classList.add("hidden");
         document.getElementById("exportSensitiveApproval").checked = false;
         document.getElementById("operationalDigestList").innerHTML = "";
+        document.getElementById("operationalDigestStatus").textContent = "";
         document.getElementById("attachmentFactsSummary").textContent = "Attachment facts will appear after analysis.";
         document.getElementById("attachmentFactsList").innerHTML = "";
         document.getElementById("listContextSummary").textContent = "List context will appear after analysis.";
@@ -2443,41 +2451,45 @@
         }
       }
 
-      function copyLedgerExport(format) {
+      function copyLedgerExport(format, statusId) {
+        var statusElement = document.getElementById(statusId || "exportStatus");
         if (!lastLedgerRun) {
-          document.getElementById("exportStatus").textContent = "Analyze the card first to create an export.";
+          statusElement.textContent = "Analyze the card first to create an export.";
           return;
         }
 
         var text = getLedgerExportText(format);
         var label = format === "ledger-json"
           ? "JSON"
-          : format === "status-update"
-            ? "Status update"
-            : format === "robert-decision-brief"
-              ? "Robert decision brief"
-              : format === "va-handoff-brief"
-                ? "VA handoff brief"
-                : format === "mode-brief"
-                  ? "Selected mode brief"
-                  : "Plain text";
+          : format === "operational-digest"
+            ? "Operational digest"
+            : format === "status-update"
+              ? "Status update"
+              : format === "robert-decision-brief"
+                ? "Robert decision brief"
+                : format === "va-handoff-brief"
+                  ? "VA handoff brief"
+                  : format === "mode-brief"
+                    ? "Selected mode brief"
+                    : "Plain text";
 
-        if (requireSensitiveExportApproval(format, "exportStatus", label + " export")) return;
+        if (requireSensitiveExportApproval(format, statusElement.id, label + " export")) return;
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = label + " copied";
-            document.getElementById("exportStatus").textContent = label + " export copied.";
+            statusElement.textContent = label + " export copied.";
             recordExport(format, "clipboard", null, true);
           }).catch(function () {
-            fallbackLedgerExportCopy(text, format, label);
+            fallbackLedgerExportCopy(text, format, label, statusElement.id);
           });
         } else {
-          fallbackLedgerExportCopy(text, format, label);
+          fallbackLedgerExportCopy(text, format, label, statusElement.id);
         }
       }
 
-      function fallbackLedgerExportCopy(text, format, label) {
+      function fallbackLedgerExportCopy(text, format, label, statusId) {
+        var statusElement = document.getElementById(statusId || "exportStatus");
         var textarea = document.createElement("textarea");
         textarea.value = text;
         textarea.setAttribute("readonly", "readonly");
@@ -2488,7 +2500,7 @@
         document.execCommand("copy");
         document.body.removeChild(textarea);
         elements.confidencePill.textContent = label + " copied";
-        document.getElementById("exportStatus").textContent = label + " export copied.";
+        statusElement.textContent = label + " export copied.";
         recordExport(format, "clipboard", null, true);
       }
 
@@ -2498,6 +2510,9 @@
         }
         if (format === "status-update") {
           return CardIntelligenceLedger.statusUpdateForLedgerRun(lastLedgerRun);
+        }
+        if (format === "operational-digest") {
+          return CardIntelligenceLedger.operationalDigestForLedgerRun(lastLedgerRun);
         }
         if (format === "robert-decision-brief") {
           return CardIntelligenceLedger.robertDecisionBriefForLedgerRun(lastLedgerRun);

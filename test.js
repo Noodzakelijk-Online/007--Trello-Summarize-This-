@@ -827,6 +827,10 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     now: "2026-06-29T12:07:03.000Z",
     cardId: run.cardId
   }),
+  CardIntelligenceLedger.createExportRecord(run.id, "operational-digest", "clipboard", {
+    now: "2026-06-29T12:07:04.000Z",
+    cardId: run.cardId
+  }),
   CardIntelligenceLedger.createExportRecord(run.id, "list-planning-json", "clipboard", {
     now: "2026-06-29T12:06:50.000Z",
     cardId: run.cardId
@@ -838,16 +842,17 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     now: "2026-06-29T12:07:05.000Z",
     cardId: run.cardId
   })
-], [run.id], 7);
-assert.equal(summarizedExports.length, 6);
+], [run.id], 8);
+assert.equal(summarizedExports.length, 7);
 assert.equal(summarizedExports[0].exportLabel, "Trello comment");
 assert.equal(summarizedExports[0].destinationLabel, "posted to Trello");
-assert.equal(summarizedExports[1].exportLabel, "VA/team handoff brief");
-assert.equal(summarizedExports[2].exportLabel, "Robert decision brief");
-assert.equal(summarizedExports[3].exportLabel, "Batch analysis JSON");
-assert.equal(summarizedExports[4].exportLabel, "Ledger JSON");
-assert.equal(summarizedExports[4].sensitiveReviewApproved, true);
-assert.equal(summarizedExports[5].exportLabel, "List planning JSON");
+assert.equal(summarizedExports[1].exportLabel, "Operational digest");
+assert.equal(summarizedExports[2].exportLabel, "VA/team handoff brief");
+assert.equal(summarizedExports[3].exportLabel, "Robert decision brief");
+assert.equal(summarizedExports[4].exportLabel, "Batch analysis JSON");
+assert.equal(summarizedExports[5].exportLabel, "Ledger JSON");
+assert.equal(summarizedExports[5].sensitiveReviewApproved, true);
+assert.equal(summarizedExports[6].exportLabel, "List planning JSON");
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
@@ -882,6 +887,16 @@ assert.ok(ledgerStatusUpdate.includes("Unclear point:"));
 assert.ok(ledgerStatusUpdate.includes("Open question:"));
 assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
 assert.ok(ledgerStatusUpdate.includes("Source coverage:"));
+
+const operationalDigestText = CardIntelligenceLedger.operationalDigestForLedgerRun(run);
+assert.ok(operationalDigestText.includes("Operational digest:"));
+assert.ok(operationalDigestText.includes("Current status:"));
+assert.ok(operationalDigestText.includes("Main blocker:"));
+assert.ok(operationalDigestText.includes("Top next action:"));
+assert.ok(operationalDigestText.includes("Robert decision:"));
+assert.ok(operationalDigestText.includes("VA/team handoff:"));
+assert.ok(operationalDigestText.includes("Confidence:"));
+assert.ok(operationalDigestText.includes("Source coverage:"));
 
 const robertDecisionBrief = CardIntelligenceLedger.robertDecisionBriefForLedgerRun(run);
 assert.ok(robertDecisionBrief.includes("Robert decision brief:"));
