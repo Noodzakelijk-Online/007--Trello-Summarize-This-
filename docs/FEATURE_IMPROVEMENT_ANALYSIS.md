@@ -42,7 +42,9 @@ Implemented:
 - It shows host-specific deployment steps and verification checks for GitHub Pages, Netlify, Vercel, or custom HTTPS hosting.
 - It provides a safe admin autofill bookmarklet that runs only on Trello's Power-Up admin page, fills matching Trello admin fields and capabilities, reports filled/missing fields, and does not save or submit the page.
 - It now renders a readiness checklist for HTTPS hosting, connector/manifest/icon URLs, required capabilities, and manual-save safety.
-- It can copy a deployment guide, Trello admin runbook, or JSON setup package containing exact admin values, validation state, deployment steps, manual steps, safety notes, and the autofill helper.
+- It now renders and exports an explicit Trello admin field map that lists each value, matched admin labels, and capability checkbox target used by the autofill helper.
+- It can copy a deployment guide, Trello admin runbook, field map, or JSON setup package containing exact admin values, validation state, deployment steps, manual steps, safety notes, admin field map, and the autofill helper.
+- The autofill helper is data-driven from the same field map and no longer treats a privacy-policy field as an overview URL fallback.
 
 Still recommended:
 

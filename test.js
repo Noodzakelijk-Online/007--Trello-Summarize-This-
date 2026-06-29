@@ -936,6 +936,21 @@ assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.exampl
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Capabilities: card-buttons, show-settings"));
 
+const adminFieldMap = TrelloAdminConfig.createAdminFieldMap(adminConfig);
+assert.ok(adminFieldMap.some((item) => item.key === "connectorUrl" && item.aliases.includes("iframe connector url")));
+assert.ok(adminFieldMap.some((item) => item.key === "capability:card-buttons" && item.type === "capability"));
+assert.ok(adminFieldMap.every((item) => Array.isArray(item.aliases) && item.aliases.length > 0));
+assert.equal(
+  adminFieldMap.some((item) => item.key === "overviewUrl" && item.aliases.includes("privacy policy url")),
+  false
+);
+
+const adminFieldMapText = TrelloAdminConfig.makeAdminFieldMapText(adminConfig);
+assert.ok(adminFieldMapText.includes("Trello Power-Up field map"));
+assert.ok(adminFieldMapText.includes("Field: iframe Connector URL"));
+assert.ok(adminFieldMapText.includes("Capability: card-buttons"));
+assert.doesNotMatch(adminFieldMapText, /sk-[a-z0-9]/i);
+
 const adminReadiness = TrelloAdminConfig.createAdminReadinessChecklist(
   adminConfig,
   TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/")
@@ -970,6 +985,7 @@ assert.equal(adminSetupPackage.generatedAt, "2026-06-29T12:08:00.000Z");
 assert.equal(adminSetupPackage.validation.isReadyForTrello, true);
 assert.equal(adminSetupPackage.adminValues.connectorUrl, adminConfig.connectorUrl);
 assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "connector-url" && item.ok));
+assert.ok(adminSetupPackage.adminFieldMap.some((item) => item.key === "connectorUrl"));
 assert.equal(adminSetupPackage.deploymentGuide.id, "github-pages");
 assert.ok(adminSetupPackage.deploymentGuide.steps.some((item) => item.includes("GitHub Pages")));
 assert.ok(adminSetupPackage.safetyNotes.some((item) => item.includes("does not save")));
@@ -981,8 +997,10 @@ const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminCon
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
 assert.ok(adminAutofillScript.includes("https://trello.com/power-ups/admin"));
+assert.ok(adminAutofillScript.includes("config.fields.forEach"));
 assert.ok(adminAutofillScript.includes("Missing:"));
 assert.ok(adminAutofillScript.includes("Review every field in Trello"));
+assert.equal(adminAutofillScript.includes("privacy policy url"), false);
 assert.doesNotMatch(adminAutofillScript, /form\.submit|submit\s*\(/i);
 assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
 assert.doesNotThrow(() => new Function(adminAutofillScript));

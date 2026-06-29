@@ -17,9 +17,9 @@ npm run analyze:resources
 Current results:
 
 - Active popup initial local files: about 300.6 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 446.6 KB.
+- Windows installer runtime payload: about 450.5 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.66 MB.
-- Generated Windows installer executable: 272,896 bytes.
+- Generated Windows installer executable: 275,968 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -55,7 +55,7 @@ Current results:
 4. Lightweight Windows runtime:
    - The installer includes only runtime static files and launcher scripts, not the full repository, docs, benchmarks, or prototype modules.
    - The Windows launcher uses PowerShell and a tiny local HTTP server, avoiding Electron and background services.
-   - The Trello setup assistant, deployment presets, deployment guide, URL validation, readiness package, and admin autofill helper add about 43.2 KB to the runtime payload and are not loaded by the active popup.
+   - The Trello setup assistant, deployment presets, deployment guide, URL validation, readiness package, admin field map, and admin autofill helper add about 47.1 KB to the runtime payload and are not loaded by the active popup.
    - Runtime entry pages declare the existing `icon.svg` as their favicon, avoiding an extra failed `/favicon.ico` request in local preview.
 
 5. No always-on service:
@@ -106,7 +106,7 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 443.2 KB, and the generated `SummarizeThisSetup.exe` is 272,896 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 450.5 KB, and the generated `SummarizeThisSetup.exe` is 275,968 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

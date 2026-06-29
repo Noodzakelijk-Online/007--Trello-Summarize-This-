@@ -238,19 +238,123 @@
 
   function makeAdminValuesText(config) {
     var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
+    var fieldMap = createAdminFieldMap(values).filter(function (item) {
+      return item.type !== "capability";
+    });
     return [
       "Summarize This Trello Power-Up setup",
       "",
-      "App name: " + values.appName,
-      "Author: " + values.author,
-      "Author email: " + values.authorEmail,
-      "Author URL: " + values.authorUrl,
-      "Overview URL: " + values.overviewUrl,
-      "Details: " + values.details,
-      "iframe Connector URL: " + values.connectorUrl,
-      "Manifest URL: " + values.manifestUrl,
-      "Icon URL: " + values.iconUrl,
+      fieldMap.map(function (item) {
+        return item.label + ": " + item.value;
+      }).join("\n"),
       "Capabilities: " + values.capabilities.join(", ")
+    ].join("\n");
+  }
+
+  function createAdminFieldMap(config) {
+    var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
+    var fields = [
+      {
+        key: "appName",
+        label: "App name",
+        value: values.appName,
+        required: true,
+        type: "text",
+        aliases: ["power up name", "power-up name", "app name", "name"]
+      },
+      {
+        key: "details",
+        label: "Details",
+        value: values.details,
+        required: true,
+        type: "textarea",
+        aliases: ["details", "description", "short description", "summary"]
+      },
+      {
+        key: "author",
+        label: "Author",
+        value: values.author,
+        required: true,
+        type: "text",
+        aliases: ["author", "author name", "company"]
+      },
+      {
+        key: "authorEmail",
+        label: "Author email",
+        value: values.authorEmail,
+        required: true,
+        type: "email",
+        aliases: ["author email", "support email", "contact email"]
+      },
+      {
+        key: "authorUrl",
+        label: "Author URL",
+        value: values.authorUrl,
+        required: false,
+        type: "url",
+        aliases: ["author url", "author website", "website"]
+      },
+      {
+        key: "overviewUrl",
+        label: "Overview URL",
+        value: values.overviewUrl,
+        required: false,
+        type: "url",
+        aliases: ["overview url", "iframe overview url", "power up overview url", "power-up overview url"]
+      },
+      {
+        key: "connectorUrl",
+        label: "iframe Connector URL",
+        value: values.connectorUrl,
+        required: true,
+        type: "url",
+        aliases: ["iframe connector url", "connector url", "iframe url"]
+      },
+      {
+        key: "manifestUrl",
+        label: "Manifest URL",
+        value: values.manifestUrl,
+        required: false,
+        type: "url",
+        aliases: ["manifest url"]
+      },
+      {
+        key: "iconUrl",
+        label: "Icon URL",
+        value: values.iconUrl,
+        required: false,
+        type: "url",
+        aliases: ["icon url", "icon"]
+      }
+    ];
+
+    toArray(values.capabilities).forEach(function (capability) {
+      var readable = String(capability).replace(/-/g, " ");
+      fields.push({
+        key: "capability:" + capability,
+        label: capability,
+        value: capability,
+        required: capability === "card-buttons" || capability === "show-settings",
+        type: "capability",
+        aliases: [capability, readable]
+      });
+    });
+
+    return fields;
+  }
+
+  function makeAdminFieldMapText(config) {
+    var fieldMap = createAdminFieldMap(config);
+    return [
+      "Summarize This Trello Power-Up field map",
+      "",
+      fieldMap.map(function (item) {
+        var prefix = item.type === "capability" ? "Capability" : "Field";
+        var required = item.required ? "required" : "optional";
+        return "- " + prefix + ": " + item.label + " (" + required + ")\n" +
+          "  Value: " + item.value + "\n" +
+          "  Trello labels matched by helper: " + item.aliases.join(", ");
+      }).join("\n")
     ].join("\n");
   }
 
@@ -346,6 +450,7 @@
         capabilities: values.capabilities
       },
       readinessChecklist: createAdminReadinessChecklist(values, status),
+      adminFieldMap: createAdminFieldMap(values),
       deploymentGuide: createDeploymentGuide(
         options && options.deploymentPresetId,
         status.baseUrl,
@@ -374,16 +479,7 @@
   function createAdminAutofillScript(config) {
     var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
     var payload = JSON.stringify({
-      appName: values.appName,
-      details: values.details,
-      author: values.author,
-      authorEmail: values.authorEmail,
-      authorUrl: values.authorUrl,
-      overviewUrl: values.overviewUrl,
-      connectorUrl: values.connectorUrl,
-      manifestUrl: values.manifestUrl,
-      iconUrl: values.iconUrl,
-      capabilities: values.capabilities
+      fields: createAdminFieldMap(values)
     });
 
     return "(function(){'use strict';var config=" + payload + ";" +
@@ -397,16 +493,7 @@
       "function setField(labels,value){var wanted=labels.map(norm);var field=candidates().find(function(el){var type=(el.type||'').toLowerCase();if(type==='checkbox'||type==='radio'||type==='submit'||type==='button'||type==='hidden')return false;var text=textFor(el);return wanted.some(function(label){return text.indexOf(label)!==-1;});});if(!field)return false;field.focus();field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));field.style.outline='2px solid #1f845a';return true;}" +
       "function setCapability(capability){var readable=norm(capability);var compact=readable.replace(/ /g,'');var boxes=Array.prototype.slice.call(document.querySelectorAll('input[type=\"checkbox\"]'));var box=boxes.find(function(el){var text=textFor(el);return text.indexOf(readable)!==-1||text.replace(/ /g,'').indexOf(compact)!==-1;});if(!box)return false;if(!box.checked){box.checked=true;box.dispatchEvent(new Event('input',{bubbles:true}));box.dispatchEvent(new Event('change',{bubbles:true}));}box.style.outline='2px solid #1f845a';return true;}" +
       "var result=[];" +
-      "result.push(['Power-Up name',setField(['power up name','power-up name','app name','name'],config.appName)]);" +
-      "result.push(['Details',setField(['details','description','short description','summary'],config.details)]);" +
-      "result.push(['Author',setField(['author','company'],config.author)]);" +
-      "result.push(['Author email',setField(['author email','support email','contact email'],config.authorEmail)]);" +
-      "result.push(['Author URL',setField(['author url','author website','website'],config.authorUrl)]);" +
-      "result.push(['Overview URL',setField(['overview url','iframe overview url','privacy policy url'],config.overviewUrl)]);" +
-      "result.push(['iframe Connector URL',setField(['iframe connector url','connector url','iframe url'],config.connectorUrl)]);" +
-      "result.push(['Manifest URL',setField(['manifest url'],config.manifestUrl)]);" +
-      "result.push(['Icon URL',setField(['icon url','icon'],config.iconUrl)]);" +
-      "config.capabilities.forEach(function(capability){result.push([capability,setCapability(capability)]);});" +
+      "config.fields.forEach(function(item){var filled=item.type==='capability'?setCapability(item.value):setField(item.aliases,item.value);result.push([item.label,filled]);});" +
       "var filled=result.filter(function(item){return item[1];}).length;var missing=result.filter(function(item){return !item[1];}).map(function(item){return item[0];});show(missing.length?'warn':'ok','Summarize This filled '+filled+' of '+result.length+' admin value(s).',missing);console.table(result.map(function(item){return{field:item[0],filled:item[1]};}));" +
     "}());";
   }
@@ -449,10 +536,12 @@
     createDeploymentGuide: createDeploymentGuide,
     buildHostedUrl: buildHostedUrl,
     createAdminConfig: createAdminConfig,
+    createAdminFieldMap: createAdminFieldMap,
     createAdminReadinessChecklist: createAdminReadinessChecklist,
     createAdminSetupPackage: createAdminSetupPackage,
     makeDeploymentGuideText: makeDeploymentGuideText,
     makeAdminValuesText: makeAdminValuesText,
+    makeAdminFieldMapText: makeAdminFieldMapText,
     makeAdminRunbookText: makeAdminRunbookText,
     createAdminAutofillScript: createAdminAutofillScript,
     createAdminBookmarklet: createAdminBookmarklet

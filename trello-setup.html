@@ -275,6 +275,33 @@
       font-weight: 700;
     }
 
+    .field-map {
+      display: grid;
+      gap: 8px;
+      margin: 8px 0 0;
+    }
+
+    .field-map-item {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .field-map-item:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .field-map-item strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .field-map-item code {
+      overflow-wrap: anywhere;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+
     @media (max-width: 780px) {
       .grid {
         grid-template-columns: 1fr;
@@ -390,8 +417,10 @@
           <h2>Admin readiness package</h2>
           <p class="help">Copy a review checklist or JSON package with exact admin values, validation state, manual steps, safety notes, and the autofill helper.</p>
           <ul id="readinessChecklist" class="checklist"></ul>
+          <div id="adminFieldMap" class="field-map"></div>
           <div class="actions">
             <button id="copyRunbookButton" class="secondary" type="button">Copy admin checklist</button>
+            <button id="copyFieldMapButton" class="secondary" type="button">Copy field map</button>
             <button id="copySetupPackageButton" class="secondary" type="button">Copy setup package JSON</button>
           </div>
         </div>
@@ -462,6 +491,7 @@
         urlStatusTitle: document.getElementById("urlStatusTitle"),
         urlStatusText: document.getElementById("urlStatusText"),
         readinessChecklist: document.getElementById("readinessChecklist"),
+        adminFieldMap: document.getElementById("adminFieldMap"),
         deploymentGuideIntro: document.getElementById("deploymentGuideIntro"),
         deploymentStepList: document.getElementById("deploymentStepList"),
         deploymentVerificationList: document.getElementById("deploymentVerificationList"),
@@ -476,6 +506,7 @@
       document.getElementById("copyAllButton").addEventListener("click", copyAllValues);
       document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
       document.getElementById("copyRunbookButton").addEventListener("click", copyAdminRunbook);
+      document.getElementById("copyFieldMapButton").addEventListener("click", copyAdminFieldMap);
       document.getElementById("copySetupPackageButton").addEventListener("click", copySetupPackage);
       document.getElementById("copyDeploymentGuideButton").addEventListener("click", copyDeploymentGuide);
       fields.hostedBaseUrl.addEventListener("input", function () {
@@ -565,6 +596,7 @@
         document.getElementById("iconUrl").textContent = iconUrl;
         fields.localNotice.style.display = validation.isReadyForTrello ? "none" : "block";
         renderReadinessChecklist(adminConfig, validation);
+        renderAdminFieldMap(adminConfig);
         renderDeploymentGuide(baseUrl);
 
         if (validation.isReadyForTrello) {
@@ -586,6 +618,26 @@
           li.className = item.ok ? "ok" : "warn";
           li.textContent = (item.ok ? "Ready: " : "Review: ") + item.label + " - " + item.detail;
           fields.readinessChecklist.appendChild(li);
+        });
+      }
+
+      function renderAdminFieldMap(adminConfig) {
+        var items = TrelloAdminConfig.createAdminFieldMap(adminConfig);
+        fields.adminFieldMap.innerHTML = "";
+        items.forEach(function (item) {
+          var row = document.createElement("div");
+          row.className = "field-map-item";
+          var title = document.createElement("strong");
+          title.textContent = item.type === "capability" ? "Capability: " + item.label : "Field: " + item.label;
+          var value = document.createElement("code");
+          value.textContent = item.value;
+          var help = document.createElement("p");
+          help.className = "help";
+          help.textContent = "Helper matches: " + item.aliases.join(", ");
+          row.appendChild(title);
+          row.appendChild(value);
+          row.appendChild(help);
+          fields.adminFieldMap.appendChild(row);
         });
       }
 
@@ -631,6 +683,12 @@
         var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
         var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
         copyText(TrelloAdminConfig.makeAdminRunbookText(adminConfig, validation), "Admin checklist copied.");
+      }
+
+      function copyAdminFieldMap() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        copyText(TrelloAdminConfig.makeAdminFieldMapText(adminConfig), "Admin field map copied.");
       }
 
       function copySetupPackage() {
