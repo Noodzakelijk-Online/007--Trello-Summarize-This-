@@ -353,28 +353,37 @@ assert.ok(sensitiveExportRecord.sensitiveReview.categories.includes("financial")
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
 assert.ok(ledgerMarkdown.includes("VA collect"));
+assert.ok(ledgerMarkdown.includes("## Evidence-backed claims"));
+assert.ok(ledgerMarkdown.includes("## Source coverage"));
+assert.ok(ledgerMarkdown.includes("Attachments (partial):"));
 
 const ledgerPlainText = CardIntelligenceLedger.plainTextForLedgerRun(run);
 assert.ok(ledgerPlainText.includes("Trello Card Intelligence"));
 assert.ok(ledgerPlainText.includes("Missing information:"));
 assert.ok(ledgerPlainText.includes("Robert decisions:"));
+assert.ok(ledgerPlainText.includes("Evidence-backed claims:"));
+assert.ok(ledgerPlainText.includes("Source coverage:"));
 
 const ledgerStatusUpdate = CardIntelligenceLedger.statusUpdateForLedgerRun(run);
 assert.ok(ledgerStatusUpdate.includes("Status update:"));
 assert.ok(ledgerStatusUpdate.includes("Top next action:"));
 assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
+assert.ok(ledgerStatusUpdate.includes("Source coverage:"));
 
 const meetingBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run);
 assert.ok(meetingBrief.includes("Meeting brief:"));
 assert.ok(meetingBrief.includes("Decisions to cover:"));
+assert.ok(meetingBrief.includes("Source coverage:"));
 
 const riskBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "risk-review");
 assert.ok(riskBrief.includes("Risk review:"));
 assert.ok(riskBrief.includes("Validation findings:"));
+assert.ok(riskBrief.includes("Evidence-backed claims:"));
 
 const checklistBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "next-action-checklist");
 assert.ok(checklistBrief.includes("Next-action checklist:"));
 assert.ok(checklistBrief.includes("- [ ]"));
+assert.ok(checklistBrief.includes("Evidence-backed claims:"));
 
 const ledgerJson = JSON.parse(CardIntelligenceLedger.jsonForLedgerRun(run, {
   now: "2026-06-29T12:07:00.000Z"
@@ -391,6 +400,8 @@ assert.ok(trelloCommentDraft.includes("Summarize This - Card Intelligence"));
 assert.ok(trelloCommentDraft.includes("Robert decisions:"));
 assert.ok(trelloCommentDraft.includes("VA/team-ready actions:"));
 assert.ok(trelloCommentDraft.includes("Confidence:"));
+assert.ok(trelloCommentDraft.includes("Evidence notes:"));
+assert.ok(trelloCommentDraft.includes("Source coverage:"));
 assert.ok(trelloCommentDraft.includes("Review note:"));
 assert.ok(trelloCommentDraft.length <= 4000);
 

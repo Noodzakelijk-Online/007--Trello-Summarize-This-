@@ -40,6 +40,7 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 - The Source coverage UI shows available, partial, missing, and failed source reads so missing comments or metadata-only attachments are explicit.
 - Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
 - JSON export uses the compact ledger run and card snapshot. It does not include full card descriptions, but evidence excerpts may still contain card context selected by the analysis.
+- Human-readable exports now include bounded evidence-backed claims and source coverage, so copied markdown/plain text/status briefs and Trello comment drafts remain traceable outside the popup.
 - Trello comment writeback is capability-dependent. If the Trello Power-Up runtime does not expose a supported comment API, the popup remains copy-only.
 - Trello description writeback is not implemented.
 - The ledger still keeps deterministic extraction as a fallback when an AI provider omits structured operational fields.

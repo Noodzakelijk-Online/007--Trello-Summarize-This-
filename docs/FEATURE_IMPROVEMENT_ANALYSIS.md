@@ -182,11 +182,11 @@ Status: Mostly implemented for the active popup. It now copies markdown, plain t
 Recommendation:
 
 - Add copy formats:
-  - Markdown. Implemented.
-  - Plain text. Implemented.
+  - Markdown. Implemented with bounded evidence-backed claims and source coverage.
+  - Plain text. Implemented with bounded evidence-backed claims and source coverage.
   - Structured JSON for Sneup/HAI ingestion. Implemented.
-  - Trello comment. Implemented as an approval-gated draft/post flow when the Trello runtime exposes a supported comment API.
-  - Email/status update. Implemented as a copy-ready status format.
+  - Trello comment. Implemented as an approval-gated draft/post flow with compact evidence/source notes when the Trello runtime exposes a supported comment API.
+  - Email/status update. Implemented as a copy-ready status format with compact source coverage.
 
 Impact: Medium. Low implementation cost, high workflow usefulness.
 
