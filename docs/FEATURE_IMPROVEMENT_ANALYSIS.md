@@ -18,10 +18,10 @@ Implemented:
 
 - Creates a private analysis run per card with a card snapshot, input hash, provider/model metadata, structured result, evidence claims, validation findings, and audit event.
 - Extracts blockers, next actions, Robert decision items, and VA/team-ready actions from the existing summary and card data.
-- Stores history, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
+- Stores history, review state, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
 - Reads matching prior corrections back into the next analysis run as guidance, while keeping them distinct from verified Trello evidence.
 - Avoids silently writing analysis results to shared card storage.
-- Shows evidence, validation, decision, blocker, export/postback history, prior-correction, and correction panels in the active popup.
+- Shows evidence, validation, decision, blocker, review-state, export/postback history, prior-correction, and correction panels in the active popup.
 
 Impact: High. This turns the active popup into the first real card intelligence layer instead of only a summary display.
 
@@ -146,6 +146,14 @@ Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelli
 - The next run reads recent matching corrections from private storage and includes compact correction guidance in local analysis, AI prompts, source coverage, and the popup.
 - Prior corrections are shown as guidance, not as verified Trello facts, to avoid turning user feedback into unsupported claims.
 - Sensitive detection also sees correction text before provider handoff, so sensitive feedback does not silently travel to AI providers.
+
+### 5e. Analysis Review State
+
+Status: Implemented in the active popup and `card-intelligence-ledger.js`.
+
+- Each analysis can be privately marked as reviewed, accepted, or needing follow-up.
+- Review records are stored in member-private Power-Up storage and filtered to the current card's analysis run ids.
+- The review panel starts from the calculated confidence/review-needed state, but the explicit user review state is stored separately from AI claims.
 
 ### 6. Attachment Content Extraction
 

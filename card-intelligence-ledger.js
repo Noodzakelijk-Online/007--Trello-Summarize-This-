@@ -1104,6 +1104,72 @@
     };
   }
 
+  function createReviewRecord(analysisRunId, review, options) {
+    var state = normalizeReviewState(review && review.state);
+    var confidence = review && review.confidence ? review.confidence : {};
+    return {
+      id: "review-" + shortHash(analysisRunId + state + nowIso(options) + JSON.stringify(review || {})),
+      analysisRunId: cleanText(analysisRunId),
+      cardId: cleanText(review && review.cardId),
+      cardTitle: cleanText(review && review.cardTitle),
+      state: state,
+      label: reviewStateLabel(state),
+      note: truncateForExport(review && review.note, 300),
+      reviewNeededAtCreation: Boolean(review && review.reviewNeededAtCreation),
+      confidenceOverall: toNumber(confidence.overall),
+      confidenceLevel: cleanText(confidence.level),
+      createdAt: nowIso(options)
+    };
+  }
+
+  function summarizeReviewRecords(records, analysisRunIds, limit) {
+    var allowedRuns = {};
+    toArray(analysisRunIds).map(cleanText).filter(Boolean).forEach(function (id) {
+      allowedRuns[id] = true;
+    });
+
+    return toArray(records).filter(function (record) {
+      var runId = cleanText(record && record.analysisRunId);
+      return runId && (!Object.keys(allowedRuns).length || allowedRuns[runId]);
+    }).sort(function (a, b) {
+      return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+    }).slice(0, limit || 8).map(function (record) {
+      var state = normalizeReviewState(record.state);
+      return {
+        id: cleanText(record.id),
+        analysisRunId: cleanText(record.analysisRunId),
+        cardId: cleanText(record.cardId),
+        cardTitle: cleanText(record.cardTitle),
+        state: state,
+        label: reviewStateLabel(state),
+        note: truncateForExport(record.note, 300),
+        reviewNeededAtCreation: Boolean(record.reviewNeededAtCreation),
+        confidenceOverall: toNumber(record.confidenceOverall),
+        confidenceLevel: cleanText(record.confidenceLevel),
+        createdAt: record.createdAt || ""
+      };
+    });
+  }
+
+  function normalizeReviewState(value) {
+    var state = cleanText(value || "reviewed").toLowerCase();
+    var allowed = {
+      reviewed: true,
+      accepted: true,
+      "needs-follow-up": true
+    };
+    return allowed[state] ? state : "reviewed";
+  }
+
+  function reviewStateLabel(state) {
+    var labels = {
+      reviewed: "Reviewed",
+      accepted: "Accepted",
+      "needs-follow-up": "Needs follow-up"
+    };
+    return labels[normalizeReviewState(state)];
+  }
+
   function createSensitiveActionReview(signals, actionType, approved, options) {
     var categories = toArray(signals && signals.categories).map(cleanText).filter(Boolean);
     var matches = toArray(signals && signals.matches).map(cleanText).filter(Boolean).slice(0, 20);
@@ -1561,7 +1627,9 @@
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,
     createHumanFeedback: createHumanFeedback,
+    createReviewRecord: createReviewRecord,
     summarizeExportRecords: summarizeExportRecords,
+    summarizeReviewRecords: summarizeReviewRecords,
     normalizePriorFeedback: normalizePriorFeedback,
     createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,

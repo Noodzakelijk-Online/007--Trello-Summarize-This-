@@ -322,6 +322,35 @@ assert.equal(feedback.analysisRunId, run.id);
 assert.equal(feedback.correctionText, "The invoice amount is still missing.");
 assert.equal(feedback.cardId, run.cardId);
 
+const reviewRecord = CardIntelligenceLedger.createReviewRecord(run.id, {
+  state: "needs-follow-up",
+  note: "Robert should review the approval wording before use.",
+  cardId: run.cardId,
+  cardTitle: run.cardSnapshot.title,
+  reviewNeededAtCreation: run.result.confidence.reviewNeeded,
+  confidence: run.result.confidence
+}, {
+  now: "2026-06-29T12:05:30.000Z"
+});
+assert.equal(reviewRecord.analysisRunId, run.id);
+assert.equal(reviewRecord.state, "needs-follow-up");
+assert.equal(reviewRecord.label, "Needs follow-up");
+assert.equal(reviewRecord.cardId, run.cardId);
+assert.equal(reviewRecord.createdAt, "2026-06-29T12:05:30.000Z");
+
+const summarizedReviews = CardIntelligenceLedger.summarizeReviewRecords([
+  reviewRecord,
+  CardIntelligenceLedger.createReviewRecord("other-run", { state: "accepted" }, {
+    now: "2026-06-29T12:05:35.000Z"
+  }),
+  CardIntelligenceLedger.createReviewRecord(run.id, { state: "accepted" }, {
+    now: "2026-06-29T12:05:40.000Z"
+  })
+], [run.id], 5);
+assert.equal(summarizedReviews.length, 2);
+assert.equal(summarizedReviews[0].state, "accepted");
+assert.equal(summarizedReviews[1].state, "needs-follow-up");
+
 const exportRecord = CardIntelligenceLedger.createExportRecord(run.id, "markdown", "clipboard", {
   now: "2026-06-29T12:06:00.000Z"
 });

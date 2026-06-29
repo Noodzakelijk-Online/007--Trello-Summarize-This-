@@ -616,6 +616,19 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">Analysis review state</h2>
+        <p id="reviewStateSummary" class="section-body">Review state will appear after analysis.</p>
+        <ul id="reviewStateList" class="compact-list"></ul>
+        <textarea id="reviewNote" placeholder="Optional private review note"></textarea>
+        <div class="actions">
+          <button class="secondary" type="button" id="markReviewedButton">Mark reviewed</button>
+          <button class="secondary" type="button" id="acceptSummaryButton">Accept summary</button>
+          <button class="secondary" type="button" id="needsFollowUpButton">Needs follow-up</button>
+        </div>
+        <p id="reviewStateStatus" class="feedback-status"></p>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">History</h2>
         <p id="historyChangeText" class="section-body">No previous analyses yet.</p>
         <ul id="historyChangeList" class="compact-list"></ul>
@@ -697,6 +710,7 @@
       var lastLedgerRun = null;
       var lastHistoryRuns = [];
       var lastExportRecords = [];
+      var lastReviewRecords = [];
       var lastSettings = null;
       var lastSensitiveSignals = null;
       var inTrello = Boolean(
@@ -740,6 +754,15 @@
       });
       document.getElementById("wrongButton").addEventListener("click", function () {
         saveFeedback("wrong");
+      });
+      document.getElementById("markReviewedButton").addEventListener("click", function () {
+        saveReviewState("reviewed");
+      });
+      document.getElementById("acceptSummaryButton").addEventListener("click", function () {
+        saveReviewState("accepted");
+      });
+      document.getElementById("needsFollowUpButton").addEventListener("click", function () {
+        saveReviewState("needs-follow-up");
       });
       document.getElementById("historyList").addEventListener("click", copyHistoryRun);
       document.getElementById("postbackApproval").addEventListener("change", updatePostbackControls);
@@ -819,6 +842,7 @@
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
           renderHistory(lastHistoryRuns);
+          await loadAndRenderReviewState();
           await loadAndRenderExportHistory();
         } catch (error) {
           showError(error.message || String(error));
@@ -851,6 +875,10 @@
         document.getElementById("basedOnList").innerHTML = "";
         document.getElementById("needsReviewList").innerHTML = "";
         document.getElementById("whyScoreList").innerHTML = "";
+        document.getElementById("reviewStateSummary").textContent = "Review state will appear after analysis.";
+        document.getElementById("reviewStateList").innerHTML = "";
+        document.getElementById("reviewNote").value = "";
+        document.getElementById("reviewStateStatus").textContent = "";
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
@@ -1959,6 +1987,13 @@
         renderExportHistory(lastExportRecords);
       }
 
+      async function loadAndRenderReviewState() {
+        var records = await readPrivateObject("summarizeThisReviewRecords", []);
+        if (!Array.isArray(records)) records = [];
+        lastReviewRecords = CardIntelligenceLedger.summarizeReviewRecords(records, currentAnalysisRunIds(), 8);
+        renderReviewState(lastReviewRecords);
+      }
+
       function currentAnalysisRunIds() {
         var ids = [];
         if (lastLedgerRun && lastLedgerRun.id) ids.push(lastLedgerRun.id);
@@ -1989,6 +2024,42 @@
             ? " Sensitive review " + (record.sensitiveReviewApproved ? "approved" : "required") + (record.sensitiveCategories.length ? " for " + record.sensitiveCategories.join(", ") + "." : ".")
             : "";
           item.textContent = record.exportLabel + " " + record.destinationLabel + " on " + formatDate(record.createdAt) + "." + sensitiveText;
+          list.appendChild(item);
+        });
+      }
+
+      function renderReviewState(records) {
+        var list = document.getElementById("reviewStateList");
+        var summary = document.getElementById("reviewStateSummary");
+        var items = Array.isArray(records) ? records : [];
+        list.innerHTML = "";
+
+        if (!lastLedgerRun) {
+          summary.textContent = "Analyze the card before recording review state.";
+          return;
+        }
+
+        if (!items.length) {
+          var confidence = lastLedgerRun.result && lastLedgerRun.result.confidence ? lastLedgerRun.result.confidence : {};
+          summary.textContent = confidence.reviewNeeded
+            ? "Review recommended before relying on this analysis."
+            : "No review record yet for this analysis.";
+          var empty = document.createElement("li");
+          empty.textContent = "Use the buttons below to record private review state for this run.";
+          list.appendChild(empty);
+          return;
+        }
+
+        var latest = items[0];
+        summary.textContent = "Latest state: " + latest.label + " on " + formatDate(latest.createdAt) + ".";
+        items.forEach(function (record) {
+          var item = document.createElement("li");
+          var confidence = record.confidenceOverall
+            ? " Confidence was " + record.confidenceOverall + "% " + (record.confidenceLevel || "") + "."
+            : "";
+          var note = record.note ? " Note: " + record.note : "";
+          var reviewFlag = record.reviewNeededAtCreation ? " Review was recommended when recorded." : "";
+          item.textContent = record.label + " on " + formatDate(record.createdAt) + "." + confidence + reviewFlag + note;
           list.appendChild(item);
         });
       }
@@ -2053,6 +2124,26 @@
         records.unshift(record);
         await writePrivateObject("summarizeThisExportRecords", records.slice(0, 100));
         await loadAndRenderExportHistory();
+      }
+
+      async function saveReviewState(state) {
+        if (!lastLedgerRun) return;
+        var confidence = lastLedgerRun.result && lastLedgerRun.result.confidence ? lastLedgerRun.result.confidence : {};
+        var record = CardIntelligenceLedger.createReviewRecord(lastLedgerRun.id, {
+          state: state,
+          note: document.getElementById("reviewNote").value,
+          cardId: lastLedgerRun.cardId,
+          cardTitle: lastLedgerRun.cardSnapshot && lastLedgerRun.cardSnapshot.title,
+          reviewNeededAtCreation: Boolean(confidence.reviewNeeded),
+          confidence: confidence
+        });
+        var records = await readPrivateObject("summarizeThisReviewRecords", []);
+        if (!Array.isArray(records)) records = [];
+        records.unshift(record);
+        await writePrivateObject("summarizeThisReviewRecords", records.slice(0, 100));
+        document.getElementById("reviewStateStatus").textContent = record.label + " saved privately for this analysis.";
+        document.getElementById("reviewNote").value = "";
+        await loadAndRenderReviewState();
       }
 
       async function saveFeedback(rating) {

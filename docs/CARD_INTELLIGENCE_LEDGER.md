@@ -16,6 +16,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `DecisionItem`: Robert-specific approval or Yes/No decision candidates.
 - `VA/team-ready action`: delegate-ready actions that do not require Robert approval.
 - `ValidationFinding`: missing context, attachment metadata-only state, weak next actions, and decision review signals.
+- `ReviewRecord`: private analysis review state such as reviewed, accepted, or needs follow-up.
 - `HumanFeedback`: private correction/rating records.
 - `ExportRecord`: private copy/export history.
 - `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, attachments, and custom fields.
@@ -24,12 +25,14 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - Ledger export formats: the popup can copy markdown, plain text, status/email text, copy structured JSON, and download compact JSON for Sneup/HAI-style ingestion.
 - Trello comment approval: the popup generates an exact comment draft, supports copy-only use, and only attempts Trello posting after the user checks an approval box and confirms the action.
 - Export/postback history: the popup shows recent private export, copy, download, and Trello comment records for the current card's analysis runs.
+- Review state: the popup lets the user privately mark an analysis reviewed, accepted, or needing follow-up.
 
 ## Storage
 
 The active popup stores ledger history, feedback, and export records in Trello member-private Power-Up storage:
 
 - `summarizeThisLedgerHistory`
+- `summarizeThisReviewRecords`
 - `summarizeThisFeedback`
 - `summarizeThisExportRecords`
 
@@ -38,6 +41,7 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 ## Current Limits
 
 - The history UI shows the current run, recent previous runs, change summary, confidence trend, and copy controls for older runs.
+- The review-state UI shows whether the current analysis has been reviewed, accepted, or marked for follow-up.
 - The export history UI shows recent copy/download/postback records filtered to the current card's analysis run ids.
 - The Source coverage UI shows available, partial, missing, and failed source reads so missing comments or metadata-only attachments are explicit.
 - Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
