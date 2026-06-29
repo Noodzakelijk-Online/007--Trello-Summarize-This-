@@ -306,6 +306,50 @@
     return truncate(value, 600);
   }
 
+  function normalizePromptTemplates(records) {
+    var seen = {};
+    return toArray(records).map(function (record, index) {
+      var instructions = normalizeCustomInstructions(
+        record && (record.instructions || record.customInstructions || record.text)
+      );
+      var name = truncate(record && record.name ? record.name : "Template " + (index + 1), 60);
+      var id = cleanText(record && record.id)
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80);
+      if (!id) id = "template-" + (index + 1);
+      if (seen[id]) id = id + "-" + (index + 1);
+      seen[id] = true;
+      return {
+        id: id,
+        name: name,
+        instructions: instructions,
+        createdAt: cleanText(record && record.createdAt),
+        updatedAt: cleanText(record && record.updatedAt)
+      };
+    }).filter(function (record) {
+      return record.name && record.instructions;
+    }).slice(0, 10);
+  }
+
+  function normalizePromptTemplateSettings(settings) {
+    var source = settings || {};
+    var templates = normalizePromptTemplates(source.promptTemplates);
+    var selectedId = cleanText(source.selectedPromptTemplateId);
+    var selected = templates.filter(function (template) {
+      return template.id === selectedId;
+    })[0] || null;
+    var customInstructions = normalizeCustomInstructions(source.customInstructions);
+    if (!customInstructions && selected) customInstructions = selected.instructions;
+
+    return {
+      customInstructions: customInstructions,
+      selectedPromptTemplateId: selected ? selected.id : "",
+      selectedPromptTemplateName: selected ? selected.name : "",
+      promptTemplates: templates
+    };
+  }
+
   function getObjectName(value) {
     if (!value) return "";
     if (typeof value === "string") return cleanText(value);
@@ -737,7 +781,8 @@
     var card = normalizeCardData(input);
     var context = normalizePromptContext(options);
     var outputMode = normalizeOutputMode(options && options.outputMode);
-    var customInstructions = normalizeCustomInstructions(options && options.customInstructions);
+    var promptTemplateSettings = normalizePromptTemplateSettings(options);
+    var customInstructions = promptTemplateSettings.customInstructions;
     var comments = compactCommentsForPrompt(card.comments, context);
     var payload = {
       outputMode: {
@@ -745,6 +790,10 @@
         label: getOutputModeLabel(outputMode),
         instruction: getOutputModeInstruction(outputMode)
       },
+      promptTemplate: promptTemplateSettings.selectedPromptTemplateId ? {
+        id: promptTemplateSettings.selectedPromptTemplateId,
+        name: promptTemplateSettings.selectedPromptTemplateName
+      } : null,
       customInstructions: customInstructions,
       name: card.name,
       description: truncate(card.desc, context.descriptionCharacters),
@@ -1194,6 +1243,8 @@
     normalizeOutputMode: normalizeOutputMode,
     normalizeCustomFields: normalizeCustomFields,
     normalizeCustomInstructions: normalizeCustomInstructions,
+    normalizePromptTemplates: normalizePromptTemplates,
+    normalizePromptTemplateSettings: normalizePromptTemplateSettings,
     normalizeProviderKey: normalizeProviderKey,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,

@@ -365,70 +365,34 @@ Analyze multiple cards at once instead of one by one.
 
 ### What are Custom Prompts?
 
-Tailor the AI analysis to your specific needs by creating custom prompt templates.
-
-### Default Prompt Templates
-
-**Default Analysis:**
-- Standard four-part summary
-- General-purpose analysis
-- Suitable for all card types
-
-**Technical Focus:**
-- Emphasis on implementation details
-- Code and architecture insights
-- Best for development teams
-
-**Business Focus:**
-- ROI and business value analysis
-- Strategic recommendations
-- Best for product managers
-
-**Agile/Sprint Focus:**
-- User story analysis
-- Sprint planning insights
-- Velocity and burndown tracking
-
-**Creative/Marketing Focus:**
-- Creative execution analysis
-- Marketing strategy insights
-- Audience engagement metrics
+Tailor AI analysis by saving reusable Robert workflow guidance templates. Guidance is added to AI prompts only when AI mode is used, and it cannot override evidence requirements, privacy safeguards, or Trello write-approval rules.
 
 ### Creating Custom Prompts
 
-1. Click "Custom Prompts"
-2. Click "Add Custom Prompt"
-3. Fill in details:
-   - **Name**: Descriptive title
-   - **Description**: What it's used for
-   - **System Message**: AI role and context
-   - **Template**: Analysis structure (use `{{CARD_DATA}}` placeholder)
-4. Click "Add Prompt"
+1. Open Power-Up settings.
+2. Enter a template name.
+3. Add active Robert workflow guidance, such as "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
+4. Click "Save template".
+5. Click "Save settings" if you want the selected template to be the active default.
 
 ### Using Custom Prompts
 
-1. Select card to analyze
-2. Choose "Custom Prompt" strategy
-3. Select your template from dropdown
-4. Start analysis
+1. Open Power-Up settings.
+2. Choose a saved guidance template from the dropdown.
+3. Review or edit the active guidance text.
+4. Save settings.
+5. Run analysis from a Trello card.
 
 ### Managing Prompts
 
-- **View**: See full prompt details
-- **Edit**: Modify custom prompts
-- **Duplicate**: Create variations
-- **Delete**: Remove unused prompts
-- **Export**: Save prompts as JSON
-- **Import**: Load prompts from file
+- **Save template**: Creates a new member-private template or updates the selected one.
+- **Delete template**: Removes the selected saved template.
+- **Active guidance**: The text currently used for AI prompt guidance.
+- **Template cap**: The app keeps up to 10 saved templates, each with guidance capped to 600 characters.
 
-### Prompt Variables
+### Privacy Notes
 
-Use these placeholders in templates:
-- `{{CARD_DATA}}`: Complete card information
-- `{{CARD_NAME}}`: Card title only
-- `{{CARD_DESC}}`: Card description only
-- `{{BOARD_NAME}}`: Board name
-- `{{LIST_NAME}}`: List name
+Prompt templates are stored in member-private Power-Up settings. Ledger exports include only template id/name plus a hash and character count for the active guidance. They do not include the full guidance text.
 
 ---
 

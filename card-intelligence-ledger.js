@@ -1772,7 +1772,11 @@
 
   function createPromptProfile(options) {
     var customInstructions = cleanText(options && options.customInstructions);
+    var promptTemplateId = cleanText(options && options.promptTemplateId);
+    var promptTemplateName = cleanText(options && options.promptTemplateName).slice(0, 80);
     return {
+      promptTemplateId: promptTemplateId,
+      promptTemplateName: promptTemplateName,
       customInstructionsPresent: Boolean(customInstructions),
       customInstructionsHash: customInstructions ? shortHash(customInstructions) : "",
       customInstructionsCharacters: customInstructions.length

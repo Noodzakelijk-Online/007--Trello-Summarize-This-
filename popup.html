@@ -850,10 +850,12 @@
           }
 
           lastAnalysis = analysis;
+          var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
           lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
             outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
-            promptTemplateId: "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
-            customInstructions: settings.customInstructions
+            promptTemplateId: promptProfile.selectedPromptTemplateId || "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
+            promptTemplateName: promptProfile.selectedPromptTemplateName,
+            customInstructions: promptProfile.customInstructions
           });
           timingTracker.mark("ledger", "Ledger build");
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
@@ -944,6 +946,8 @@
           strategy: "cost-effective",
           outputMode: "operational-ledger",
           customInstructions: "",
+          selectedPromptTemplateId: "",
+          promptTemplates: [],
           includeListContext: true,
           requireSensitiveAiApproval: true,
           promptContext: {
@@ -957,7 +961,13 @@
 
         if (!t) {
           try {
-            return Object.assign(fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+            var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+            var localPromptProfile = SummarizeThis.normalizePromptTemplateSettings(localSettings);
+            return Object.assign({}, localSettings, {
+              customInstructions: localPromptProfile.customInstructions,
+              selectedPromptTemplateId: localPromptProfile.selectedPromptTemplateId,
+              promptTemplates: localPromptProfile.promptTemplates
+            });
           } catch (error) {
             return fallback;
           }
@@ -976,9 +986,15 @@
         }, "");
 
         var apiKeys = Object.assign({}, legacyKeys || {}, settings.apiKeys || {});
-        return Object.assign({}, fallback, settings || {}, {
+        var merged = Object.assign({}, fallback, settings || {}, {
           apiKeys: apiKeys,
           strategy: settings.strategy || legacyStrategy || fallback.strategy
+        });
+        var promptProfile = SummarizeThis.normalizePromptTemplateSettings(merged);
+        return Object.assign({}, merged, {
+          customInstructions: promptProfile.customInstructions,
+          selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
+          promptTemplates: promptProfile.promptTemplates
         });
       }
 
@@ -1283,10 +1299,13 @@
 
       function promptContextOptions(settings) {
         var context = SummarizeThis.normalizePromptContext(settings && settings.promptContext);
+        var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
         return {
           promptContext: context,
           outputMode: SummarizeThis.normalizeOutputMode(settings && settings.outputMode),
-          customInstructions: SummarizeThis.normalizeCustomInstructions(settings && settings.customInstructions)
+          customInstructions: promptProfile.customInstructions,
+          selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
+          selectedPromptTemplateName: promptProfile.selectedPromptTemplateName
         };
       }
 

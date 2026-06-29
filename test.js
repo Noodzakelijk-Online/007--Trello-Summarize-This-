@@ -71,6 +71,43 @@ assert.ok(riskPromptPayload.attachments.some(item => item.category === "recordin
 assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
 assert.equal(SummarizeThis.normalizeCustomInstructions(" guidance ".repeat(100)).length, 600);
 
+const promptTemplateSettings = SummarizeThis.normalizePromptTemplateSettings({
+  selectedPromptTemplateId: "robert-approval",
+  promptTemplates: [{
+    id: "robert approval!",
+    name: "Robert approval review",
+    instructions: "Frame Robert decisions as Yes/No and separate VA-ready work.",
+    createdAt: "2026-06-29T13:00:00.000Z"
+  }, {
+    id: "empty",
+    name: "Empty",
+    instructions: ""
+  }]
+});
+assert.equal(promptTemplateSettings.promptTemplates.length, 1);
+assert.equal(promptTemplateSettings.promptTemplates[0].id, "robert-approval");
+assert.equal(promptTemplateSettings.selectedPromptTemplateId, "robert-approval");
+
+const selectedPromptTemplateSettings = SummarizeThis.normalizePromptTemplateSettings({
+  selectedPromptTemplateId: "robert-approval",
+  promptTemplates: [{
+    id: "robert-approval",
+    name: "Robert approval review",
+    instructions: "Frame Robert decisions as Yes/No and separate VA-ready work."
+  }]
+});
+assert.equal(selectedPromptTemplateSettings.selectedPromptTemplateName, "Robert approval review");
+assert.ok(selectedPromptTemplateSettings.customInstructions.includes("Yes/No"));
+
+const templatePromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
+  selectedPromptTemplateId: "robert-approval",
+  promptTemplates: selectedPromptTemplateSettings.promptTemplates
+}));
+assert.equal(templatePromptPayload.promptTemplate.id, "robert-approval");
+assert.equal(templatePromptPayload.promptTemplate.name, "Robert approval review");
+assert.ok(templatePromptPayload.customInstructions.includes("separate VA-ready work"));
+assert.equal(JSON.stringify(templatePromptPayload).includes("promptTemplates"), false);
+
 const cardWithPriorFeedback = Object.assign({}, sample, {
   priorFeedback: [{
     rating: "wrong",
@@ -373,10 +410,14 @@ assert.ok(attachmentRun.result.evidence.some(item => item.type === "attachment" 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
   now: "2026-06-29T12:00:00.000Z",
   outputMode: "meeting-brief",
+  promptTemplateId: "robert-approval",
+  promptTemplateName: "Robert approval review",
   customInstructions: "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
 });
 assert.equal(run.status, "completed");
 assert.equal(run.outputMode, "meeting-brief");
+assert.equal(run.promptTemplateId, "robert-approval");
+assert.equal(run.promptProfile.promptTemplateName, "Robert approval review");
 assert.equal(run.promptProfile.customInstructionsPresent, true);
 assert.equal(run.promptProfile.customInstructionsCharacters, 67);
 assert.ok(run.result.blockers.length >= 2);
@@ -602,6 +643,8 @@ assert.equal(ledgerJson.schemaVersion, "summarize-this-card-intelligence-export-
 assert.equal(ledgerJson.exportedAt, "2026-06-29T12:07:00.000Z");
 assert.equal(ledgerJson.analysisRun.id, run.id);
 assert.equal(ledgerJson.analysisRun.outputMode, "meeting-brief");
+assert.equal(ledgerJson.analysisRun.promptProfile.promptTemplateId, "robert-approval");
+assert.equal(ledgerJson.analysisRun.promptProfile.promptTemplateName, "Robert approval review");
 assert.equal(ledgerJson.analysisRun.promptProfile.customInstructionsPresent, true);
 assert.ok(ledgerJson.analysisRun.promptProfile.customInstructionsHash);
 assert.equal(JSON.stringify(ledgerJson).includes("Prefer Yes/No decisions"), false);

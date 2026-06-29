@@ -245,7 +245,22 @@
       </div>
 
       <div class="group">
-        <label for="customInstructions">Robert workflow guidance</label>
+        <label for="promptTemplateSelect">Saved guidance template</label>
+        <select id="promptTemplateSelect"></select>
+        <p class="help">Templates are member-private and reusable across cards. Selecting one loads its guidance into the active prompt field below.</p>
+      </div>
+
+      <div class="group">
+        <label for="promptTemplateName">Template name</label>
+        <input id="promptTemplateName" type="text" maxlength="60" autocomplete="off" placeholder="Example: Robert approval review">
+        <div class="field-actions">
+          <button id="saveTemplateButton" class="secondary" type="button">Save template</button>
+          <button id="deleteTemplateButton" class="secondary" type="button">Delete template</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label for="customInstructions">Active Robert workflow guidance</label>
         <textarea id="customInstructions" maxlength="600" placeholder="Example: Prefer yes/no decision framing, flag what needs Robert, and keep VA actions separate."></textarea>
         <p class="help">Optional member-private guidance added to AI prompts. It cannot override evidence, privacy, or Trello write-approval rules.</p>
       </div>
@@ -395,11 +410,14 @@
         window.self !== window.top
       );
       var t = inTrello ? window.TrelloPowerUp.iframe() : null;
+      var promptTemplates = [];
       var fields = {
         analysisMode: document.getElementById("analysisMode"),
         provider: document.getElementById("provider"),
         strategy: document.getElementById("strategy"),
         outputMode: document.getElementById("outputMode"),
+        promptTemplateSelect: document.getElementById("promptTemplateSelect"),
+        promptTemplateName: document.getElementById("promptTemplateName"),
         customInstructions: document.getElementById("customInstructions"),
         promptCommentLimit: document.getElementById("promptCommentLimit"),
         promptCommentCharacters: document.getElementById("promptCommentCharacters"),
@@ -423,6 +441,9 @@
 
       document.getElementById("saveButton").addEventListener("click", saveSettings);
       document.getElementById("clearButton").addEventListener("click", clearKeys);
+      document.getElementById("saveTemplateButton").addEventListener("click", savePromptTemplate);
+      document.getElementById("deleteTemplateButton").addEventListener("click", deletePromptTemplate);
+      fields.promptTemplateSelect.addEventListener("change", applySelectedPromptTemplate);
       document.getElementById("testOpenAiButton").addEventListener("click", function () {
         testProvider("openai");
       });
@@ -440,7 +461,11 @@
         fields.provider.value = settings.provider || "openai";
         fields.strategy.value = settings.strategy || "cost-effective";
         fields.outputMode.value = normalizeOutputMode(settings.outputMode);
-        fields.customInstructions.value = normalizeCustomInstructions(settings.customInstructions);
+        var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
+        promptTemplates = promptProfile.promptTemplates;
+        renderPromptTemplateOptions(promptProfile.selectedPromptTemplateId);
+        fields.promptTemplateName.value = promptProfile.selectedPromptTemplateName;
+        fields.customInstructions.value = promptProfile.customInstructions;
         fields.openaiKey.value = (settings.apiKeys && settings.apiKeys.openai) || "";
         fields.googleKey.value = (settings.apiKeys && settings.apiKeys.google) || "";
         fields.anthropicKey.value = (settings.apiKeys && settings.apiKeys.anthropic) || "";
@@ -467,6 +492,8 @@
           strategy: "cost-effective",
           outputMode: "operational-ledger",
           customInstructions: "",
+          selectedPromptTemplateId: "",
+          promptTemplates: [],
           includeListContext: true,
           requireSensitiveAiApproval: true,
           promptContext: {
@@ -502,13 +529,21 @@
         });
       }
 
-      async function saveSettings() {
-        var settings = {
+      function buildSettings() {
+        var promptProfile = SummarizeThis.normalizePromptTemplateSettings({
+          customInstructions: fields.customInstructions.value,
+          selectedPromptTemplateId: fields.promptTemplateSelect.value,
+          promptTemplates: promptTemplates
+        });
+
+        return {
           analysisMode: fields.analysisMode.value,
           provider: fields.provider.value,
           strategy: fields.strategy.value,
           outputMode: normalizeOutputMode(fields.outputMode.value),
-          customInstructions: normalizeCustomInstructions(fields.customInstructions.value),
+          customInstructions: promptProfile.customInstructions,
+          selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
+          promptTemplates: promptProfile.promptTemplates,
           includeListContext: fields.includeListContext.checked,
           requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
           promptContext: normalizePromptContext({
@@ -534,6 +569,12 @@
           anthropicModel: fields.anthropicModel.value.trim(),
           updatedAt: new Date().toISOString()
         };
+      }
+
+      async function saveSettings(options) {
+        var settings = buildSettings();
+        var closeAfterSave = !(options && options.keepOpen);
+        var successMessage = options && options.successMessage ? options.successMessage : "Settings saved.";
 
         Object.keys(settings.apiKeys).forEach(function (key) {
           if (!settings.apiKeys[key]) delete settings.apiKeys[key];
@@ -546,18 +587,20 @@
 
         if (!t) {
           localStorage.setItem("summarizeThisSettings", JSON.stringify(settings));
-          showMessage("Settings saved for local preview.", "success");
+          showMessage(successMessage || "Settings saved for local preview.", "success");
           return;
         }
 
         await t.set("member", "private", "summarizeThisSettings", settings);
         await t.set("member", "private", "apiKeys", settings.apiKeys);
         await t.set("member", "private", "preferredStrategy", settings.strategy);
-        showMessage("Settings saved.", "success");
+        showMessage(successMessage, "success");
 
-        setTimeout(function () {
-          if (t && t.closePopup) t.closePopup();
-        }, 900);
+        if (closeAfterSave) {
+          setTimeout(function () {
+            if (t && t.closePopup) t.closePopup();
+          }, 900);
+        }
       }
 
       async function clearKeys() {
@@ -568,6 +611,107 @@
         setProviderStatus("google", "", "");
         setProviderStatus("anthropic", "", "");
         await saveSettings();
+      }
+
+      async function savePromptTemplate() {
+        var name = String(fields.promptTemplateName.value || "").replace(/\s+/g, " ").trim().slice(0, 60);
+        var instructions = normalizeCustomInstructions(fields.customInstructions.value);
+
+        if (!name || !instructions) {
+          showMessage("Add a template name and guidance before saving.", "error");
+          return;
+        }
+
+        var selectedId = fields.promptTemplateSelect.value;
+        var now = new Date().toISOString();
+        var existingIndex = promptTemplates.map(function (template) {
+          return template.id;
+        }).indexOf(selectedId);
+
+        if (existingIndex === -1) {
+          selectedId = createPromptTemplateId(name);
+          promptTemplates.unshift({
+            id: selectedId,
+            name: name,
+            instructions: instructions,
+            createdAt: now,
+            updatedAt: now
+          });
+        } else {
+          promptTemplates[existingIndex] = Object.assign({}, promptTemplates[existingIndex], {
+            name: name,
+            instructions: instructions,
+            updatedAt: now
+          });
+        }
+
+        promptTemplates = SummarizeThis.normalizePromptTemplates(promptTemplates);
+        renderPromptTemplateOptions(selectedId);
+        fields.promptTemplateSelect.value = selectedId;
+        await saveSettings({
+          keepOpen: true,
+          successMessage: "Prompt template saved."
+        });
+      }
+
+      async function deletePromptTemplate() {
+        var selectedId = fields.promptTemplateSelect.value;
+        if (!selectedId) {
+          showMessage("Select a saved template before deleting.", "error");
+          return;
+        }
+
+        promptTemplates = promptTemplates.filter(function (template) {
+          return template.id !== selectedId;
+        });
+        renderPromptTemplateOptions("");
+        fields.promptTemplateName.value = "";
+        await saveSettings({
+          keepOpen: true,
+          successMessage: "Prompt template deleted."
+        });
+      }
+
+      function renderPromptTemplateOptions(selectedId) {
+        var normalized = SummarizeThis.normalizePromptTemplates(promptTemplates);
+        promptTemplates = normalized;
+        fields.promptTemplateSelect.innerHTML = "";
+
+        var emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "No saved template";
+        fields.promptTemplateSelect.appendChild(emptyOption);
+
+        normalized.forEach(function (template) {
+          var option = document.createElement("option");
+          option.value = template.id;
+          option.textContent = template.name;
+          fields.promptTemplateSelect.appendChild(option);
+        });
+
+        if (normalized.some(function (template) { return template.id === selectedId; })) {
+          fields.promptTemplateSelect.value = selectedId;
+        } else {
+          fields.promptTemplateSelect.value = "";
+        }
+      }
+
+      function applySelectedPromptTemplate() {
+        var selectedId = fields.promptTemplateSelect.value;
+        var template = promptTemplates.filter(function (item) {
+          return item.id === selectedId;
+        })[0];
+        fields.promptTemplateName.value = template ? template.name : "";
+        if (template) fields.customInstructions.value = template.instructions;
+      }
+
+      function createPromptTemplateId(name) {
+        var slug = String(name || "template")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40) || "template";
+        return slug + "-" + Date.now().toString(36);
       }
 
       function normalizePromptContext(input) {
@@ -585,19 +729,11 @@
       }
 
       function normalizeOutputMode(value) {
-        var allowed = [
-          "operational-ledger",
-          "status-update",
-          "risk-review",
-          "meeting-brief",
-          "next-action-checklist",
-          "client-friendly"
-        ];
-        return allowed.indexOf(String(value || "")) === -1 ? "operational-ledger" : String(value);
+        return SummarizeThis.normalizeOutputMode(value);
       }
 
       function normalizeCustomInstructions(value) {
-        return String(value || "").replace(/\s+/g, " ").trim().slice(0, 600);
+        return SummarizeThis.normalizeCustomInstructions(value);
       }
 
       async function testProvider(provider) {

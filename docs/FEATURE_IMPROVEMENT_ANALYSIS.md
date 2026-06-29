@@ -187,6 +187,17 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 - Ledger runs store only whether custom guidance was present, its character count, and a short hash.
 - Structured JSON exports do not include the full custom guidance text.
 
+### 5i. Saved Prompt Templates
+
+Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`.
+
+- Settings now support up to 10 saved member-private prompt guidance templates.
+- Each template has a name capped to 60 characters and active guidance capped to 600 characters.
+- Selecting a template loads its guidance into the active prompt field, then the active guidance is used by AI prompts.
+- AI prompt payloads include only the selected template id/name plus the active guidance, not the full template library.
+- Ledger runs and JSON exports preserve selected template id/name plus the existing guidance hash and character count, not the full guidance text.
+- Legacy single-field custom guidance still works when no saved template is selected.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.
@@ -276,7 +287,6 @@ Impact: Medium. This gives future regression checks a user-visible baseline with
 ## Lower-Priority Improvements
 
 - Bulk summarize selected cards or a full list.
-- Saved custom prompt templates. First bounded custom guidance field is implemented; multi-template management remains future work.
 - Dark mode.
 - Localization for Dutch and English.
 - Optional update checker for the Windows installer.
@@ -291,7 +301,8 @@ Impact: Medium. This gives future regression checks a user-visible baseline with
 6. Export formats.
 7. Cost budget alerts.
 8. Runtime timing metrics.
-9. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
-10. Attachment extraction through a safer backend path.
+9. Saved prompt templates.
+10. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
+11. Attachment extraction through a safer backend path.
 
 This order improves the existing user experience first, then expands capability where it needs more security and product design care.
