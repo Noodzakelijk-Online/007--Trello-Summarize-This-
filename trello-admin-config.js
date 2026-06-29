@@ -31,25 +31,32 @@
     var repo = clean(source.githubRepo || "YOUR-REPOSITORY");
     var githubOwner = owner.toLowerCase();
     var githubRepo = repo.replace(/^\/+|\/+$/g, "");
+    var githubRepoUrl = "https://github.com/" + owner + "/" + githubRepo;
 
     return [
       {
         id: "github-pages",
         label: "GitHub Pages",
         baseUrl: "https://" + githubOwner + ".github.io/" + githubRepo,
-        help: "Use after GitHub Pages is enabled for this repository."
+        help: "Use after GitHub Pages is enabled for this repository.",
+        actionLabel: "Open GitHub Pages settings",
+        actionUrl: githubRepoUrl + "/settings/pages"
       },
       {
         id: "netlify",
         label: "Netlify",
         baseUrl: "https://" + clean(source.netlifySite || "YOUR-SITE") + ".netlify.app",
-        help: "Replace YOUR-SITE with the Netlify site name."
+        help: "Replace YOUR-SITE with the Netlify site name.",
+        actionLabel: "Open Netlify deploy",
+        actionUrl: "https://app.netlify.com/start"
       },
       {
         id: "vercel",
         label: "Vercel",
         baseUrl: "https://" + clean(source.vercelProject || "YOUR-PROJECT") + ".vercel.app",
-        help: "Replace YOUR-PROJECT with the Vercel project name."
+        help: "Replace YOUR-PROJECT with the Vercel project name.",
+        actionLabel: "Open Vercel deploy",
+        actionUrl: "https://vercel.com/new"
       },
       {
         id: "custom",
@@ -58,6 +65,101 @@
         help: "Use any public HTTPS URL that serves these static files."
       }
     ];
+  }
+
+  function createDeploymentGuide(presetId, baseUrl, presets) {
+    var presetList = Array.isArray(presets) && presets.length ? presets : createDeploymentPresets();
+    var preset = presetList.filter(function (item) {
+      return item.id === presetId;
+    })[0] || presetList[0];
+    var id = preset.id || "custom";
+    var targetBaseUrl = normalizeBaseUrl(baseUrl || preset.baseUrl);
+    var guide = {
+      id: id,
+      label: preset.label || "Custom HTTPS",
+      targetBaseUrl: targetBaseUrl,
+      actionLabel: preset.actionLabel || "",
+      actionUrl: preset.actionUrl || "",
+      requiredFiles: [
+        "connector.js",
+        "popup.html",
+        "settings-powerup.html",
+        "manifest.json",
+        "icon.svg",
+        "trello-admin-config.js"
+      ],
+      steps: [],
+      verification: [
+        "Open " + buildHostedUrl(targetBaseUrl, "connector.js") + " and confirm it loads without a 404.",
+        "Open " + buildHostedUrl(targetBaseUrl, "manifest.json") + " and confirm it returns JSON.",
+        "Copy the iframe Connector URL into Trello Power-Up admin only after the HTTPS URLs load publicly."
+      ],
+      resourceNote: "Deployment is static hosting only. No server, polling job, database, API key, or background worker is required."
+    };
+
+    if (id === "github-pages") {
+      guide.steps = [
+        "Commit and push the Power-Up files to the GitHub repository.",
+        "Open repository Settings, then Pages.",
+        "Set Source to Deploy from a branch.",
+        "Select the branch and folder that contain the required static files.",
+        "Wait for GitHub Pages to publish the HTTPS site, then use that public URL here."
+      ];
+    } else if (id === "netlify") {
+      guide.steps = [
+        "Create a Netlify site from the GitHub repository or drag-and-drop the static project folder.",
+        "Leave build command empty unless you add a separate build step later.",
+        "Use the project root as the publish directory when these static files live at the root.",
+        "After Netlify publishes, replace YOUR-SITE with the actual Netlify site name.",
+        "Use the public https://*.netlify.app URL here."
+      ];
+    } else if (id === "vercel") {
+      guide.steps = [
+        "Import the GitHub repository into Vercel.",
+        "Use the static project root as the output location.",
+        "Leave framework auto-detection disabled or set the project as static when prompted.",
+        "After Vercel publishes, replace YOUR-PROJECT with the actual Vercel project name.",
+        "Use the public https://*.vercel.app URL here."
+      ];
+    } else {
+      guide.steps = [
+        "Upload the required static files to a public HTTPS host.",
+        "Confirm the host serves files directly from the selected folder.",
+        "Replace the placeholder URL with the public HTTPS base URL.",
+        "Verify connector.js, manifest.json, popup.html, settings-powerup.html, and icon.svg load publicly.",
+        "Use the generated connector URL in Trello Power-Up admin."
+      ];
+    }
+
+    return guide;
+  }
+
+  function makeDeploymentGuideText(guide) {
+    var item = guide || createDeploymentGuide("custom");
+    return [
+      "Summarize This deployment guide",
+      "",
+      "Host: " + item.label,
+      "Target base URL: " + item.targetBaseUrl,
+      item.actionUrl ? "Deployment page: " + item.actionUrl : "",
+      "",
+      "Required static files:",
+      item.requiredFiles.map(function (file) {
+        return "- " + file;
+      }).join("\n"),
+      "",
+      "Steps:",
+      item.steps.map(function (step, index) {
+        return (index + 1) + ". " + step;
+      }).join("\n"),
+      "",
+      "Verification:",
+      item.verification.map(function (check) {
+        return "- " + check;
+      }).join("\n"),
+      "",
+      "Resource note: " + item.resourceNote
+    ].join("\n").replace(/\n{3,}/g, "\n\n");
   }
 
   function normalizeBaseUrl(input, locationLike) {
@@ -244,6 +346,11 @@
         capabilities: values.capabilities
       },
       readinessChecklist: createAdminReadinessChecklist(values, status),
+      deploymentGuide: createDeploymentGuide(
+        options && options.deploymentPresetId,
+        status.baseUrl,
+        options && options.deploymentPresets
+      ),
       manualSteps: [
         "Open https://trello.com/power-ups/admin.",
         "Create or edit the Summarize This Power-Up.",
@@ -336,10 +443,12 @@
     createDeploymentPresets: createDeploymentPresets,
     normalizeBaseUrl: normalizeBaseUrl,
     validateHostedBaseUrl: validateHostedBaseUrl,
+    createDeploymentGuide: createDeploymentGuide,
     buildHostedUrl: buildHostedUrl,
     createAdminConfig: createAdminConfig,
     createAdminReadinessChecklist: createAdminReadinessChecklist,
     createAdminSetupPackage: createAdminSetupPackage,
+    makeDeploymentGuideText: makeDeploymentGuideText,
     makeAdminValuesText: makeAdminValuesText,
     makeAdminRunbookText: makeAdminRunbookText,
     createAdminAutofillScript: createAdminAutofillScript,

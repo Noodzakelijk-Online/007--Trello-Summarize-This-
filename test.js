@@ -756,13 +756,22 @@ assert.doesNotMatch(adminRunbookText, /sk-[a-z0-9]/i);
 const adminSetupPackage = TrelloAdminConfig.createAdminSetupPackage(
   adminConfig,
   TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/"),
-  { now: "2026-06-29T12:08:00.000Z" }
+  {
+    now: "2026-06-29T12:08:00.000Z",
+    deploymentPresetId: "github-pages",
+    deploymentPresets: TrelloAdminConfig.createDeploymentPresets({
+      githubOwner: "Noodzakelijk-Online",
+      githubRepo: "007--Trello-Summarize-This-"
+    })
+  }
 );
 assert.equal(adminSetupPackage.schemaVersion, "summarize-this-trello-admin-setup-v1");
 assert.equal(adminSetupPackage.generatedAt, "2026-06-29T12:08:00.000Z");
 assert.equal(adminSetupPackage.validation.isReadyForTrello, true);
 assert.equal(adminSetupPackage.adminValues.connectorUrl, adminConfig.connectorUrl);
 assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "connector-url" && item.ok));
+assert.equal(adminSetupPackage.deploymentGuide.id, "github-pages");
+assert.ok(adminSetupPackage.deploymentGuide.steps.some((item) => item.includes("GitHub Pages")));
 assert.ok(adminSetupPackage.safetyNotes.some((item) => item.includes("does not save")));
 assert.ok(adminSetupPackage.autofillBookmarklet.startsWith("javascript:"));
 assert.equal(JSON.stringify(adminSetupPackage).includes("support@example.com"), true);
@@ -790,6 +799,23 @@ assert.equal(
 );
 assert.ok(deploymentPresets.find((preset) => preset.id === "netlify").baseUrl.includes(".netlify.app"));
 assert.ok(deploymentPresets.find((preset) => preset.id === "vercel").baseUrl.includes(".vercel.app"));
+
+const githubDeploymentGuide = TrelloAdminConfig.createDeploymentGuide(
+  "github-pages",
+  "https://powerup.example-host.com/app",
+  deploymentPresets
+);
+assert.equal(githubDeploymentGuide.label, "GitHub Pages");
+assert.ok(githubDeploymentGuide.actionUrl.includes("/settings/pages"));
+assert.ok(githubDeploymentGuide.requiredFiles.includes("connector.js"));
+assert.ok(githubDeploymentGuide.verification.some((item) => item.includes("manifest.json")));
+assert.ok(githubDeploymentGuide.resourceNote.includes("No server"));
+
+const deploymentGuideText = TrelloAdminConfig.makeDeploymentGuideText(githubDeploymentGuide);
+assert.ok(deploymentGuideText.includes("Summarize This deployment guide"));
+assert.ok(deploymentGuideText.includes("Required static files:"));
+assert.ok(deploymentGuideText.includes("Resource note:"));
+assert.doesNotMatch(deploymentGuideText, /sk-[a-z0-9]/i);
 
 const hostedValidation = TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/");
 assert.equal(hostedValidation.baseUrl, "https://powerup.example-host.com/app");

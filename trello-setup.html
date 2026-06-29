@@ -359,6 +359,18 @@
         </div>
 
         <div class="panel">
+          <h2>Deployment guide</h2>
+          <p id="deploymentGuideIntro" class="help">Choose a deployment preset to see host-specific static hosting steps.</p>
+          <ul id="deploymentStepList" class="checklist"></ul>
+          <p class="help">Verify these before saving in Trello:</p>
+          <ul id="deploymentVerificationList" class="checklist"></ul>
+          <div class="actions">
+            <a id="deploymentActionLink" class="button primary" href="#" target="_blank" rel="noopener noreferrer">Open deployment page</a>
+            <button id="copyDeploymentGuideButton" class="secondary" type="button">Copy deployment guide</button>
+          </div>
+        </div>
+
+        <div class="panel">
           <h2>Admin autofill helper</h2>
           <p class="help">Drag the helper to your bookmarks bar, open Trello Power-Up admin, then click the bookmark. It fills matching fields and capability checkboxes only; it does not save or submit the page.</p>
           <div class="actions">
@@ -447,7 +459,11 @@
         urlStatusDot: document.getElementById("urlStatusDot"),
         urlStatusTitle: document.getElementById("urlStatusTitle"),
         urlStatusText: document.getElementById("urlStatusText"),
-        readinessChecklist: document.getElementById("readinessChecklist")
+        readinessChecklist: document.getElementById("readinessChecklist"),
+        deploymentGuideIntro: document.getElementById("deploymentGuideIntro"),
+        deploymentStepList: document.getElementById("deploymentStepList"),
+        deploymentVerificationList: document.getElementById("deploymentVerificationList"),
+        deploymentActionLink: document.getElementById("deploymentActionLink")
       };
 
       renderDeploymentPresets();
@@ -459,6 +475,7 @@
       document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
       document.getElementById("copyRunbookButton").addEventListener("click", copyAdminRunbook);
       document.getElementById("copySetupPackageButton").addEventListener("click", copySetupPackage);
+      document.getElementById("copyDeploymentGuideButton").addEventListener("click", copyDeploymentGuide);
       fields.hostedBaseUrl.addEventListener("input", function () {
         activePresetId = detectPresetId(fields.hostedBaseUrl.value) || "custom";
         updatePresetButtons();
@@ -546,6 +563,7 @@
         document.getElementById("iconUrl").textContent = iconUrl;
         fields.localNotice.style.display = validation.isReadyForTrello ? "none" : "block";
         renderReadinessChecklist(adminConfig, validation);
+        renderDeploymentGuide(baseUrl);
 
         if (validation.isReadyForTrello) {
           fields.urlStatusDot.className = "dot ok";
@@ -566,6 +584,26 @@
           li.className = item.ok ? "ok" : "warn";
           li.textContent = (item.ok ? "Ready: " : "Review: ") + item.label + " - " + item.detail;
           fields.readinessChecklist.appendChild(li);
+        });
+      }
+
+      function renderDeploymentGuide(baseUrl) {
+        var guide = TrelloAdminConfig.createDeploymentGuide(activePresetId, baseUrl, deploymentPresets);
+        fields.deploymentGuideIntro.textContent = guide.label + " target: " + guide.targetBaseUrl + ". " + guide.resourceNote;
+        renderSimpleList(fields.deploymentStepList, guide.steps, "No deployment steps available.");
+        renderSimpleList(fields.deploymentVerificationList, guide.verification, "No verification checks available.");
+        fields.deploymentActionLink.href = guide.actionUrl || "#";
+        fields.deploymentActionLink.textContent = guide.actionLabel || "Open deployment page";
+        fields.deploymentActionLink.style.display = guide.actionUrl ? "inline-flex" : "none";
+      }
+
+      function renderSimpleList(element, items, emptyText) {
+        element.innerHTML = "";
+        var values = Array.isArray(items) && items.length ? items : [emptyText];
+        values.forEach(function (text) {
+          var li = document.createElement("li");
+          li.textContent = text;
+          element.appendChild(li);
         });
       }
 
@@ -597,7 +635,16 @@
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
         var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
         var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
-        copyText(JSON.stringify(TrelloAdminConfig.createAdminSetupPackage(adminConfig, validation), null, 2), "Setup package JSON copied.");
+        copyText(JSON.stringify(TrelloAdminConfig.createAdminSetupPackage(adminConfig, validation, {
+          deploymentPresetId: activePresetId,
+          deploymentPresets: deploymentPresets
+        }), null, 2), "Setup package JSON copied.");
+      }
+
+      function copyDeploymentGuide() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var guide = TrelloAdminConfig.createDeploymentGuide(activePresetId, baseUrl, deploymentPresets);
+        copyText(TrelloAdminConfig.makeDeploymentGuideText(guide), "Deployment guide copied.");
       }
 
       async function copyText(value, successMessage) {

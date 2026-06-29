@@ -38,13 +38,14 @@ Implemented:
 - It validates setup readiness so placeholder, local, file, and non-HTTPS URLs are not shown as Trello-ready.
 - It generates the hosted HTTPS iframe Connector URL, icon URL, manifest values, and capability list.
 - It provides a copy-all setup block for manual Trello Power-Up admin entry.
+- It shows host-specific deployment steps and verification checks for GitHub Pages, Netlify, Vercel, or custom HTTPS hosting.
 - It provides a safe admin autofill bookmarklet that fills matching Trello admin fields and capabilities, but does not save or submit the page.
 - It now renders a readiness checklist for HTTPS hosting, connector/manifest/icon URLs, required capabilities, and manual-save safety.
-- It can copy a Trello admin runbook or JSON setup package containing exact admin values, validation state, manual steps, safety notes, and the autofill helper.
+- It can copy a deployment guide, Trello admin runbook, or JSON setup package containing exact admin values, validation state, deployment steps, manual steps, safety notes, and the autofill helper.
 
 Still recommended:
 
-- Add one-click deployment documentation for the selected host once the public hosting target is chosen.
+- Add host-specific screenshots or videos once the final hosting target is chosen.
 
 Impact: High. Setup is the biggest barrier for non-technical users.
 
