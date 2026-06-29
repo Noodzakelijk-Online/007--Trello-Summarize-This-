@@ -34,13 +34,15 @@ Status: Improved in `trello-setup.html` and `trello-admin-config.js`.
 Implemented:
 
 - The setup assistant explains that local Windows mode and Trello Power-Up mode are separate.
+- It provides deployment presets for GitHub Pages, Netlify, Vercel, and custom HTTPS hosting.
+- It validates setup readiness so placeholder, local, file, and non-HTTPS URLs are not shown as Trello-ready.
 - It generates the hosted HTTPS iframe Connector URL, icon URL, manifest values, and capability list.
 - It provides a copy-all setup block for manual Trello Power-Up admin entry.
 - It provides a safe admin autofill bookmarklet that fills matching Trello admin fields and capabilities, but does not save or submit the page.
 
 Still recommended:
 
-- Add deployment presets for Netlify, Vercel, and GitHub Pages.
+- Add one-click deployment documentation for the selected host once the public hosting target is chosen.
 
 Impact: High. Setup is the biggest barrier for non-technical users.
 

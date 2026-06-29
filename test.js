@@ -534,15 +534,18 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   capabilities: ["card-buttons", "show-settings"]
 }, "https://powerup.example.com/app/");
 assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.js");
+assert.equal(adminConfig.manifestUrl, "https://powerup.example.com/app/manifest.json");
 assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
 assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
 
 const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
 assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.js"));
+assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Capabilities: card-buttons, show-settings"));
 
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
 assert.ok(adminAutofillScript.includes("Review every field in Trello"));
 assert.doesNotMatch(adminAutofillScript, /form\.submit|submit\s*\(/i);
 assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
@@ -550,5 +553,32 @@ assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
 const adminBookmarklet = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
 assert.ok(adminBookmarklet.startsWith("javascript:"));
 assert.ok(adminBookmarklet.length < 9000);
+
+const deploymentPresets = TrelloAdminConfig.createDeploymentPresets({
+  githubOwner: "Noodzakelijk-Online",
+  githubRepo: "007--Trello-Summarize-This-"
+});
+assert.deepEqual(deploymentPresets.map((preset) => preset.id), ["github-pages", "netlify", "vercel", "custom"]);
+assert.equal(
+  deploymentPresets.find((preset) => preset.id === "github-pages").baseUrl,
+  "https://noodzakelijk-online.github.io/007--Trello-Summarize-This-"
+);
+assert.ok(deploymentPresets.find((preset) => preset.id === "netlify").baseUrl.includes(".netlify.app"));
+assert.ok(deploymentPresets.find((preset) => preset.id === "vercel").baseUrl.includes(".vercel.app"));
+
+const hostedValidation = TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/");
+assert.equal(hostedValidation.baseUrl, "https://powerup.example-host.com/app");
+assert.equal(hostedValidation.isReadyForTrello, true);
+
+const placeholderValidation = TrelloAdminConfig.validateHostedBaseUrl("https://your-hosted-site.example");
+assert.equal(placeholderValidation.isReadyForTrello, false);
+assert.equal(placeholderValidation.isPlaceholder, true);
+
+const localhostValidation = TrelloAdminConfig.validateHostedBaseUrl("http://localhost:3000");
+assert.equal(localhostValidation.isReadyForTrello, false);
+assert.equal(localhostValidation.isLocal, true);
+
+const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/SummarizeThis/connector.js");
+assert.equal(fileValidation.isReadyForTrello, false);
 
 console.log("All summarizer tests passed.");

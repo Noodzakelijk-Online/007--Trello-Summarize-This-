@@ -115,6 +115,27 @@
       margin-bottom: 12px;
     }
 
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .preset-button {
+      min-height: 44px;
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .preset-button.active {
+      border-color: var(--blue);
+      background: #e9f2ff;
+      color: var(--blue-dark);
+    }
+
     .help {
       margin: 5px 0 0;
       color: var(--muted);
@@ -251,6 +272,10 @@
       .copybox {
         grid-template-columns: 1fr;
       }
+
+      .preset-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
@@ -270,6 +295,11 @@
       <section>
         <div class="panel">
           <h2>Connector URL</h2>
+          <div class="field">
+            <label>Deployment preset</label>
+            <div id="deploymentPresets" class="preset-grid"></div>
+            <p id="presetHelp" class="help">Choose where the static Power-Up files are hosted.</p>
+          </div>
           <div class="field">
             <label for="hostedBaseUrl">Hosted site URL</label>
             <input id="hostedBaseUrl" type="url" autocomplete="url" placeholder="https://your-site.example">
@@ -299,6 +329,10 @@
           <div class="copybox">
             <strong>Details</strong>
             <code id="details"></code>
+          </div>
+          <div class="copybox">
+            <strong>Manifest URL</strong>
+            <code id="manifestUrl"></code>
           </div>
           <div class="copybox">
             <strong>Icon URL</strong>
@@ -375,7 +409,15 @@
         ]
       };
 
+      var deploymentPresets = TrelloAdminConfig.createDeploymentPresets({
+        githubOwner: "Noodzakelijk-Online",
+        githubRepo: "007--Trello-Summarize-This-"
+      });
+      var activePresetId = "github-pages";
+
       var fields = {
+        deploymentPresets: document.getElementById("deploymentPresets"),
+        presetHelp: document.getElementById("presetHelp"),
         hostedBaseUrl: document.getElementById("hostedBaseUrl"),
         connectorUrl: document.getElementById("connectorUrl"),
         testConnectorLink: document.getElementById("testConnectorLink"),
@@ -387,14 +429,70 @@
         urlStatusText: document.getElementById("urlStatusText")
       };
 
+      renderDeploymentPresets();
+      applyPreset(activePresetId);
       document.getElementById("copyConnectorButton").addEventListener("click", function () {
         copyText(fields.connectorUrl.value, "Connector URL copied.");
       });
       document.getElementById("copyAllButton").addEventListener("click", copyAllValues);
       document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
-      fields.hostedBaseUrl.addEventListener("input", updateComputedValues);
+      fields.hostedBaseUrl.addEventListener("input", function () {
+        activePresetId = detectPresetId(fields.hostedBaseUrl.value) || "custom";
+        updatePresetButtons();
+        updateComputedValues();
+      });
 
       loadManifest().then(updateComputedValues);
+
+      function renderDeploymentPresets() {
+        fields.deploymentPresets.innerHTML = "";
+        deploymentPresets.forEach(function (preset) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "preset-button";
+          button.dataset.presetId = preset.id;
+          button.setAttribute("aria-pressed", "false");
+          button.textContent = preset.label;
+          button.addEventListener("click", function () {
+            applyPreset(preset.id);
+          });
+          fields.deploymentPresets.appendChild(button);
+        });
+        updatePresetButtons();
+      }
+
+      function applyPreset(presetId) {
+        var preset = deploymentPresets.find(function (item) {
+          return item.id === presetId;
+        }) || deploymentPresets[0];
+        activePresetId = preset.id;
+        fields.hostedBaseUrl.value = preset.baseUrl;
+        fields.presetHelp.textContent = preset.help;
+        updatePresetButtons();
+        updateComputedValues();
+      }
+
+      function detectPresetId(value) {
+        var normalized = TrelloAdminConfig.normalizeBaseUrl(value);
+        var match = deploymentPresets.find(function (preset) {
+          return normalized === TrelloAdminConfig.normalizeBaseUrl(preset.baseUrl);
+        });
+        return match && match.id;
+      }
+
+      function updatePresetButtons() {
+        Array.prototype.forEach.call(fields.deploymentPresets.querySelectorAll("button"), function (button) {
+          var isActive = button.dataset.presetId === activePresetId;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+        var preset = deploymentPresets.find(function (item) {
+          return item.id === activePresetId;
+        });
+        if (preset) {
+          fields.presetHelp.textContent = preset.help;
+        }
+      }
 
       async function loadManifest() {
         try {
@@ -414,25 +512,25 @@
       function updateComputedValues() {
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
         var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
         var connectorUrl = adminConfig.connectorUrl;
         var iconUrl = adminConfig.iconUrl;
-        var isHttps = /^https:\/\//i.test(connectorUrl);
-        var isLocal = /^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/i.test(baseUrl);
 
         fields.connectorUrl.value = connectorUrl;
         fields.testConnectorLink.href = connectorUrl || "#";
         fields.adminBookmarkletLink.href = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
+        document.getElementById("manifestUrl").textContent = adminConfig.manifestUrl;
         document.getElementById("iconUrl").textContent = iconUrl;
-        fields.localNotice.style.display = isLocal ? "block" : "none";
+        fields.localNotice.style.display = validation.isReadyForTrello ? "none" : "block";
 
-        if (isHttps) {
+        if (validation.isReadyForTrello) {
           fields.urlStatusDot.className = "dot ok";
-          fields.urlStatusTitle.textContent = "Connector URL is ready";
-          fields.urlStatusText.textContent = "Copy this URL into the iframe Connector URL field in Trello admin.";
+          fields.urlStatusTitle.textContent = "Ready for Trello admin";
+          fields.urlStatusText.textContent = validation.message + " Copy the iframe Connector URL into Trello admin.";
         } else {
           fields.urlStatusDot.className = "dot warn";
-          fields.urlStatusTitle.textContent = "HTTPS hosted URL required";
-          fields.urlStatusText.textContent = "Trello needs a public HTTPS URL, not a local Windows address.";
+          fields.urlStatusTitle.textContent = "Hosted HTTPS URL required";
+          fields.urlStatusText.textContent = validation.message;
         }
       }
 

@@ -17,9 +17,9 @@ npm run analyze:resources
 Current results:
 
 - Active popup initial local files: about 200.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 312.0 KB.
+- Windows installer runtime payload: about 318.4 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.47 MB.
-- Generated Windows installer executable: 204,288 bytes.
+- Generated Windows installer executable: 208,384 bytes.
 - Large-card AI prompt after caps: 17,790 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -52,7 +52,7 @@ Current results:
 4. Lightweight Windows runtime:
    - The installer includes only runtime static files and launcher scripts, not the full repository, docs, benchmarks, or prototype modules.
    - The Windows launcher uses PowerShell and a tiny local HTTP server, avoiding Electron and background services.
-   - The Trello setup assistant and admin autofill helper add about 21 KB to the runtime payload and are not loaded by the active popup.
+   - The Trello setup assistant, deployment presets, URL validation, and admin autofill helper add about 27.5 KB to the runtime payload and are not loaded by the active popup.
 
 5. No always-on service:
    - The installed app starts only when the user launches it.
@@ -102,7 +102,7 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 ## Tradeoffs
 
 - The default prompt caps preserve the feature but may omit very old or very long comment text from AI analysis. This is intentional: the latest 12 comments and card description usually carry the strongest context, and the local summary still uses structured metadata. Users can raise the caps for unusually large cards.
-- The Windows `.exe` installer runs the standalone/local version. Trello Power-Up usage still requires hosting the static files on HTTPS, because Trello cannot load a private local Windows installer path inside Trello.
+- The Windows `.exe` installer runs the standalone/local version. Trello Power-Up usage still requires hosting the static files on HTTPS, because Trello cannot load a private local Windows installer path inside Trello. The installed setup assistant now provides GitHub Pages, Netlify, Vercel, and custom HTTPS presets so the correct public connector URL can be prepared with less manual work.
 
 ## Remaining Opportunities
 

@@ -25,12 +25,90 @@
     ]
   };
 
+  function createDeploymentPresets(options) {
+    var source = options || {};
+    var owner = clean(source.githubOwner || "YOUR-GITHUB-USER");
+    var repo = clean(source.githubRepo || "YOUR-REPOSITORY");
+    var githubOwner = owner.toLowerCase();
+    var githubRepo = repo.replace(/^\/+|\/+$/g, "");
+
+    return [
+      {
+        id: "github-pages",
+        label: "GitHub Pages",
+        baseUrl: "https://" + githubOwner + ".github.io/" + githubRepo,
+        help: "Use after GitHub Pages is enabled for this repository."
+      },
+      {
+        id: "netlify",
+        label: "Netlify",
+        baseUrl: "https://" + clean(source.netlifySite || "YOUR-SITE") + ".netlify.app",
+        help: "Replace YOUR-SITE with the Netlify site name."
+      },
+      {
+        id: "vercel",
+        label: "Vercel",
+        baseUrl: "https://" + clean(source.vercelProject || "YOUR-PROJECT") + ".vercel.app",
+        help: "Replace YOUR-PROJECT with the Vercel project name."
+      },
+      {
+        id: "custom",
+        label: "Custom HTTPS",
+        baseUrl: "https://your-hosted-site.example",
+        help: "Use any public HTTPS URL that serves these static files."
+      }
+    ];
+  }
+
   function normalizeBaseUrl(input, locationLike) {
     var value = clean(input);
     if (!value && locationLike && locationLike.protocol === "https:") {
       value = locationLike.origin || "";
     }
     return (value || "https://your-hosted-site.example").replace(/\/+$/, "");
+  }
+
+  function validateHostedBaseUrl(input, locationLike) {
+    var normalizedBase = normalizeBaseUrl(input, locationLike);
+    var result = {
+      baseUrl: normalizedBase,
+      isHttps: false,
+      isLocal: false,
+      isPlaceholder: false,
+      isReadyForTrello: false,
+      message: "Enter a public HTTPS URL where these static files are hosted."
+    };
+
+    if (/^file:/i.test(normalizedBase)) {
+      result.message = "Trello cannot load a file:// or local Windows path as a Power-Up connector.";
+      return result;
+    }
+
+    var parsed;
+    try {
+      parsed = new URL(normalizedBase);
+    } catch (error) {
+      result.message = "Enter a valid hosted site URL, for example https://example.netlify.app.";
+      return result;
+    }
+
+    result.isHttps = parsed.protocol === "https:";
+    result.isLocal = /^(localhost|127\.0\.0\.1|\[?::1\]?)$/i.test(parsed.hostname);
+    result.isPlaceholder = /(^your-|^your\.|^your$|example$|example\.|your-hosted-site|your-site|your-project|your-repository|your-github-user)/i.test(parsed.hostname) ||
+      /\/(YOUR-|your-)/.test(parsed.pathname);
+
+    if (!result.isHttps) {
+      result.message = "Trello requires a public HTTPS connector URL.";
+    } else if (result.isLocal) {
+      result.message = "Localhost works for preview only; Trello needs a public HTTPS URL.";
+    } else if (result.isPlaceholder) {
+      result.message = "Replace the placeholder with your real deployed site URL before saving in Trello.";
+    } else {
+      result.isReadyForTrello = true;
+      result.message = "Ready for Trello admin after this URL is deployed and publicly reachable.";
+    }
+
+    return result;
   }
 
   function buildHostedUrl(baseUrl, fileName) {
@@ -50,6 +128,7 @@
       authorUrl: clean(source.author_url || DEFAULT_MANIFEST.author_url),
       overviewUrl: clean(source.overview_url || DEFAULT_MANIFEST.overview_url),
       connectorUrl: buildHostedUrl(normalizedBase, "connector.js"),
+      manifestUrl: buildHostedUrl(normalizedBase, "manifest.json"),
       iconUrl: absoluteManifestUrl(normalizedBase, source.icon && source.icon.url, "icon.svg"),
       capabilities: toArray(source.capabilities || DEFAULT_MANIFEST.capabilities).map(clean).filter(Boolean)
     };
@@ -67,6 +146,7 @@
       "Overview URL: " + values.overviewUrl,
       "Details: " + values.details,
       "iframe Connector URL: " + values.connectorUrl,
+      "Manifest URL: " + values.manifestUrl,
       "Icon URL: " + values.iconUrl,
       "Capabilities: " + values.capabilities.join(", ")
     ].join("\n");
@@ -86,6 +166,7 @@
       authorUrl: values.authorUrl,
       overviewUrl: values.overviewUrl,
       connectorUrl: values.connectorUrl,
+      manifestUrl: values.manifestUrl,
       iconUrl: values.iconUrl,
       capabilities: values.capabilities
     });
@@ -105,6 +186,7 @@
       "result.push(['Author URL',setField(['author url','author website','website'],config.authorUrl)]);" +
       "result.push(['Overview URL',setField(['overview url','iframe overview url','privacy policy url'],config.overviewUrl)]);" +
       "result.push(['iframe Connector URL',setField(['iframe connector url','connector url','iframe url'],config.connectorUrl)]);" +
+      "result.push(['Manifest URL',setField(['manifest url'],config.manifestUrl)]);" +
       "result.push(['Icon URL',setField(['icon url','icon'],config.iconUrl)]);" +
       "config.capabilities.forEach(function(capability){result.push([capability,setCapability(capability)]);});" +
       "var banner=document.getElementById('summarize-this-admin-autofill-status');if(!banner){banner=document.createElement('div');banner.id='summarize-this-admin-autofill-status';banner.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483647;background:#172b4d;color:#fff;padding:12px 14px;border-radius:8px;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 8px 24px rgba(9,30,66,.25)';document.body.appendChild(banner);}var filled=result.filter(function(item){return item[1];}).length;banner.textContent='Summarize This filled '+filled+' admin value(s). Review every field in Trello, then save manually.';console.table(result.map(function(item){return{field:item[0],filled:item[1]};}));" +
@@ -126,7 +208,9 @@
   }
 
   return {
+    createDeploymentPresets: createDeploymentPresets,
     normalizeBaseUrl: normalizeBaseUrl,
+    validateHostedBaseUrl: validateHostedBaseUrl,
     buildHostedUrl: buildHostedUrl,
     createAdminConfig: createAdminConfig,
     makeAdminValuesText: makeAdminValuesText,
