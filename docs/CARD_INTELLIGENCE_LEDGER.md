@@ -15,6 +15,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `NextAction`: extracted next steps plus open checklist items.
 - `DecisionItem`: Robert-specific approval or Yes/No decision candidates.
 - `VA/team-ready action`: delegate-ready actions that do not require Robert approval.
+- `UnresolvedQuestion`: open questions derived from AI output, missing information, blockers, validation findings, and Robert decisions.
 - `ValidationFinding`: missing context, attachment metadata-only state, weak next actions, and decision review signals.
 - `ReviewRecord`: private analysis review state such as reviewed, accepted, or needs follow-up.
 - `HumanFeedback`: private correction/rating records.
@@ -25,7 +26,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `AttachmentMetadata`: compact attachment name/type/category/status records for documents, transcripts, recordings, spreadsheets, presentations, images, links, and generic files.
 - `CustomField`: compact normalized custom field name/value/type metadata when Trello exposes custom field items.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
-- Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
+- Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
 - Ledger export formats: the popup can copy markdown, plain text, status/email text, copy structured JSON, and download compact JSON for Sneup/HAI-style ingestion.
 - Trello comment approval: the popup generates an exact comment draft, supports copy-only use, and only attempts Trello posting after the user checks an approval box and confirms the action.
 - Export/postback history: the popup shows recent private export, copy, download, and Trello comment records for the current card's analysis runs.

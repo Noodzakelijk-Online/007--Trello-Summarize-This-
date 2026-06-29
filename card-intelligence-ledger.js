@@ -914,6 +914,54 @@
     return findings;
   }
 
+  function createUnresolvedQuestions(summary, missingInfo, blockers, decisions, validationFindings, evidence) {
+    var questions = [];
+
+    toArray(summary && summary.unresolvedQuestions).forEach(function (item, index) {
+      var text = cleanText(item && (item.text || item.question || item));
+      if (!text) return;
+      questions.push(makeQuestion("question-ai-" + (index + 1), "ai-structured", text, findEvidenceIds(evidence, ["title", "description", "comment", "checklist", "attachment", "custom-field"]), "medium", "Owner to confirm"));
+    });
+
+    toArray(missingInfo).forEach(function (item, index) {
+      var text = cleanText(item && (item.text || item.claim || item));
+      if (!text) return;
+      questions.push(makeQuestion("question-missing-" + (index + 1), "missing-info", "Clarify: " + text, item.sourceIds || findEvidenceIds(evidence, ["title", "description", "comment", "attachment"]), item.severity || "medium", "Owner to confirm"));
+    });
+
+    toArray(blockers).forEach(function (item, index) {
+      var severity = cleanText(item && item.severity);
+      if (severity !== "high" && severity !== "medium") return;
+      var text = cleanText(item && item.text);
+      if (!text) return;
+      questions.push(makeQuestion("question-blocker-" + (index + 1), "blocker", "What is needed to clear this blocker? " + text, item.sourceIds, severity, "Owner to confirm"));
+    });
+
+    toArray(decisions).forEach(function (item, index) {
+      var text = cleanText(item && item.text);
+      if (!text) return;
+      questions.push(makeQuestion("question-decision-" + (index + 1), "robert-decision", "Robert decision still open: " + text, item.sourceIds, item.riskLevel || "high", "Robert"));
+    });
+
+    toArray(validationFindings).forEach(function (item, index) {
+      var severity = cleanText(item && item.severity);
+      if (severity === "low") return;
+      var text = cleanText(item && item.text);
+      if (!text) return;
+      questions.push(makeQuestion("question-validation-" + (index + 1), "validation", "Review before relying on this analysis: " + text, item.sourceIds, severity || "medium", "Reviewer"));
+    });
+
+    return dedupeItems(questions).slice(0, 10);
+  }
+
+  function makeQuestion(id, category, text, sourceIds, severity, owner) {
+    return makeItem(id, text, sourceIds, {
+      category: cleanText(category),
+      severity: cleanText(severity || "medium"),
+      owner: cleanText(owner || "")
+    });
+  }
+
   function finding(id, severity, text, sourceIds) {
     return {
       id: id,
@@ -1099,6 +1147,19 @@
     var outputMode = normalizeOutputMode(options && options.outputMode);
     var outputLanguage = normalizeOutputLanguage(options && options.outputLanguage);
     var cardSnapshot = createCardSnapshot(input, options);
+    var missingInfo = toArray(summary.missingInfo).map(function (item, index) {
+      return finding("ai-missing-" + (index + 1), "medium", item, findEvidenceIds(operational.evidence, ["title", "description", "comment", "attachment"]));
+    }).concat(operational.validationFindings.filter(function (item) {
+      return item.id.indexOf("missing") === 0 || item.id === "no-comments" || item.id === "attachments-metadata-only" || item.id.indexOf("attachment-") === 0;
+    }));
+    var unresolvedQuestions = createUnresolvedQuestions(
+      summary,
+      missingInfo,
+      operational.blockers,
+      operational.robertDecisions,
+      operational.validationFindings,
+      operational.evidence
+    );
 
     return {
       id: runId,
@@ -1130,11 +1191,8 @@
         robertDecisions: operational.robertDecisions,
         vaReadyActions: operational.vaReadyActions,
         risks: toArray(summary.risks),
-        missingInfo: toArray(summary.missingInfo).map(function (item, index) {
-          return finding("ai-missing-" + (index + 1), "medium", item, findEvidenceIds(operational.evidence, ["title", "description", "comment", "attachment"]));
-        }).concat(operational.validationFindings.filter(function (item) {
-          return item.id.indexOf("missing") === 0 || item.id === "no-comments" || item.id === "attachments-metadata-only" || item.id.indexOf("attachment-") === 0;
-        })),
+        missingInfo: missingInfo,
+        unresolvedQuestions: unresolvedQuestions,
         confidence: operational.confidence,
         confidenceReason: cleanText(summary.confidenceReason),
         trustSignals: createTrustSignals(input, operational),
@@ -1441,6 +1499,8 @@
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "## VA/team-ready actions");
     appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    lines.push("", "## Unresolved questions");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "## Validation");
     appendItems(lines, result.validationFindings, "No validation findings.");
     lines.push("", "## Confidence");
@@ -1473,6 +1533,8 @@
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "VA/team-ready actions:");
     appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    lines.push("", "Unresolved questions:");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Missing information:");
     appendItems(lines, result.missingInfo, "No missing information detected.");
     lines.push("", "Confidence:");
@@ -1493,6 +1555,7 @@
       "",
       "Top next action: " + firstItemText(result.nextActions, "No next action detected."),
       "Main blocker: " + firstItemText(result.blockers, "No blocker detected."),
+      "Open question: " + firstItemText(result.unresolvedQuestions, "No unresolved question detected."),
       "Robert decision: " + firstItemText(result.robertDecisions, "No Robert-specific decision detected."),
       "VA/team handoff: " + firstItemText(result.vaReadyActions, "No VA/team-ready action detected."),
       "",
@@ -1524,6 +1587,8 @@
     appendDecisionFraming(lines, result.robertDecisions);
     lines.push("", "Blockers to consider:");
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Unresolved questions:");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Recommended next action:");
     lines.push(firstItemText(result.nextActions, "No next action detected."));
     lines.push("", "Confidence: " + confidence + ".");
@@ -1553,6 +1618,8 @@
     appendItems(lines, result.nextActions, "No next actions detected.");
     lines.push("", "Blockers to avoid:");
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Unresolved questions:");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Robert decisions not delegated:");
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "Missing information:");
@@ -1587,6 +1654,8 @@
     appendItems(lines, toArray(result.risks).concat(toArray(result.blockers)), "No risks or blockers detected.");
     lines.push("", "Missing information:");
     appendItems(lines, result.missingInfo, "No missing information detected.");
+    lines.push("", "Unresolved questions:");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Validation findings:");
     appendItems(lines, result.validationFindings, "No validation findings.");
     lines.push("", "Robert decision required:");
@@ -1615,6 +1684,8 @@
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "Follow-up actions:");
     appendItems(lines, result.nextActions, "No follow-up actions detected.");
+    lines.push("", "Unresolved questions:");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "VA/team handoff:");
     appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
     appendSourceCoverageSummary(lines, run, "Source coverage:", 5);
@@ -1636,6 +1707,8 @@
     appendCheckboxItems(lines, result.vaReadyActions, "No VA/team-ready action detected.");
     lines.push("", "Blocked by:");
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Questions to resolve:");
+    appendCheckboxItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     appendEvidenceClaimSummary(lines, result, "Evidence-backed claims:", 4);
     return lines.join("\n");
   }
@@ -1706,6 +1779,8 @@
     appendItems(lines, result.blockers, "No blockers detected.");
     lines.push("", "Next actions:");
     appendItems(lines, result.nextActions, "No next actions detected.");
+    lines.push("", "Unresolved questions:");
+    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Robert decisions:");
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "VA/team-ready actions:");

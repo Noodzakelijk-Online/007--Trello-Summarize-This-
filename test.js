@@ -48,6 +48,7 @@ const prompt = SummarizeThis.buildAIPrompt(sample);
 assert.ok(prompt.includes("Return only valid JSON"));
 assert.ok(prompt.includes("robertDecisions"));
 assert.ok(prompt.includes("vaReadyActions"));
+assert.ok(prompt.includes("unresolvedQuestions"));
 assert.ok(prompt.includes("evidenceClaims"));
 assert.ok(prompt.includes("Prepare launch checklist"));
 assert.equal(SummarizeThis.normalizeOutputMode("risk-review"), "risk-review");
@@ -324,15 +325,16 @@ const aiSummary = SummarizeThis.normalizeAIAnalysis({
   history: "AI history",
   status: "AI status",
   nextSteps: ["Do the thing"],
-  blockers: [{ text: "Waiting on Robert approval" }],
-  robertDecisions: [{ question: "Approve VA follow-up? Yes/No" }],
-  vaReadyActions: [{ action: "VA collect the missing screenshot" }],
-  insights: ["Useful insight"],
-  risks: [],
-  missingInfo: ["Invoice amount is not in the card"],
-  evidenceClaims: [{
-    claim: "Billing is still open",
-    source: "checklist",
+    blockers: [{ text: "Waiting on Robert approval" }],
+    robertDecisions: [{ question: "Approve VA follow-up? Yes/No" }],
+    vaReadyActions: [{ action: "VA collect the missing screenshot" }],
+    insights: ["Useful insight"],
+    risks: [],
+    missingInfo: ["Invoice amount is not in the card"],
+    unresolvedQuestions: ["Who owns the invoice amount confirmation?"],
+    evidenceClaims: [{
+      claim: "Billing is still open",
+      source: "checklist",
     confidence: "supported"
   }],
   validationFindings: ["Attachment contents were not verified"],
@@ -347,6 +349,7 @@ assert.deepEqual(aiSummary.blockers, ["Waiting on Robert approval"]);
 assert.deepEqual(aiSummary.robertDecisions, ["Approve VA follow-up? Yes/No"]);
 assert.deepEqual(aiSummary.vaReadyActions, ["VA collect the missing screenshot"]);
 assert.deepEqual(aiSummary.missingInfo, ["Invoice amount is not in the card"]);
+assert.deepEqual(aiSummary.unresolvedQuestions, ["Who owns the invoice amount confirmation?"]);
 assert.equal(aiSummary.evidenceClaims[0].claim, "Billing is still open");
 assert.equal(aiSummary.validationFindings[0], "Attachment contents were not verified");
 assert.equal(aiSummary.confidenceReason, "Description and checklist are present.");
@@ -478,6 +481,8 @@ assert.equal(run.promptProfile.customInstructionsCharacters, 67);
 assert.ok(run.result.blockers.length >= 2);
 assert.ok(run.result.robertDecisions.length >= 1);
 assert.ok(run.result.vaReadyActions.length >= 1);
+assert.ok(run.result.unresolvedQuestions.length >= 1);
+assert.ok(run.result.unresolvedQuestions.some(item => item.text.includes("Robert decision still open")));
 assert.ok(run.result.evidenceClaims.every(claim => Array.isArray(claim.support)));
 assert.ok(run.result.validationFindings.some(finding => finding.id === "decision-review"));
 assert.ok(run.result.confidence.overall >= 25);
@@ -538,6 +543,7 @@ assert.ok(aiStructuredRun.result.blockers.some(item => item.text.includes("Waiti
 assert.ok(aiStructuredRun.result.robertDecisions.some(item => item.text.includes("Approve: Yes/No")));
 assert.ok(aiStructuredRun.result.vaReadyActions.some(item => item.text.includes("VA collect the missing screenshot")));
 assert.ok(aiStructuredRun.result.missingInfo.some(item => item.text.includes("Invoice amount")));
+assert.ok(aiStructuredRun.result.unresolvedQuestions.some(item => item.text.includes("Who owns the invoice amount confirmation")));
 assert.ok(aiStructuredRun.result.evidenceClaims.some(item => item.claim.includes("Billing is still open")));
 assert.ok(aiStructuredRun.result.validationFindings.some(item => item.text.includes("Attachment contents")));
 assert.equal(aiStructuredRun.result.confidenceReason, "Description and checklist are present.");
@@ -678,6 +684,7 @@ assert.equal(summarizedExports[5].exportLabel, "List planning JSON");
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
+assert.ok(ledgerMarkdown.includes("## Unresolved questions"));
 assert.ok(ledgerMarkdown.includes("VA collect"));
 assert.ok(ledgerMarkdown.includes("## Evidence-backed claims"));
 assert.ok(ledgerMarkdown.includes("## Source coverage"));
@@ -687,12 +694,14 @@ const ledgerPlainText = CardIntelligenceLedger.plainTextForLedgerRun(run);
 assert.ok(ledgerPlainText.includes("Trello Card Intelligence"));
 assert.ok(ledgerPlainText.includes("Missing information:"));
 assert.ok(ledgerPlainText.includes("Robert decisions:"));
+assert.ok(ledgerPlainText.includes("Unresolved questions:"));
 assert.ok(ledgerPlainText.includes("Evidence-backed claims:"));
 assert.ok(ledgerPlainText.includes("Source coverage:"));
 
 const ledgerStatusUpdate = CardIntelligenceLedger.statusUpdateForLedgerRun(run);
 assert.ok(ledgerStatusUpdate.includes("Status update:"));
 assert.ok(ledgerStatusUpdate.includes("Top next action:"));
+assert.ok(ledgerStatusUpdate.includes("Open question:"));
 assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
 assert.ok(ledgerStatusUpdate.includes("Source coverage:"));
 
@@ -700,6 +709,7 @@ const robertDecisionBrief = CardIntelligenceLedger.robertDecisionBriefForLedgerR
 assert.ok(robertDecisionBrief.includes("Robert decision brief:"));
 assert.ok(robertDecisionBrief.includes("Decision needed:"));
 assert.ok(robertDecisionBrief.includes("Yes/No framing:"));
+assert.ok(robertDecisionBrief.includes("Unresolved questions:"));
 assert.ok(robertDecisionBrief.includes("Evidence-backed claims:"));
 assert.ok(robertDecisionBrief.includes("Source coverage:"));
 assert.equal(robertDecisionBrief.includes("Prefer Yes/No decisions"), false);
@@ -708,6 +718,7 @@ const vaHandoffBrief = CardIntelligenceLedger.vaHandoffBriefForLedgerRun(run);
 assert.ok(vaHandoffBrief.includes("VA/team handoff:"));
 assert.ok(vaHandoffBrief.includes("VA/team-ready actions:"));
 assert.ok(vaHandoffBrief.includes("Blockers to avoid:"));
+assert.ok(vaHandoffBrief.includes("Unresolved questions:"));
 assert.ok(vaHandoffBrief.includes("Robert decisions not delegated:"));
 assert.ok(vaHandoffBrief.includes("Evidence-backed claims:"));
 assert.ok(vaHandoffBrief.includes("Source coverage:"));
@@ -716,16 +727,19 @@ assert.equal(vaHandoffBrief.includes("Prefer Yes/No decisions"), false);
 const meetingBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run);
 assert.ok(meetingBrief.includes("Meeting brief:"));
 assert.ok(meetingBrief.includes("Decisions to cover:"));
+assert.ok(meetingBrief.includes("Unresolved questions:"));
 assert.ok(meetingBrief.includes("Source coverage:"));
 
 const riskBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "risk-review");
 assert.ok(riskBrief.includes("Risk review:"));
 assert.ok(riskBrief.includes("Validation findings:"));
+assert.ok(riskBrief.includes("Unresolved questions:"));
 assert.ok(riskBrief.includes("Evidence-backed claims:"));
 
 const checklistBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "next-action-checklist");
 assert.ok(checklistBrief.includes("Next-action checklist:"));
 assert.ok(checklistBrief.includes("- [ ]"));
+assert.ok(checklistBrief.includes("Questions to resolve:"));
 assert.ok(checklistBrief.includes("Evidence-backed claims:"));
 
 const ledgerJson = JSON.parse(CardIntelligenceLedger.jsonForLedgerRun(run, {
@@ -744,11 +758,13 @@ assert.ok(ledgerJson.analysisRun.promptProfile.customInstructionsHash);
 assert.equal(JSON.stringify(ledgerJson).includes("Prefer Yes/No decisions"), false);
 assert.equal(ledgerJson.cardSnapshot.description, undefined);
 assert.ok(Array.isArray(ledgerJson.result.blockers));
+assert.ok(Array.isArray(ledgerJson.result.unresolvedQuestions));
 
 const trelloCommentDraft = CardIntelligenceLedger.createTrelloCommentDraft(run);
 assert.ok(trelloCommentDraft.includes("Summarize This - Card Intelligence"));
 assert.ok(trelloCommentDraft.includes("Robert decisions:"));
 assert.ok(trelloCommentDraft.includes("VA/team-ready actions:"));
+assert.ok(trelloCommentDraft.includes("Unresolved questions:"));
 assert.ok(trelloCommentDraft.includes("Confidence:"));
 assert.ok(trelloCommentDraft.includes("Evidence notes:"));
 assert.ok(trelloCommentDraft.includes("Source coverage:"));

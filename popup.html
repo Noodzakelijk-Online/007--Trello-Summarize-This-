@@ -582,6 +582,11 @@
         </article>
 
         <article class="panel">
+          <h2 class="section-title">Unresolved questions</h2>
+          <ul id="unresolvedQuestionsList" class="compact-list"></ul>
+        </article>
+
+        <article class="panel">
           <h2 class="section-title">Validation</h2>
           <ul id="validationList" class="compact-list"></ul>
         </article>
@@ -1569,6 +1574,7 @@
         renderOperationalList("blockersList", result ? result.blockers : [], "No blockers detected.");
         renderOperationalList("robertDecisionsList", result ? result.robertDecisions : [], "No Robert-specific decision detected.");
         renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
+        renderOperationalList("unresolvedQuestionsList", result ? result.unresolvedQuestions : [], "No unresolved questions detected.");
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
         renderListContext(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.listContext : null);

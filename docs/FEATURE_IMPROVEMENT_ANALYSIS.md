@@ -17,11 +17,11 @@ Status: First working slice implemented in `card-intelligence-ledger.js` and `po
 Implemented:
 
 - Creates a private analysis run per card with a card snapshot, input hash, provider/model metadata, structured result, evidence claims, validation findings, and audit event.
-- Extracts blockers, next actions, Robert decision items, and VA/team-ready actions from the existing summary and card data.
+- Extracts blockers, next actions, Robert decision items, VA/team-ready actions, and unresolved questions from the existing summary and card data.
 - Stores history, review state, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
 - Reads matching prior corrections back into the next analysis run as guidance, while keeping them distinct from verified Trello evidence.
 - Avoids silently writing analysis results to shared card storage.
-- Shows evidence, validation, decision, blocker, review-state, export/postback history, prior-correction, and correction panels in the active popup.
+- Shows evidence, validation, decision, blocker, unresolved-question, review-state, export/postback history, prior-correction, and correction panels in the active popup.
 
 Impact: High. This turns the active popup into the first real card intelligence layer instead of only a summary display.
 
@@ -87,7 +87,7 @@ Status: Implemented through the operational AI schema, ledger extraction, settin
 
 Implemented:
 
-- AI providers are now prompted to return blockers, next actions, Robert decisions, VA/team-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
+- AI providers are now prompted to return blockers, next actions, Robert decisions, VA/team-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
 - The ledger preserves these structured AI fields when present and still falls back to deterministic extraction.
 - Settings now include user-selectable output modes:
   - Operational ledger.

@@ -16,11 +16,11 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 243.4 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 385.3 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.56 MB.
-- Generated Windows installer executable: 241,152 bytes.
-- Large-card AI prompt after caps: 18,943 characters.
+- Active popup initial local files: about 247.8 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 389.6 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.57 MB.
+- Generated Windows installer executable: 243,200 bytes.
+- Large-card AI prompt after caps: 19,032 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -70,6 +70,7 @@ Current results:
    - Export/postback history is filtered to current-card analysis run ids and capped to 8 visible records.
    - Plain text, status update, Robert decision, VA/team handoff, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
+   - Unresolved questions are compact derived records capped to 10 items and reuse existing evidence/source ids instead of storing full card text.
    - Human-readable export evidence/source notes are bounded to compact claim and source-coverage summaries instead of duplicating full card content.
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
