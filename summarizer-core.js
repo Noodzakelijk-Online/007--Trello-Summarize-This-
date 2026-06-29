@@ -142,6 +142,20 @@
     });
   }
 
+  function normalizePriorFeedback(records) {
+    return toArray(records).map(function (record) {
+      return {
+        rating: cleanText(record.rating),
+        correctionText: truncate(record.correctionText, 260),
+        incorrectSections: toArray(record.incorrectSections).map(cleanText).filter(Boolean).slice(0, 8),
+        createdAt: record.createdAt || "",
+        acceptedAt: record.acceptedAt || null
+      };
+    }).filter(function (record) {
+      return record.rating || record.correctionText || record.incorrectSections.length;
+    }).slice(0, 5);
+  }
+
   function getObjectName(value) {
     if (!value) return "";
     if (typeof value === "string") return cleanText(value);
@@ -175,6 +189,7 @@
       dateLastActivity: base.dateLastActivity || base.lastActivity || null
     };
 
+    card.priorFeedback = normalizePriorFeedback(base.priorFeedback || base.feedback || base.previousFeedback);
     card.listContext = normalizeListContext(base.listContext || base.boardListContext, card.id, card.listName);
     card.checklistStats = getChecklistStats(card);
     card.commentCount = card.comments.length || toNumber(card.badges.comments);
@@ -362,7 +377,8 @@
       card.labels.join(" "),
       card.members.join(" "),
       card.attachments.map(function (attachment) { return attachment.name || ""; }).join(" "),
-      card.comments.slice(0, 12).map(function (comment) { return comment.text || ""; }).join(" ")
+      card.comments.slice(0, 12).map(function (comment) { return comment.text || ""; }).join(" "),
+      card.priorFeedback.map(function (item) { return item.correctionText || ""; }).join(" ")
     ].join(" ").toLowerCase();
     var categories = {
       client: ["client", "customer", "account", "proposal", "stakeholder"],
@@ -419,6 +435,9 @@
     if (card.actions.length) {
       historyParts.push(card.actions.length + " recent action" + (card.actions.length === 1 ? "" : "s") + " were included.");
     }
+    if (card.priorFeedback.length) {
+      historyParts.push(card.priorFeedback.length + " prior correction" + (card.priorFeedback.length === 1 ? "" : "s") + " from review feedback " + (card.priorFeedback.length === 1 ? "is" : "are") + " available for this run.");
+    }
     if (checklist.total) {
       historyParts.push(checklist.complete + " of " + checklist.total + " checklist item" + (checklist.total === 1 ? "" : "s") + " " + (checklist.complete === 1 ? "is" : "are") + " complete.");
     }
@@ -468,6 +487,9 @@
         }).join(", ") + ".");
       }
     }
+    if (card.priorFeedback.length) {
+      insights.push("Prior user feedback is available and should be reviewed before treating this analysis as final.");
+    }
     if (insights.length === 0) {
       insights.push("The card has sparse metadata, so the summary should be treated as a starting point.");
     }
@@ -494,6 +516,9 @@
     }
     if (!card.listContext || !card.listContext.sampledCards) {
       recommendations.push("Enable list context when this card needs sprint or neighboring-card comparison.");
+    }
+    if (card.priorFeedback.length) {
+      recommendations.push("Check prior corrections and avoid repeating previously flagged mistakes.");
     }
     if (due.state === "overdue") {
       recommendations.push("Reconfirm priority and update the due date after the owner reviews the card.");
@@ -560,6 +585,7 @@
       dueComplete: card.dueComplete,
       listContext: card.listContext,
       sensitiveSignals: detectSensitiveSignals(input),
+      priorFeedback: card.priorFeedback,
       checklistProgress: card.checklistStats,
       comments: comments,
       attachmentCount: card.attachmentCount,
@@ -570,7 +596,8 @@
         commentCharacters: context.commentCharacters,
         commentsAvailable: card.comments.length,
         commentsIncluded: comments.length,
-        listContextCards: card.listContext ? card.listContext.sampledCards : 0
+        listContextCards: card.listContext ? card.listContext.sampledCards : 0,
+        priorFeedbackItems: card.priorFeedback.length
       }
     };
 
@@ -601,6 +628,7 @@
       "If attachments are present but text is not provided, say attachment contents were not verified.",
       "Use listContext only as lightweight board/list signal; do not infer hidden card details from neighboring card titles.",
       "If sensitiveSignals are present, keep the response operational and avoid exposing unnecessary private details.",
+      "Use priorFeedback as user correction guidance only. Do not treat corrections as verified Trello facts unless card evidence also supports them.",
       "If Robert is mentioned or approval/client/financial/legal risk appears, create a Robert Yes/No decision.",
       "If an action can be delegated without Robert, include it in vaReadyActions.",
       "",
@@ -794,6 +822,7 @@
     getOutputModeInstruction: getOutputModeInstruction,
     getOutputModeLabel: getOutputModeLabel,
     normalizeOutputMode: normalizeOutputMode,
+    normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,

@@ -19,8 +19,9 @@ Implemented:
 - Creates a private analysis run per card with a card snapshot, input hash, provider/model metadata, structured result, evidence claims, validation findings, and audit event.
 - Extracts blockers, next actions, Robert decision items, and VA/team-ready actions from the existing summary and card data.
 - Stores history, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
+- Reads matching prior corrections back into the next analysis run as guidance, while keeping them distinct from verified Trello evidence.
 - Avoids silently writing analysis results to shared card storage.
-- Shows evidence, validation, decision, blocker, and correction panels in the active popup.
+- Shows evidence, validation, decision, blocker, prior-correction, and correction panels in the active popup.
 
 Impact: High. This turns the active popup into the first real card intelligence layer instead of only a summary display.
 
@@ -136,6 +137,15 @@ Status: Implemented in the active popup and ledger export records.
 - Sensitive Trello comment drafts cannot be copied or posted until the user reviews the exact draft and approves it.
 - Export records store whether sensitive review was required and approved, including compact signal categories and matched terms.
 - The flow keeps non-sensitive exports fast while making sensitive client, financial, legal, or personal handoffs explicit.
+
+### 5d. Feedback-Guided Reanalysis
+
+Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelligence-ledger.js`.
+
+- Feedback records now store the card id and title, so corrections can be matched back to the same card.
+- The next run reads recent matching corrections from private storage and includes compact correction guidance in local analysis, AI prompts, source coverage, and the popup.
+- Prior corrections are shown as guidance, not as verified Trello facts, to avoid turning user feedback into unsupported claims.
+- Sensitive detection also sees correction text before provider handoff, so sensitive feedback does not silently travel to AI providers.
 
 ### 6. Attachment Content Extraction
 

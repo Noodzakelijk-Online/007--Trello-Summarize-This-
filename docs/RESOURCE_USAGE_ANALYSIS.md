@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 158.6 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 269.1 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.41 MB.
-- Large-card AI prompt after caps: 16,066 characters.
+- Active popup initial local files: about 164.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 275.1 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.42 MB.
+- Large-card AI prompt after caps: 16,261 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -61,6 +61,7 @@ Current results:
    - It stores compact card snapshots with hashes instead of full descriptions.
    - History, feedback, and export records use member-private Power-Up storage.
    - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
+   - Prior feedback readback is capped to 5 compact correction records, with each correction capped before it is shown or sent as AI prompt guidance.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
    - Plain text, status update, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
@@ -79,11 +80,11 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 269 KB, and the generated `SummarizeThisSetup.exe` is 182,272 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 275 KB, and the generated `SummarizeThisSetup.exe` is 185,344 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. The prompt caps reduce token use, latency, and provider cost for large cards. In local-only mode no AI provider network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. In local-only mode no AI provider network request is made.
 
 ### Trello Runtime
 

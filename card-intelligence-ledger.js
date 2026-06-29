@@ -118,6 +118,20 @@
     });
   }
 
+  function normalizePriorFeedback(records) {
+    return toArray(records).map(function (record) {
+      return {
+        rating: cleanText(record.rating),
+        correctionText: cleanText(record.correctionText).slice(0, 260),
+        incorrectSections: toArray(record.incorrectSections).map(cleanText).filter(Boolean).slice(0, 8),
+        createdAt: record.createdAt || "",
+        acceptedAt: record.acceptedAt || null
+      };
+    }).filter(function (record) {
+      return record.rating || record.correctionText || record.incorrectSections.length;
+    }).slice(0, 5);
+  }
+
   function normalizeListContext(input, currentCardId, currentListName) {
     var source = input || {};
     var cards = toArray(source.cards || source.listCards || source.neighborCards).map(function (card) {
@@ -249,6 +263,7 @@
       comments: comments,
       attachments: attachments,
       actions: toArray(base.actions),
+      priorFeedback: normalizePriorFeedback(base.priorFeedback || base.feedback || base.previousFeedback),
       checklistSummary: checklistSummary,
       commentCount: comments.length || toNumber(badges.comments),
       attachmentCount: attachments.length || toNumber(badges.attachments),
@@ -270,6 +285,7 @@
       checklistSummary: card.checklistSummary,
       commentCount: card.commentCount,
       attachmentCount: card.attachmentCount,
+      priorFeedbackCount: card.priorFeedback.length,
       due: card.due,
       dueComplete: card.dueComplete,
       labels: card.labels.slice(0, 25),
@@ -320,6 +336,9 @@
       "No comments were available, so history may be incomplete."
     ));
     addCoverage(items, "attachments", "Attachments", attachmentCoverage(card));
+    addCoverage(items, "priorFeedback", "Prior feedback", card.priorFeedback.length
+      ? coverage("available", card.priorFeedback.length + " prior correction/review item(s) available for this analysis.")
+      : coverage("missing", "No prior correction feedback was available for this card."));
     addCoverage(items, "customFields", "Custom fields", sourceCollectionCoverage(
       status.customFields,
       card.customFields.length,
@@ -1078,6 +1097,8 @@
       rating: cleanText(feedback && feedback.rating),
       correctionText: cleanText(feedback && feedback.correctionText),
       incorrectSections: toArray(feedback && feedback.incorrectSections).map(cleanText).filter(Boolean),
+      cardId: cleanText(feedback && feedback.cardId),
+      cardTitle: cleanText(feedback && feedback.cardTitle),
       acceptedAt: feedback && feedback.acceptedAt ? feedback.acceptedAt : null,
       createdAt: nowIso(options)
     };
@@ -1399,6 +1420,7 @@
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,
     createHumanFeedback: createHumanFeedback,
+    normalizePriorFeedback: normalizePriorFeedback,
     createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,
     createTrelloCommentDraft: createTrelloCommentDraft,

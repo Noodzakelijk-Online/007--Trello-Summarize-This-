@@ -48,6 +48,23 @@ assert.equal(riskPromptPayload.listContext.sampledCards, 4);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
 assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
 
+const cardWithPriorFeedback = Object.assign({}, sample, {
+  priorFeedback: [{
+    rating: "wrong",
+    correctionText: "The invoice amount is still missing; do not say billing is complete.",
+    incorrectSections: ["risks"],
+    createdAt: "2026-06-29T12:04:00.000Z"
+  }]
+});
+const feedbackPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(cardWithPriorFeedback));
+assert.equal(feedbackPromptPayload.priorFeedback.length, 1);
+assert.ok(feedbackPromptPayload.priorFeedback[0].correctionText.includes("invoice amount"));
+assert.equal(feedbackPromptPayload.contextIncluded.priorFeedbackItems, 1);
+
+const feedbackLocal = SummarizeThis.buildRuleBasedAnalysis(cardWithPriorFeedback);
+assert.ok(feedbackLocal.summary.history.includes("prior correction"));
+assert.ok(feedbackLocal.summary.recommendations.some(item => item.includes("prior corrections")));
+
 function parsePromptPayload(promptText) {
   return JSON.parse(promptText.slice(promptText.lastIndexOf("\n{") + 1));
 }
@@ -174,6 +191,12 @@ assert.ok(snapshot.sourceCoverage.some(item => item.key === "comments" && item.s
 assert.ok(snapshot.listContext);
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "listContext" && item.status === "available"));
 
+const feedbackSnapshot = CardIntelligenceLedger.createCardSnapshot(cardWithPriorFeedback, {
+  now: "2026-06-29T12:00:15.000Z"
+});
+assert.equal(feedbackSnapshot.priorFeedbackCount, 1);
+assert.ok(feedbackSnapshot.sourceCoverage.some(item => item.key === "priorFeedback" && item.status === "available"));
+
 const partialCoverage = CardIntelligenceLedger.createSourceCoverage(Object.assign({}, sample, {
   comments: [],
   checklists: [],
@@ -289,12 +312,15 @@ assert.ok(firstRunChange.text.includes("First saved analysis"));
 const feedback = CardIntelligenceLedger.createHumanFeedback(run.id, {
   rating: "wrong",
   correctionText: "The invoice amount is still missing.",
-  incorrectSections: ["risks"]
+  incorrectSections: ["risks"],
+  cardId: run.cardId,
+  cardTitle: run.cardSnapshot.title
 }, {
   now: "2026-06-29T12:05:00.000Z"
 });
 assert.equal(feedback.analysisRunId, run.id);
 assert.equal(feedback.correctionText, "The invoice amount is still missing.");
+assert.equal(feedback.cardId, run.cardId);
 
 const exportRecord = CardIntelligenceLedger.createExportRecord(run.id, "markdown", "clipboard", {
   now: "2026-06-29T12:06:00.000Z"

@@ -622,6 +622,12 @@
         <ul id="historyList" class="history-list"></ul>
       </section>
 
+      <section id="priorFeedbackPanel" class="panel hidden">
+        <h2 class="section-title">Prior corrections applied</h2>
+        <p id="priorFeedbackSummary" class="section-body">No prior corrections were available for this card.</p>
+        <ul id="priorFeedbackList" class="compact-list"></ul>
+      </section>
+
       <section class="panel">
         <h2 class="section-title">Export formats</h2>
         <p id="outputModeText" class="section-body">Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.</p>
@@ -759,6 +765,7 @@
           var settings = await loadSettings();
           lastSettings = settings;
           var cardData = await gatherCardData(settings);
+          cardData = await attachPriorFeedback(cardData);
           lastCardData = cardData;
           var sensitiveSignals = SummarizeThis.detectSensitiveSignals(cardData);
           lastSensitiveSignals = sensitiveSignals;
@@ -839,6 +846,9 @@
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
+        document.getElementById("priorFeedbackPanel").classList.add("hidden");
+        document.getElementById("priorFeedbackSummary").textContent = "No prior corrections were available for this card.";
+        document.getElementById("priorFeedbackList").innerHTML = "";
         document.getElementById("postbackPreview").value = "";
         document.getElementById("postbackApproval").checked = false;
         document.getElementById("postbackStatus").textContent = "Review the exact draft before copying or posting it.";
@@ -944,6 +954,23 @@
             comments: sourceReadStatus(commentsRead),
             customFields: { ok: Array.isArray(customFieldItems) }
           }
+        });
+      }
+
+      async function attachPriorFeedback(cardData) {
+        var cardId = cardData && cardData.id ? cardData.id : "local-preview";
+        var records = await readPrivateObject("summarizeThisFeedback", []);
+        var ledgerHistory = await readPrivateObject("summarizeThisLedgerHistory", {});
+        var runs = ledgerHistory && Array.isArray(ledgerHistory[cardId]) ? ledgerHistory[cardId] : [];
+        var runIds = runs.map(function (run) { return run && run.id; }).filter(Boolean);
+        var matching = Array.isArray(records) ? records.filter(function (record) {
+          return record && (
+            record.cardId === cardId ||
+            runIds.indexOf(record.analysisRunId) !== -1
+          );
+        }) : [];
+        return Object.assign({}, cardData, {
+          priorFeedback: SummarizeThis.normalizePriorFeedback(matching)
         });
       }
 
@@ -1349,6 +1376,7 @@
         renderListContext(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.listContext : null);
         renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
         renderTrustSignals(result && result.trustSignals ? result.trustSignals : CardIntelligenceLedger.createTrustSignals(cardData));
+        renderPriorFeedback(cardData.priorFeedback);
         renderOutputMode(ledgerRun);
         renderPostbackDraft(ledgerRun);
       }
@@ -1506,6 +1534,35 @@
           chip.textContent = item.label || item.key || String(item);
           if (item.detail) chip.title = item.detail;
           list.appendChild(chip);
+        });
+      }
+
+      function renderPriorFeedback(items) {
+        var values = SummarizeThis.normalizePriorFeedback(items);
+        var panel = document.getElementById("priorFeedbackPanel");
+        var summary = document.getElementById("priorFeedbackSummary");
+        var list = document.getElementById("priorFeedbackList");
+        list.innerHTML = "";
+        panel.classList.toggle("hidden", !values.length);
+
+        if (!values.length) {
+          summary.textContent = "No prior corrections were available for this card.";
+          return;
+        }
+
+        summary.textContent = values.length + " prior correction/review item(s) were included as guidance for this analysis.";
+        values.forEach(function (item) {
+          var li = document.createElement("li");
+          var sections = item.incorrectSections && item.incorrectSections.length
+            ? " Sections: " + item.incorrectSections.join(", ") + "."
+            : "";
+          li.textContent = [
+            item.rating ? "Rating: " + item.rating + "." : "",
+            item.correctionText || "No correction text.",
+            sections,
+            item.createdAt ? " Saved " + formatDate(item.createdAt) + "." : ""
+          ].filter(Boolean).join(" ");
+          list.appendChild(li);
         });
       }
 
@@ -1948,13 +2005,19 @@
           rating: rating,
           correctionText: correctionText,
           incorrectSections: rating === "wrong" ? ["summary"] : [],
+          cardId: lastLedgerRun.cardId,
+          cardTitle: lastLedgerRun.cardSnapshot && lastLedgerRun.cardSnapshot.title,
           acceptedAt: rating === "useful" ? new Date().toISOString() : null
         });
         var records = await readPrivateObject("summarizeThisFeedback", []);
         if (!Array.isArray(records)) records = [];
         records.unshift(feedback);
         await writePrivateObject("summarizeThisFeedback", records.slice(0, 100));
-        document.getElementById("feedbackStatus").textContent = "Feedback saved privately.";
+        if (lastCardData) {
+          lastCardData.priorFeedback = SummarizeThis.normalizePriorFeedback([feedback].concat(lastCardData.priorFeedback || []));
+          renderPriorFeedback(lastCardData.priorFeedback);
+        }
+        document.getElementById("feedbackStatus").textContent = "Feedback saved privately and will guide the next analysis for this card.";
       }
 
       function openSettings() {
