@@ -744,6 +744,7 @@
     var operational = createOperationalAnalysis(card, summary);
     var timestamp = nowIso(options);
     var runId = "run-" + shortHash(card.id + timestamp + JSON.stringify(summary));
+    var outputMode = normalizeOutputMode(options && options.outputMode);
 
     return {
       id: runId,
@@ -752,6 +753,7 @@
       provider: (analysis && analysis.metadata && analysis.metadata.provider) || "Unknown",
       model: (analysis && analysis.metadata && analysis.metadata.model) || "",
       promptTemplateId: (options && options.promptTemplateId) || "operational-ledger-v1",
+      outputMode: outputMode,
       startedAt: timestamp,
       completedAt: timestamp,
       status: (options && options.status) || "completed",
@@ -984,6 +986,100 @@
     return lines.join("\n");
   }
 
+  function modeBriefForLedgerRun(run, mode) {
+    var selected = normalizeOutputMode(mode || (run && run.outputMode));
+    if (selected === "status-update") return statusUpdateForLedgerRun(run);
+    if (selected === "risk-review") return riskReviewForLedgerRun(run);
+    if (selected === "meeting-brief") return meetingBriefForLedgerRun(run);
+    if (selected === "next-action-checklist") return nextActionChecklistForLedgerRun(run);
+    if (selected === "client-friendly") return clientFriendlySummaryForLedgerRun(run);
+    return markdownForLedgerRun(run);
+  }
+
+  function riskReviewForLedgerRun(run) {
+    var result = run && run.result ? run.result : {};
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
+    var lines = [
+      "Risk review: " + title,
+      "",
+      "Current status:",
+      cleanText(result.currentStatus || result.about || "No current status available."),
+      "",
+      "Risks and blockers:"
+    ];
+    appendItems(lines, toArray(result.risks).concat(toArray(result.blockers)), "No risks or blockers detected.");
+    lines.push("", "Missing information:");
+    appendItems(lines, result.missingInfo, "No missing information detected.");
+    lines.push("", "Validation findings:");
+    appendItems(lines, result.validationFindings, "No validation findings.");
+    lines.push("", "Robert decision required:");
+    appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
+    return lines.join("\n");
+  }
+
+  function meetingBriefForLedgerRun(run) {
+    var result = run && run.result ? run.result : {};
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
+    var lines = [
+      "Meeting brief: " + title,
+      "",
+      "Context:",
+      cleanText(result.about || "No overview available."),
+      "",
+      "What happened:",
+      cleanText(result.history || "No history available."),
+      "",
+      "Current status:",
+      cleanText(result.currentStatus || "No current status available."),
+      "",
+      "Decisions to cover:"
+    ];
+    appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
+    lines.push("", "Follow-up actions:");
+    appendItems(lines, result.nextActions, "No follow-up actions detected.");
+    lines.push("", "VA/team handoff:");
+    appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    return lines.join("\n");
+  }
+
+  function nextActionChecklistForLedgerRun(run) {
+    var result = run && run.result ? run.result : {};
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
+    var lines = [
+      "Next-action checklist: " + title,
+      "",
+      "Immediate actions:"
+    ];
+    appendCheckboxItems(lines, result.nextActions, "Confirm the card is complete or add the next concrete action.");
+    lines.push("", "Robert approvals:");
+    appendCheckboxItems(lines, result.robertDecisions, "No Robert-specific approval detected.");
+    lines.push("", "VA/team-ready:");
+    appendCheckboxItems(lines, result.vaReadyActions, "No VA/team-ready action detected.");
+    lines.push("", "Blocked by:");
+    appendItems(lines, result.blockers, "No blockers detected.");
+    return lines.join("\n");
+  }
+
+  function clientFriendlySummaryForLedgerRun(run) {
+    var result = run && run.result ? run.result : {};
+    var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
+    var lines = [
+      "Client-friendly summary: " + title,
+      "",
+      cleanText(result.about || "No overview available."),
+      "",
+      "Current status:",
+      cleanText(result.currentStatus || "No current status available."),
+      "",
+      "Next step:",
+      firstItemText(result.nextActions, "No next action detected.")
+    ];
+    if (toArray(result.blockers).length) {
+      lines.push("", "Open item:", firstItemText(result.blockers, "No open item detected."));
+    }
+    return lines.join("\n");
+  }
+
   function jsonForLedgerRun(run, options) {
     var exportObject = {
       schemaVersion: "summarize-this-card-intelligence-export-v1",
@@ -994,6 +1090,7 @@
         provider: run && run.provider,
         model: run && run.model,
         promptTemplateId: run && run.promptTemplateId,
+        outputMode: run && run.outputMode,
         completedAt: run && run.completedAt,
         inputHash: run && run.inputHash
       },
@@ -1055,6 +1152,31 @@
     });
   }
 
+  function appendCheckboxItems(lines, items, fallback) {
+    var values = toArray(items);
+    if (!values.length) {
+      lines.push("- [ ] " + fallback);
+      return;
+    }
+    values.forEach(function (item) {
+      var text = cleanText(item.text || item.claim || item);
+      if (text) lines.push("- [ ] " + text);
+    });
+  }
+
+  function normalizeOutputMode(value) {
+    var mode = cleanText(value || "operational-ledger");
+    var allowed = {
+      "operational-ledger": true,
+      "status-update": true,
+      "risk-review": true,
+      "meeting-brief": true,
+      "next-action-checklist": true,
+      "client-friendly": true
+    };
+    return allowed[mode] ? mode : "operational-ledger";
+  }
+
   return {
     createAnalysisRun: createAnalysisRun,
     createCardSnapshot: createCardSnapshot,
@@ -1068,6 +1190,7 @@
     jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,
+    modeBriefForLedgerRun: modeBriefForLedgerRun,
     normalizeCard: normalizeCard,
     plainTextForLedgerRun: plainTextForLedgerRun,
     statusUpdateForLedgerRun: statusUpdateForLedgerRun,

@@ -77,22 +77,22 @@ Impact: Medium-high. Useful for project managers and async status tracking.
 
 Problem: Different users need different outputs from the same card.
 
-Status: Partially implemented through the operational AI schema and ledger extraction.
+Status: Implemented through the operational AI schema, ledger extraction, settings, and mode-specific exports.
 
 Implemented:
 
 - AI providers are now prompted to return blockers, next actions, Robert decisions, VA/team-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
 - The ledger preserves these structured AI fields when present and still falls back to deterministic extraction.
-
-Still recommended:
-
-- Add output modes:
+- Settings now include user-selectable output modes:
+  - Operational ledger.
   - Status update.
   - Risk review.
   - Meeting brief.
   - Next-action checklist.
   - Client-friendly summary.
-- Add user-selectable output mode controls in settings or the popup.
+- AI prompts include the selected output mode and mode-specific focus instruction.
+- Ledger runs and JSON exports preserve the selected output mode.
+- The active popup can copy a selected-mode brief without changing Trello or posting anything.
 
 Impact: High. This expands usefulness without changing the core architecture.
 

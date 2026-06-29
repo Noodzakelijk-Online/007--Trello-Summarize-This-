@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 119.2 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 226.7 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.36 MB.
-- Large-card AI prompt after caps: 14,187 characters.
+- Active popup initial local files: about 127.4 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 236.2 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.37 MB.
+- Large-card AI prompt after caps: 14,596 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -33,6 +33,7 @@ Current results:
    - Labels and members are capped to 25 each.
    - The prompt now asks for a structured operational schema so fewer downstream repair steps are needed.
    - Larger context settings are user-selected and warn that more Trello content is sent to the configured AI provider.
+   - Output modes add a short prompt focus instruction without changing default comment or description caps.
 
 2. Bounded AI response size and time:
    - OpenAI and Google outputs are capped at 900 output tokens.
@@ -60,6 +61,7 @@ Current results:
    - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
    - Plain text, status update, and JSON exports are generated on demand from the existing compact ledger result.
+   - Mode-specific briefs are generated on demand from the existing compact ledger result.
    - Source coverage stores compact source statuses and counts instead of duplicating full card bodies.
 
 ## Resource Risk Review
@@ -74,7 +76,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 227 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 236 KB, and the generated `SummarizeThisSetup.exe` remains small because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

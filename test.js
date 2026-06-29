@@ -27,6 +27,15 @@ assert.ok(prompt.includes("robertDecisions"));
 assert.ok(prompt.includes("vaReadyActions"));
 assert.ok(prompt.includes("evidenceClaims"));
 assert.ok(prompt.includes("Prepare launch checklist"));
+assert.equal(SummarizeThis.normalizeOutputMode("risk-review"), "risk-review");
+assert.equal(SummarizeThis.normalizeOutputMode("unknown-mode"), "operational-ledger");
+assert.equal(SummarizeThis.getOutputModeLabel("meeting-brief"), "Meeting brief");
+
+const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
+  outputMode: "risk-review"
+}));
+assert.equal(riskPromptPayload.outputMode.key, "risk-review");
+assert.ok(riskPromptPayload.outputMode.instruction.includes("risks"));
 
 function parsePromptPayload(promptText) {
   return JSON.parse(promptText.slice(promptText.lastIndexOf("\n{") + 1));
@@ -174,9 +183,11 @@ assert.ok(partialCoverage.some(item => item.key === "attachments" && item.status
 assert.ok(partialCoverage.some(item => item.key === "board" && item.detail.includes("Board read failed")));
 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
-  now: "2026-06-29T12:00:00.000Z"
+  now: "2026-06-29T12:00:00.000Z",
+  outputMode: "meeting-brief"
 });
 assert.equal(run.status, "completed");
+assert.equal(run.outputMode, "meeting-brief");
 assert.ok(run.result.blockers.length >= 2);
 assert.ok(run.result.robertDecisions.length >= 1);
 assert.ok(run.result.vaReadyActions.length >= 1);
@@ -257,12 +268,25 @@ assert.ok(ledgerStatusUpdate.includes("Status update:"));
 assert.ok(ledgerStatusUpdate.includes("Top next action:"));
 assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
 
+const meetingBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run);
+assert.ok(meetingBrief.includes("Meeting brief:"));
+assert.ok(meetingBrief.includes("Decisions to cover:"));
+
+const riskBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "risk-review");
+assert.ok(riskBrief.includes("Risk review:"));
+assert.ok(riskBrief.includes("Validation findings:"));
+
+const checklistBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "next-action-checklist");
+assert.ok(checklistBrief.includes("Next-action checklist:"));
+assert.ok(checklistBrief.includes("- [ ]"));
+
 const ledgerJson = JSON.parse(CardIntelligenceLedger.jsonForLedgerRun(run, {
   now: "2026-06-29T12:07:00.000Z"
 }));
 assert.equal(ledgerJson.schemaVersion, "summarize-this-card-intelligence-export-v1");
 assert.equal(ledgerJson.exportedAt, "2026-06-29T12:07:00.000Z");
 assert.equal(ledgerJson.analysisRun.id, run.id);
+assert.equal(ledgerJson.analysisRun.outputMode, "meeting-brief");
 assert.equal(ledgerJson.cardSnapshot.description, undefined);
 assert.ok(Array.isArray(ledgerJson.result.blockers));
 

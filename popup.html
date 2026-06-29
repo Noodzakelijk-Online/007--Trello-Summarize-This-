@@ -534,9 +534,10 @@
 
       <section class="panel">
         <h2 class="section-title">Export formats</h2>
-        <p class="section-body">Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.</p>
+        <p id="outputModeText" class="section-body">Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.</p>
         <div class="actions">
           <button class="secondary" type="button" id="copyPlainTextButton">Copy plain text</button>
+          <button class="secondary" type="button" id="copyModeBriefButton">Copy selected mode brief</button>
           <button class="secondary" type="button" id="copyStatusUpdateButton">Copy status update</button>
           <button class="secondary" type="button" id="copyJsonButton">Copy JSON</button>
           <button class="secondary" type="button" id="downloadJsonButton">Download JSON</button>
@@ -627,6 +628,9 @@
       document.getElementById("copyPlainTextButton").addEventListener("click", function () {
         copyLedgerExport("plain-text");
       });
+      document.getElementById("copyModeBriefButton").addEventListener("click", function () {
+        copyLedgerExport("mode-brief");
+      });
       document.getElementById("copyStatusUpdateButton").addEventListener("click", function () {
         copyLedgerExport("status-update");
       });
@@ -676,7 +680,10 @@
           }
 
           lastAnalysis = analysis;
-          lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis);
+          lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
+            outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
+            promptTemplateId: "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode)
+          });
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
@@ -725,6 +732,7 @@
           provider: "openai",
           analysisMode: "auto",
           strategy: "cost-effective",
+          outputMode: "operational-ledger",
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -893,7 +901,8 @@
       function promptContextOptions(settings) {
         var context = SummarizeThis.normalizePromptContext(settings && settings.promptContext);
         return {
-          promptContext: context
+          promptContext: context,
+          outputMode: SummarizeThis.normalizeOutputMode(settings && settings.outputMode)
         };
       }
 
@@ -1107,7 +1116,14 @@
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
         renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
+        renderOutputMode(ledgerRun);
         renderPostbackDraft(ledgerRun);
+      }
+
+      function renderOutputMode(ledgerRun) {
+        var mode = ledgerRun && ledgerRun.outputMode ? ledgerRun.outputMode : "operational-ledger";
+        var label = SummarizeThis.getOutputModeLabel ? SummarizeThis.getOutputModeLabel(mode) : mode;
+        document.getElementById("outputModeText").textContent = "Selected output mode: " + label + ". Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.";
       }
 
       function renderList(id, items, emptyText) {
@@ -1308,7 +1324,9 @@
           ? "JSON"
           : format === "status-update"
             ? "Status update"
-            : "Plain text";
+            : format === "mode-brief"
+              ? "Selected mode brief"
+              : "Plain text";
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
@@ -1344,6 +1362,9 @@
         }
         if (format === "status-update") {
           return CardIntelligenceLedger.statusUpdateForLedgerRun(lastLedgerRun);
+        }
+        if (format === "mode-brief") {
+          return CardIntelligenceLedger.modeBriefForLedgerRun(lastLedgerRun, lastLedgerRun.outputMode);
         }
         return CardIntelligenceLedger.plainTextForLedgerRun(lastLedgerRun);
       }

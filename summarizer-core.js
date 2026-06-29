@@ -74,6 +74,33 @@
     commentCharacters: 700
   };
 
+  var OUTPUT_MODES = {
+    "operational-ledger": {
+      label: "Operational ledger",
+      instruction: "Prioritize balanced card intelligence: status, blockers, next actions, Robert decisions, VA/team handoff, evidence, and validation."
+    },
+    "status-update": {
+      label: "Status update",
+      instruction: "Prioritize a concise async status update with current state, progress, top blocker, top next action, and confidence."
+    },
+    "risk-review": {
+      label: "Risk review",
+      instruction: "Prioritize deadline, client, financial, legal, quality, communication, missing-information, and unsupported-claim risks."
+    },
+    "meeting-brief": {
+      label: "Meeting brief",
+      instruction: "Prioritize a meeting-ready brief: context, what changed, discussion points, decisions needed, and follow-up actions."
+    },
+    "next-action-checklist": {
+      label: "Next-action checklist",
+      instruction: "Prioritize concrete next actions with owner, dependency, timing, and whether Robert approval is needed."
+    },
+    "client-friendly": {
+      label: "Client-friendly summary",
+      instruction: "Prioritize a clear external-safe summary, avoid internal uncertainty unless it affects the client, and keep wording professional."
+    }
+  };
+
   function boundedNumber(value, fallback, min, max) {
     var number = Number(value);
     if (!Number.isFinite(number)) return fallback;
@@ -87,6 +114,21 @@
       commentLimit: boundedNumber(input.commentLimit, DEFAULT_PROMPT_CONTEXT.commentLimit, 0, 25),
       commentCharacters: boundedNumber(input.commentCharacters, DEFAULT_PROMPT_CONTEXT.commentCharacters, 200, 1500)
     };
+  }
+
+  function normalizeOutputMode(value) {
+    var key = cleanText(value || "operational-ledger").toLowerCase();
+    return OUTPUT_MODES[key] ? key : "operational-ledger";
+  }
+
+  function getOutputModeLabel(value) {
+    var key = normalizeOutputMode(value);
+    return OUTPUT_MODES[key].label;
+  }
+
+  function getOutputModeInstruction(value) {
+    var key = normalizeOutputMode(value);
+    return OUTPUT_MODES[key].instruction;
   }
 
   function compactCommentsForPrompt(comments, context) {
@@ -380,8 +422,14 @@
   function buildAIPrompt(input, options) {
     var card = normalizeCardData(input);
     var context = normalizePromptContext(options);
+    var outputMode = normalizeOutputMode(options && options.outputMode);
     var comments = compactCommentsForPrompt(card.comments, context);
     var payload = {
+      outputMode: {
+        key: outputMode,
+        label: getOutputModeLabel(outputMode),
+        instruction: getOutputModeInstruction(outputMode)
+      },
       name: card.name,
       description: truncate(card.desc, context.descriptionCharacters),
       board: card.boardName,
@@ -405,6 +453,7 @@
 
     return [
       "Analyze this Trello card as an evidence-backed operational intelligence ledger for Robert's Trello workflow.",
+      "Output mode: " + getOutputModeLabel(outputMode) + ". " + getOutputModeInstruction(outputMode),
       "Return only valid JSON. Do not include markdown or commentary outside JSON.",
       "Use this schema:",
       "{",
@@ -605,6 +654,9 @@
   return {
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
+    getOutputModeInstruction: getOutputModeInstruction,
+    getOutputModeLabel: getOutputModeLabel,
+    normalizeOutputMode: normalizeOutputMode,
     normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,
