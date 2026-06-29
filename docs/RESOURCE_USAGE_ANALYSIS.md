@@ -18,7 +18,7 @@ Current results:
 
 - Active popup initial local files: about 297.2 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
 - Windows installer runtime payload: about 443.2 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.63 MB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.65 MB.
 - Generated Windows installer executable: 272,896 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
@@ -125,5 +125,6 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 
 ## Remaining Opportunities
 
-- Add a deployable reference proxy service with server-side provider-key storage, request logging controls, rate limits, and caching.
+- Add Cloudflare WAF or managed rate limiting in front of the optional proxy endpoint.
+- Add explicit provider-response caching if repeated identical prompts become common and privacy policy allows it.
 - Split the standalone `index.html` demo from the production install if the installer should become even smaller.

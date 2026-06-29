@@ -360,7 +360,7 @@ node test-suite.js
 # 4. Verify results and confidence scores
 ```
 
-Security note: API keys are stored only through Trello member-private Power-Up storage. The standalone/local preview path saves non-key settings only and clears API key fields instead of persisting keys in `localStorage`. Settings can also use an optional HTTPS backend proxy endpoint so provider keys stay server-side.
+Security note: API keys are stored only through Trello member-private Power-Up storage. The standalone/local preview path saves non-key settings only and clears API key fields instead of persisting keys in `localStorage`. Settings can also use an optional HTTPS backend proxy endpoint so provider keys stay server-side; see [proxy/README.md](proxy/README.md) for the Cloudflare Worker reference proxy.
 
 ---
 

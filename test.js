@@ -1,4 +1,6 @@
 const assert = require("node:assert/strict");
+const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 const SummarizeThis = require("./summarizer-core");
 const CardIntelligenceLedger = require("./card-intelligence-ledger");
 const TrelloAdminConfig = require("./trello-admin-config");
@@ -1060,6 +1062,113 @@ const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/Summa
 assert.equal(fileValidation.isReadyForTrello, false);
 
 async function runAsyncTests() {
+  const ProxyWorker = await import(pathToFileURL(path.join(__dirname, "proxy", "cloudflare-worker.mjs")).href);
+  assert.equal(ProxyWorker.selectProvider("auto", {
+    DEFAULT_PROVIDER: "openai",
+    OPENAI_API_KEY: "sk-proxy-openai"
+  }), "openai");
+  assert.equal(ProxyWorker.resolveAllowedOrigin("https://powerup.example", {
+    ALLOWED_ORIGINS: "https://powerup.example,https://other.example"
+  }), "https://powerup.example");
+  assert.equal(ProxyWorker.resolveAllowedOrigin("https://evil.example", {
+    ALLOWED_ORIGINS: "https://powerup.example"
+  }), "");
+  assert.throws(() => ProxyWorker.normalizeProxyRequest({
+    schemaVersion: "summarize-this-ai-proxy-request-v1",
+    provider: "openai",
+    prompt: "x".repeat(24001)
+  }), /Prompt is too large/);
+
+  const blockedProxyResponse = await ProxyWorker.handleRequest(new Request("https://proxy.example.test/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Origin": "https://evil.example"
+    },
+    body: JSON.stringify({
+      schemaVersion: "summarize-this-ai-proxy-request-v1",
+      provider: "openai",
+      prompt: "Return JSON."
+    })
+  }), {
+    ALLOWED_ORIGINS: "https://powerup.example",
+    OPENAI_API_KEY: "sk-proxy-openai"
+  }, {
+    waitUntil() {}
+  });
+  assert.equal(blockedProxyResponse.status, 403);
+
+  const originalProxyFetch = global.fetch;
+  let providerCall = null;
+  global.fetch = async function (url, options) {
+    providerCall = { url, options };
+    return new Response(JSON.stringify({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            about: "Proxy generated summary.",
+            history: "Provider call completed.",
+            currentStatus: "Ready for review.",
+            nextSteps: ["Review the proxy summary."],
+            blockers: [],
+            robertDecisions: [],
+            vaReadyActions: [],
+            evidenceClaims: [],
+            validationFindings: []
+          })
+        }
+      }],
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 50,
+        total_tokens: 150
+      }
+    }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  };
+
+  try {
+    const proxyResponse = await ProxyWorker.handleRequest(new Request("https://proxy.example.test/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Origin": "https://powerup.example"
+      },
+      body: JSON.stringify({
+        schemaVersion: "summarize-this-ai-proxy-request-v1",
+        provider: "openai",
+        model: "gpt-4o-mini",
+        strategy: "cost-effective",
+        outputMode: "operational-ledger",
+        outputLanguage: "en",
+        prompt: "Return JSON."
+      })
+    }), {
+      ALLOWED_ORIGINS: "https://powerup.example",
+      OPENAI_API_KEY: "sk-proxy-secret-openai"
+    }, {
+      waitUntil(promise) {
+        return promise;
+      }
+    });
+
+    const proxyBody = await proxyResponse.json();
+    assert.equal(proxyResponse.status, 200);
+    assert.equal(proxyResponse.headers.get("Access-Control-Allow-Origin"), "https://powerup.example");
+    assert.equal(proxyBody.summary.about, "Proxy generated summary.");
+    assert.equal(proxyBody.metadata.provider, "OpenAI via proxy");
+    assert.equal(proxyBody.metadata.tokens, 150);
+    assert.equal(providerCall.url, "https://api.openai.com/v1/chat/completions");
+    assert.match(providerCall.options.headers.Authorization, /sk-proxy-secret-openai/);
+    assert.doesNotMatch(JSON.stringify(proxyBody), /sk-proxy-secret-openai/);
+  } finally {
+    global.fetch = originalProxyFetch;
+  }
+
   const processor = new AttachmentProcessor();
   assert.equal(processor.isTextLikeAttachment({ name: "notes.txt", mimeType: "text/plain" }), true);
   assert.equal(processor.isTextLikeAttachment({ name: "invoice.pdf", mimeType: "application/pdf" }), false);

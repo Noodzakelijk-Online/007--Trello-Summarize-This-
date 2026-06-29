@@ -194,13 +194,14 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-co
 
 ### 5f.2. Optional AI Backend Proxy Adapter
 
-Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-core.js`.
+Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `proxy/cloudflare-worker.mjs`.
 
 - Settings can enable a backend proxy endpoint for AI calls without storing or sending provider API keys from the browser.
 - Proxy endpoints must be HTTPS, except local development endpoints on `localhost`, `127.0.0.1`, or `::1`.
 - Query strings, fragments, and embedded credentials are stripped or rejected before saving.
 - When proxy mode is enabled, the popup uses the proxy path only. If the proxy fails in Auto mode, the result falls back to local summarization instead of silently using direct browser-held provider keys.
 - The proxy request uses a compact versioned JSON schema containing provider preference, model preference, strategy, output mode/language, and the bounded AI prompt.
+- A Cloudflare Worker reference proxy is included with request-size checks, schema validation, prompt caps, provider-key secrets, allowed-origin checks, CORS handling, no-store responses, and redacted provider errors.
 
 ### 5g. Feedback-Guided Reanalysis
 
