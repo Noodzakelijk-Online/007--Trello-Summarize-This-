@@ -59,7 +59,7 @@ Feedback records remain compact. Correction text is capped, and `incorrectSectio
 - Custom fields are included as compact evidence and AI prompt context when available.
 - Recent activity is included as compact non-comment action evidence when available, capped to 25 stored items and 12 prompt/evidence items.
 - Attachment evidence is honest about metadata-only extraction and now classifies linked documents, transcripts, and recordings from metadata.
-- Optional text/CSV extraction is off by default. When enabled, the popup fetches only small HTTPS text-like attachments, stores bounded excerpts, and includes compact previews in evidence and AI prompt context.
+- Optional text/CSV extraction is off by default. When enabled, the popup fetches only small HTTPS text-like attachments, stores bounded excerpts, and includes compact previews in evidence and AI prompt context. Sensitive-card signals keep those attachments metadata-only until the user approves the sensitive run.
 - Deeper PDF/Word/image/audio/video extraction still needs a safer extraction path.
 - JSON export uses the compact ledger run and card snapshot. It does not include full card descriptions, but evidence excerpts may still contain card context selected by the analysis.
 - Human-readable exports now include bounded evidence-backed claims and source coverage, so copied markdown/plain text/status briefs and Trello comment drafts remain traceable outside the popup.

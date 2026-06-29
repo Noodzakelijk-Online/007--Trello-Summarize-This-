@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 289.1 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 432.6 KB.
+- Active popup initial local files: about 291.7 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 435.2 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.61 MB.
-- Generated Windows installer executable: 266,752 bytes.
+- Generated Windows installer executable: 268,288 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -86,7 +86,7 @@ Current results:
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
    - Attachment intelligence is metadata-first, capped to 25 normalized records and 12 AI prompt/evidence records.
-   - Optional text/CSV extraction is off by default and only fetches small HTTPS text-like files, up to 5 attachments, 200 KB each, 3,000 extracted characters each, and a 10-second fetch timeout.
+   - Optional text/CSV extraction is off by default and only fetches small HTTPS text-like files, up to 5 attachments, 200 KB each, 3,000 extracted characters each, and a 10-second fetch timeout. Sensitive cards stay metadata-only until approval.
    - PDF, Word, image, audio, video, and arbitrary link attachments remain metadata-only in the active popup.
    - Custom prompt guidance is capped to 600 characters, saved prompt templates are capped to 10 member-private records, and ledger exports store only prompt/language metadata, not the full guidance text.
    - Cost budget tracking stores only compact provider, model, token, cost, card id/title, run id, and timestamp records in member-private storage, capped to 200 records.
@@ -104,11 +104,11 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 432.6 KB, and the generated `SummarizeThisSetup.exe` is 266,752 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 435.2 KB, and the generated `SummarizeThisSetup.exe` is 268,288 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. In local-only mode no AI provider network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. In local-only mode no AI provider network request is made.
 
 ### Trello Runtime
 

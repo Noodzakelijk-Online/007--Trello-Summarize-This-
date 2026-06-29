@@ -230,7 +230,7 @@ The active popup does not perform browser-side PDF, Word, Excel, image OCR, audi
 
 ### Attachment Privacy
 
-Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs are fetched, private/local URLs are refused, large files are skipped, and excerpts are capped before AI handoff. Sensitive-card approval rules still apply before sending extracted excerpts to a configured AI provider.
+Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs are fetched, private/local URLs are refused, large files are skipped, and excerpts are capped before AI handoff. If the card metadata already contains sensitive client, financial, legal, or personal signals, text/CSV extraction is skipped until you approve the sensitive run. Sensitive-card approval rules still apply before sending extracted excerpts to a configured AI provider.
 
 ---
 

@@ -923,7 +923,9 @@
           t = inTrello ? TrelloPowerUp.iframe() : null;
           var settings = await loadSettings();
           lastSettings = settings;
-          var cardData = await gatherCardData(settings);
+          var cardData = await gatherCardData(settings, {
+            allowSensitiveAttachmentExtraction: allowSensitiveAi
+          });
           cardData = await attachPriorFeedback(cardData);
           timingTracker.mark("context", "Card context read");
           lastCardData = cardData;
@@ -939,11 +941,14 @@
           timingTracker.mark("local-summary", "Local summary");
           var analysis = localAnalysis;
           var warning = "";
+          if (cardData.__sourceStatus && cardData.__sourceStatus.attachments && cardData.__sourceStatus.attachments.skippedForSensitiveApproval) {
+            warning = appendWarning(warning, "Sensitive-card signals were detected. Text attachment extraction stayed metadata-only until approval.");
+          }
 
           if (settings.analysisMode !== "local") {
             if (hasAnyConfiguredKey(settings)) {
               if (shouldRequireSensitiveAiApproval(settings, sensitiveSignals, allowSensitiveAi)) {
-                warning = "Sensitive-card signals were detected. The local result is shown first; AI provider handoff requires explicit approval.";
+                warning = appendWarning(warning, "Sensitive-card signals were detected. The local result is shown first; AI provider handoff requires explicit approval.");
               } else {
                 setStatus("Calling AI provider", "Asking the configured provider for a structured project summary.");
                 try {
@@ -954,14 +959,14 @@
                   if (settings.analysisMode === "ai-only") {
                     throw error;
                   }
-                  warning = "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + error.message;
+                  warning = appendWarning(warning, "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + error.message);
                   analysis = localAnalysis;
                 }
               }
             } else if (settings.analysisMode === "ai-only") {
               throw new Error("AI-only mode is selected, but no provider API key is configured.");
             } else {
-              warning = "No AI key is configured yet. This result uses the built-in summarizer.";
+              warning = appendWarning(warning, "No AI key is configured yet. This result uses the built-in summarizer.");
             }
           }
 
@@ -976,7 +981,7 @@
           });
           timingTracker.mark("ledger", "Ledger build");
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
-          renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analysis.source === "local");
+          renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analysis.source === "local", cardData);
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
           renderHistory(lastHistoryRuns);
@@ -1126,7 +1131,7 @@
         });
       }
 
-      async function gatherCardData(settings) {
+      async function gatherCardData(settings, options) {
         if (!t) {
           return Object.assign({}, SummarizeThis.sampleCardData(), {
             __sourceStatus: {
@@ -1155,7 +1160,7 @@
         var listContextRead = await readListContext(card, listRead.value, settings);
         var commentsRead = await readCardComments(card);
         var activityRead = await readCardActivity(card);
-        var attachmentsRead = await readCardAttachments(card, settings);
+        var attachmentsRead = await readCardAttachments(card, settings, options);
         var customFieldItems = card.customFieldItems || card.customFields || [];
 
         return Object.assign({}, card, {
@@ -1179,7 +1184,7 @@
         });
       }
 
-      async function readCardAttachments(card, settings) {
+      async function readCardAttachments(card, settings, options) {
         var attachments = Array.isArray(card.attachments) ? card.attachments : [];
         if (!attachments.length) {
           return { ok: true, value: [], error: "" };
@@ -1191,6 +1196,19 @@
             value: attachments,
             error: "",
             detail: "Attachment text extraction is disabled in settings."
+          };
+        }
+
+        var metadataOnlyCard = Object.assign({}, card, {
+          attachments: attachments
+        });
+        if (SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction(metadataOnlyCard, settings, options && options.allowSensitiveAttachmentExtraction)) {
+          return {
+            ok: true,
+            value: attachments,
+            error: "",
+            detail: "Sensitive-card signals detected before extraction; text attachment extraction skipped until approval.",
+            skippedForSensitiveApproval: true
           };
         }
 
@@ -1325,7 +1343,8 @@
         return {
           ok: Boolean(result && result.ok),
           error: result && result.error ? result.error : "",
-          detail: result && result.detail ? result.detail : ""
+          detail: result && result.detail ? result.detail : "",
+          skippedForSensitiveApproval: Boolean(result && result.skippedForSensitiveApproval)
         };
       }
 
@@ -1453,12 +1472,31 @@
         return hasAnyConfiguredKey(settings);
       }
 
-      function renderAiApproval(settings, signals, approved, showingLocalResult) {
-        var needsApproval = shouldRequireSensitiveAiApproval(settings, signals, approved);
+      function appendWarning(existing, addition) {
+        if (!addition) return existing || "";
+        if (!existing) return addition;
+        return existing + " " + addition;
+      }
+
+      function renderAiApproval(settings, signals, approved, showingLocalResult, cardData) {
+        var attachmentExtractionSkipped = Boolean(
+          cardData &&
+          cardData.__sourceStatus &&
+          cardData.__sourceStatus.attachments &&
+          cardData.__sourceStatus.attachments.skippedForSensitiveApproval
+        );
+        var needsApproval = shouldRequireSensitiveAiApproval(settings, signals, approved) || attachmentExtractionSkipped;
         elements.aiApprovalPanel.classList.toggle("hidden", !needsApproval);
         if (!needsApproval) return;
 
-        elements.aiApprovalText.textContent = "This card appears to contain sensitive context. The current result stayed local. Approve only if this card may be sent to the configured AI provider.";
+        var approvalTargets = [];
+        if (shouldRequireSensitiveAiApproval(settings, signals, approved)) {
+          approvalTargets.push("sent to the configured AI provider");
+        }
+        if (attachmentExtractionSkipped) {
+          approvalTargets.push("processed with bounded text/CSV attachment extraction");
+        }
+        elements.aiApprovalText.textContent = "This card appears to contain sensitive context. The current result stayed local and metadata-only where required. Approve only if this card may be " + approvalTargets.join(" and ") + ".";
         elements.aiApprovalList.innerHTML = "";
 
         var items = [];
@@ -1467,6 +1505,9 @@
         }
         if (signals && signals.matches && signals.matches.length) {
           items.push("Matched terms: " + signals.matches.join(", ") + ".");
+        }
+        if (attachmentExtractionSkipped) {
+          items.push("Text attachment extraction was skipped until approval; attachment metadata was still included.");
         }
         items.push("Local analysis is " + (showingLocalResult ? "available below." : "not currently available."));
         items.forEach(function (item) {

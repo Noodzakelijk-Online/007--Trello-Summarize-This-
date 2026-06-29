@@ -874,6 +874,13 @@
     };
   }
 
+  function shouldSkipSensitiveAttachmentTextExtraction(input, settings, approved) {
+    if (!settings || settings.extractTextAttachments !== true) return false;
+    if (settings.requireSensitiveAiApproval === false) return false;
+    if (approved) return false;
+    return detectSensitiveSignals(input).requiresAiApproval;
+  }
+
   function buildRuleBasedAnalysis(input, options) {
     var card = normalizeCardData(input);
     var due = getDueInfo(card, options && options.now);
@@ -1542,6 +1549,7 @@
     normalizeActions: normalizeActions,
     normalizeAttachments: normalizeAttachments,
     normalizeCardData: normalizeCardData,
+    shouldSkipSensitiveAttachmentTextExtraction: shouldSkipSensitiveAttachmentTextExtraction,
     markdownForListPlanningBrief: markdownForListPlanningBrief,
     sampleCardData: sampleCardData,
     summarizeMonthlyProviderCosts: summarizeMonthlyProviderCosts,

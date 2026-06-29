@@ -279,6 +279,7 @@ Overall Confidence =
 
 ### Libraries & Tools
 - Optional bounded text/CSV extraction for small HTTPS attachments
+- Sensitive-card signals keep optional text extraction metadata-only until approval
 - Binary document and image attachments stay metadata-only in the active Power-Up
 - Tesseract.js - Image OCR
 

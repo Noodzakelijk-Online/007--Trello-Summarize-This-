@@ -28,6 +28,30 @@ const sensitiveSignals = SummarizeThis.detectSensitiveSignals(sample);
 assert.equal(sensitiveSignals.requiresAiApproval, true);
 assert.ok(sensitiveSignals.categories.includes("client"));
 assert.ok(sensitiveSignals.categories.includes("financial"));
+assert.equal(SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction(sample, {
+  extractTextAttachments: true,
+  requireSensitiveAiApproval: true
+}, false), true);
+assert.equal(SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction(sample, {
+  extractTextAttachments: true,
+  requireSensitiveAiApproval: true
+}, true), false);
+assert.equal(SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction(sample, {
+  extractTextAttachments: false,
+  requireSensitiveAiApproval: true
+}, false), false);
+assert.equal(SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction(sample, {
+  extractTextAttachments: true,
+  requireSensitiveAiApproval: false
+}, false), false);
+assert.equal(SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction({
+  name: "Public launch notes",
+  desc: "Publish the final checklist.",
+  attachments: [{ name: "notes.txt", mimeType: "text/plain" }]
+}, {
+  extractTextAttachments: true,
+  requireSensitiveAiApproval: true
+}, false), false);
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()

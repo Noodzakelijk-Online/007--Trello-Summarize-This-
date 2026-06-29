@@ -257,6 +257,7 @@ Implemented:
 - Transcript-like and recording-like attachments are explicitly flagged when their content was not verified as extracted.
 - Prompt/evidence usage is capped to 12 attachment records; normalized runtime metadata is capped to 25 attachment records.
 - Settings now include an off-by-default option to extract small HTTPS text-like attachments (`.txt`, `.md`, `.csv`, `.tsv`) with strict attachment count, byte, timeout, and character caps.
+- If attachment metadata or card context already contains sensitive signals, text/CSV extraction remains metadata-only until the user approves the sensitive run.
 - Extracted text previews are bounded before they enter source coverage, evidence, ledger JSON, or AI prompt context.
 - PDFs, Word files, spreadsheets other than CSV/TSV, images, audio, video, and arbitrary links remain metadata-only in the active popup.
 
