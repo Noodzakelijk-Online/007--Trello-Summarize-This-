@@ -200,14 +200,14 @@
     }
 
     result.isHttps = parsed.protocol === "https:";
-    result.isLocal = /^(localhost|127\.0\.0\.1|\[?::1\]?)$/i.test(parsed.hostname);
+    result.isLocal = isLocalOrPrivateHost(parsed.hostname);
     result.isPlaceholder = /(^your-|^your\.|^your$|example$|example\.|your-hosted-site|your-site|your-project|your-repository|your-github-user)/i.test(parsed.hostname) ||
       /\/(YOUR-|your-)/.test(parsed.pathname);
 
     if (!result.isHttps) {
       result.message = "Trello requires a public HTTPS connector URL.";
     } else if (result.isLocal) {
-      result.message = "Localhost works for preview only; Trello needs a public HTTPS URL.";
+      result.message = "This host is private/local-only. Trello needs a public HTTPS URL.";
     } else if (result.isPlaceholder) {
       result.message = "Replace the placeholder with your real deployed site URL before saving in Trello.";
     } else {
@@ -547,7 +547,7 @@
     var text = clean(value);
     try {
       var parsed = new URL(text);
-      var ok = parsed.protocol === "https:" && !/^(localhost|127\.0\.0\.1|\[?::1\]?)$/i.test(parsed.hostname);
+      var ok = parsed.protocol === "https:" && !isLocalOrPrivateHost(parsed.hostname);
       return {
         ok: ok,
         message: ok ? text : "Use a public HTTPS URL, not " + text
@@ -562,6 +562,67 @@
 
   function clean(value) {
     return String(value == null ? "" : value).trim();
+  }
+
+  function isLocalOrPrivateHost(hostname) {
+    var normalized = clean(hostname).toLowerCase().replace(/\[|\]/g, "");
+
+    if (!normalized || normalized === "localhost" || normalized === "localhost.localdomain") {
+      return true;
+    }
+
+    if (isPrivateIpv4(normalized)) {
+      return true;
+    }
+
+    if (isPrivateIpv6(normalized)) {
+      return true;
+    }
+
+    if (/\.local$/i.test(normalized)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function isPrivateIpv4(hostname) {
+    var parts = hostname.split(".");
+    if (parts.length !== 4) {
+      return false;
+    }
+
+    for (var i = 0; i < 4; i++) {
+      var part = Number(parts[i]);
+      if (!Number.isFinite(part) || parts[i] === "" || parts[i].trim() !== String(part) || part < 0 || part > 255) {
+        return false;
+      }
+      parts[i] = part;
+    }
+
+    return parts[0] === 10 ||
+      parts[0] === 127 ||
+      parts[0] === 0 ||
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+      (parts[0] === 192 && parts[1] === 168) ||
+      (parts[0] === 169 && parts[1] === 254) ||
+      (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127);
+  }
+
+  function isPrivateIpv6(hostname) {
+    var normalized = clean(hostname).toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+
+    if (normalized === "::1" || normalized === "::") {
+      return true;
+    }
+
+    return /^fc/i.test(normalized) || /^fd/i.test(normalized) ||
+      /^fe80/.test(normalized) ||
+      /^::ffff:(127\.|10\.|192\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|100\.([6-9]|1\d|2[0-7]))/.test(normalized) ||
+      normalized.indexOf(".local") !== -1;
   }
 
   function toArray(value) {

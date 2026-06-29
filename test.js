@@ -8,6 +8,7 @@ const TrelloAdminConfig = require("./trello-admin-config");
 const AttachmentProcessor = require("./attachment-processor");
 const AIProviders = require("./ai-providers");
 const TrelloIntegration = require("./trello-integration");
+const CustomPromptManager = require("./custom-prompts");
 
 [
   "README.md",
@@ -104,6 +105,60 @@ const attachmentSanitizer = new AttachmentProcessor();
 const attachmentSafeError = attachmentSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(attachmentSafeError, /secret123|trello-token|attachments\.example\.com/);
 assert.match(attachmentSafeError, /redacted|url redacted/);
+const previousLocalStorage = global.localStorage;
+global.localStorage = {
+  getItem() {
+    return null;
+  },
+  setItem() {}
+};
+const promptManager = new CustomPromptManager();
+global.localStorage = previousLocalStorage;
+const promptPayload = promptManager.formatPrompt("default", {
+  name: "Release checklist",
+  board: "Product Board",
+  list: "Review",
+  labels: ["High", "Sprint"],
+  members: [{ fullName: "Alice" }, "Bob"],
+  due: "2026-07-02T00:00:00Z",
+  dueComplete: true,
+  checklistProgress: "1/2 completed",
+  checklists: [
+    {
+      name: "Release Tasks",
+      checkItems: [
+        { name: "Build", state: "complete" },
+        { name: "Deploy", state: "incomplete" }
+      ]
+    }
+  ],
+  comments: [
+    {
+      memberCreator: { fullName: "Alice" },
+      date: "2026-06-29T00:00:00Z",
+      text: "Kickoff notes."
+    },
+    {
+      memberCreator: "Bob",
+      date: "invalid-date",
+      text: "Manual follow-up required."
+    }
+  ],
+  attachments: [
+    { name: "design.txt", mimeType: "text/plain" }
+  ]
+});
+assert.ok(promptPayload.user.includes("CARD: Release checklist"));
+assert.ok(promptPayload.user.includes("BOARD: Product Board"));
+assert.ok(promptPayload.user.includes("LIST: Review"));
+assert.ok(promptPayload.user.includes("LABELS: High, Sprint"));
+assert.ok(promptPayload.user.includes("MEMBERS: Alice, Bob"));
+assert.ok(promptPayload.user.includes("DUE DATE:"));
+assert.ok(promptPayload.user.includes("STATUS: Completed"));
+assert.ok(promptPayload.user.includes("- design.txt (text/plain)"));
+assert.ok(promptPayload.user.includes("COMMENTS:"));
+assert.ok(promptPayload.user.includes("Alice"));
+assert.ok(promptPayload.user.includes("Unknown date"));
 const localPreviewSettings = SummarizeThis.stripApiKeysForLocalPreview({
   analysisMode: "auto",
   provider: "openai",
@@ -1186,6 +1241,14 @@ const localhostValidation = TrelloAdminConfig.validateHostedBaseUrl("http://loca
 assert.equal(localhostValidation.isReadyForTrello, false);
 assert.equal(localhostValidation.isLocal, true);
 
+const privateIpValidation = TrelloAdminConfig.validateHostedBaseUrl("https://192.168.10.5/");
+assert.equal(privateIpValidation.isReadyForTrello, false);
+assert.equal(privateIpValidation.isLocal, true);
+
+const privateIpValidationV6 = TrelloAdminConfig.validateHostedBaseUrl("https://[fc00::1]/");
+assert.equal(privateIpValidationV6.isReadyForTrello, false);
+assert.equal(privateIpValidationV6.isLocal, true);
+
 const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/SummarizeThis/connector.js");
 assert.equal(fileValidation.isReadyForTrello, false);
 
@@ -1318,6 +1381,133 @@ async function runAsyncTests() {
     assert.equal(providerCall.url, "https://api.openai.com/v1/chat/completions");
     assert.match(providerCall.options.headers.Authorization, /sk-proxy-secret-openai/);
     assert.doesNotMatch(JSON.stringify(proxyBody), /sk-proxy-secret-openai/);
+  } finally {
+    global.fetch = originalProxyFetch;
+  }
+
+  const provider = new AIProviders();
+  const providerCardData = {
+    name: "Provider test card",
+    desc: "Test card for provider hardening.",
+    labels: ["Test"],
+    members: ["Alice"],
+    comments: [{ text: "First comment." }],
+    due: "2026-06-30T00:00:00.000Z",
+    checklistProgress: "1/3"
+  };
+
+  const providerCalls = [];
+  global.fetch = async function (url, options) {
+    providerCalls.push({
+      url: String(url),
+      headers: options.headers || {},
+      body: JSON.parse(String(options.body || "{}"))
+    });
+
+    if (String(url).includes("api.openai.com")) {
+      return new Response(JSON.stringify({
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              about: "Summary",
+              history: "No history.",
+              status: "Needs work",
+              nextSteps: ["Review"],
+              insights: []
+            })
+          }
+        }],
+        usage: { total_tokens: 12 }
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
+    if (String(url).includes("api.anthropic.com")) {
+      return new Response(JSON.stringify({
+        content: [{ text: "{\"about\":\"Summary\",\"history\":\"No history.\",\"status\":\"Needs work\",\"nextSteps\":[\"Review\"],\"insights\":[]}" }],
+        usage: { input_tokens: 40, output_tokens: 20 }
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
+    if (String(url).includes("generativelanguage.googleapis.com")) {
+      return new Response(JSON.stringify({
+        candidates: [{ content: { parts: [{ text: "{\"about\":\"Summary\",\"history\":\"No history.\",\"status\":\"Needs work\",\"nextSteps\":[\"Review\"],\"insights\":[]}" }] } }],
+        usageMetadata: { totalTokenCount: 75 }
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
+    if (String(url).includes("api.cohere.ai")) {
+      return new Response(JSON.stringify({
+        generations: [{ text: "{\"about\":\"Summary\",\"history\":\"No history.\",\"status\":\"Needs work\",\"nextSteps\":[\"Review\"],\"insights\":[]}" }],
+        meta: { billed_units: { output_tokens: 10 } }
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: "{\"about\":\"Summary\",\"history\":\"No history.\",\"status\":\"Needs work\",\"nextSteps\":[\"Review\"],\"insights\":[]}" } }],
+      usage: { total_tokens: 12 }
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+
+  provider.setApiKey("openai", "sk-test-openai-hardening");
+  await provider.callOpenAI("gpt-4o-mini", "", providerCardData);
+  assert.equal(providerCalls[providerCalls.length - 1].body.max_tokens, provider.maxOutputTokens);
+
+  provider.setApiKey("anthropic", "sk-test-anthropic-hardening");
+  await provider.callAnthropic("claude-3-haiku-20240307", "", providerCardData);
+  assert.equal(providerCalls[providerCalls.length - 1].body.max_tokens, provider.maxOutputTokens);
+
+  provider.setApiKey("google", "google-test-hardening");
+  await provider.callGoogle("gemini-1.5-flash", "", providerCardData);
+  assert.equal(providerCalls[providerCalls.length - 1].body.generationConfig.maxOutputTokens, provider.maxOutputTokens);
+
+  provider.setApiKey("cohere", "bearer-test-cohere");
+  await provider.callCohere("command-r", "", providerCardData);
+  assert.equal(providerCalls[providerCalls.length - 1].body.max_tokens, provider.maxOutputTokens);
+
+  provider.setApiKey("perplexity", "ppx-test-perplexity");
+  await provider.callPerplexity("llama-3-8b", "", providerCardData);
+  assert.equal(providerCalls[providerCalls.length - 1].body.max_tokens, provider.maxOutputTokens);
+
+  const timeoutProvider = new AIProviders();
+  global.fetch = async function (_url, options) {
+    return new Promise((_resolve, reject) => {
+      options.signal && options.signal.addEventListener("abort", function handleAbort() {
+        const abortError = new Error("Request aborted");
+        abortError.name = "AbortError";
+        reject(abortError);
+      });
+    });
+  };
+
+  try {
+    await timeoutProvider.fetchWithTimeout("https://example.com/slow", {}, 8);
+    throw new Error("Expected timeout error");
+  } catch (error) {
+    assert.equal(error.message, "AI provider request timed out");
+  } finally {
+    global.fetch = originalProxyFetch;
+  }
+
+  provider.setApiKey("openai", "sk-test-openai-validate");
+  global.fetch = async function () {
+    return new Response(JSON.stringify({
+      error: {
+        message: "Invalid API key sk-openai-validation-secret"
+      }
+    }), {
+      status: 401,
+      statusText: "Unauthorized",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  };
+
+  try {
+    const openaiValidation = await provider.validateApiKey("openai");
+    assert.equal(openaiValidation.valid, false);
+    assert.doesNotMatch(openaiValidation.error, /sk-test-openai-validate|sk-openai-validation-secret/);
+    assert.match(openaiValidation.error, /Invalid API key/);
   } finally {
     global.fetch = originalProxyFetch;
   }
