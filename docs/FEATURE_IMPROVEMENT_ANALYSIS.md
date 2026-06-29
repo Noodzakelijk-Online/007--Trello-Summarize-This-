@@ -21,7 +21,7 @@ Implemented:
 - Stores history, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
 - Reads matching prior corrections back into the next analysis run as guidance, while keeping them distinct from verified Trello evidence.
 - Avoids silently writing analysis results to shared card storage.
-- Shows evidence, validation, decision, blocker, prior-correction, and correction panels in the active popup.
+- Shows evidence, validation, decision, blocker, export/postback history, prior-correction, and correction panels in the active popup.
 
 Impact: High. This turns the active popup into the first real card intelligence layer instead of only a summary display.
 
@@ -187,6 +187,7 @@ Recommendation:
   - Structured JSON for Sneup/HAI ingestion. Implemented.
   - Trello comment. Implemented as an approval-gated draft/post flow with compact evidence/source notes when the Trello runtime exposes a supported comment API.
   - Email/status update. Implemented as a copy-ready status format with compact source coverage.
+- Show recent export/postback records. Implemented as a private per-card popup panel filtered to the current card's analysis run ids.
 
 Impact: Medium. Low implementation cost, high workflow usefulness.
 

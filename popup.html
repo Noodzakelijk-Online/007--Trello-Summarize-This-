@@ -647,6 +647,12 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">Export/postback history</h2>
+        <p id="exportHistorySummary" class="section-body">No export or postback records yet.</p>
+        <ul id="exportHistoryList" class="compact-list"></ul>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">Approve Trello comment</h2>
         <p id="postbackStatus" class="section-body">Review the exact draft before copying or posting it.</p>
         <textarea id="postbackPreview" class="postback-preview" readonly></textarea>
@@ -690,6 +696,7 @@
       var lastAnalysis = null;
       var lastLedgerRun = null;
       var lastHistoryRuns = [];
+      var lastExportRecords = [];
       var lastSettings = null;
       var lastSensitiveSignals = null;
       var inTrello = Boolean(
@@ -812,6 +819,7 @@
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
           renderHistory(lastHistoryRuns);
+          await loadAndRenderExportHistory();
         } catch (error) {
           showError(error.message || String(error));
         }
@@ -846,6 +854,8 @@
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
+        document.getElementById("exportHistorySummary").textContent = "No export or postback records yet.";
+        document.getElementById("exportHistoryList").innerHTML = "";
         document.getElementById("priorFeedbackPanel").classList.add("hidden");
         document.getElementById("priorFeedbackSummary").textContent = "No prior corrections were available for this card.";
         document.getElementById("priorFeedbackList").innerHTML = "";
@@ -1942,6 +1952,47 @@
         });
       }
 
+      async function loadAndRenderExportHistory() {
+        var records = await readPrivateObject("summarizeThisExportRecords", []);
+        if (!Array.isArray(records)) records = [];
+        lastExportRecords = CardIntelligenceLedger.summarizeExportRecords(records, currentAnalysisRunIds(), 8);
+        renderExportHistory(lastExportRecords);
+      }
+
+      function currentAnalysisRunIds() {
+        var ids = [];
+        if (lastLedgerRun && lastLedgerRun.id) ids.push(lastLedgerRun.id);
+        lastHistoryRuns.forEach(function (run) {
+          if (run && run.id && ids.indexOf(run.id) === -1) ids.push(run.id);
+        });
+        return ids;
+      }
+
+      function renderExportHistory(records) {
+        var list = document.getElementById("exportHistoryList");
+        var summary = document.getElementById("exportHistorySummary");
+        var items = Array.isArray(records) ? records : [];
+        list.innerHTML = "";
+
+        if (!items.length) {
+          summary.textContent = "No export or postback records yet for this card.";
+          var empty = document.createElement("li");
+          empty.textContent = "Copy, download, or approve a Trello comment to create a private export record.";
+          list.appendChild(empty);
+          return;
+        }
+
+        summary.textContent = items.length + " recent export/postback record(s) for this card.";
+        items.forEach(function (record) {
+          var item = document.createElement("li");
+          var sensitiveText = record.sensitiveReviewRequired
+            ? " Sensitive review " + (record.sensitiveReviewApproved ? "approved" : "required") + (record.sensitiveCategories.length ? " for " + record.sensitiveCategories.join(", ") + "." : ".")
+            : "";
+          item.textContent = record.exportLabel + " " + record.destinationLabel + " on " + formatDate(record.createdAt) + "." + sensitiveText;
+          list.appendChild(item);
+        });
+      }
+
       function formatDate(value) {
         if (!value) return "unknown time";
         var date = new Date(value);
@@ -1989,13 +2040,19 @@
       async function recordExport(exportType, destination, runId, sensitiveApproved) {
         if (!lastLedgerRun && !runId) return;
         var review = sensitiveReviewFor(exportType, Boolean(sensitiveApproved));
+        var runForRecord = runId
+          ? lastHistoryRuns.find(function (item) { return item.id === runId; }) || lastLedgerRun
+          : lastLedgerRun;
         var record = CardIntelligenceLedger.createExportRecord(runId || lastLedgerRun.id, exportType, destination, {
-          sensitiveReview: review.required ? review : null
+          sensitiveReview: review.required ? review : null,
+          cardId: runForRecord && runForRecord.cardId,
+          cardTitle: runForRecord && runForRecord.cardSnapshot && runForRecord.cardSnapshot.title
         });
         var records = await readPrivateObject("summarizeThisExportRecords", []);
         if (!Array.isArray(records)) records = [];
         records.unshift(record);
         await writePrivateObject("summarizeThisExportRecords", records.slice(0, 100));
+        await loadAndRenderExportHistory();
       }
 
       async function saveFeedback(rating) {

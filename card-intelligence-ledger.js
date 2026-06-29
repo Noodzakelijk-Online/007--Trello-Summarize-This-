@@ -1128,6 +1128,8 @@
     return {
       id: "export-" + shortHash(analysisRunId + exportType + destination + nowIso(options)),
       analysisRunId: analysisRunId,
+      cardId: cleanText(options && options.cardId),
+      cardTitle: cleanText(options && options.cardTitle),
       exportType: cleanText(exportType || "markdown"),
       destination: cleanText(destination || "clipboard"),
       createdAt: nowIso(options),
@@ -1140,6 +1142,60 @@
         reviewedAt: review.reviewedAt || null
       } : null
     };
+  }
+
+  function summarizeExportRecords(records, analysisRunIds, limit) {
+    var allowedRuns = {};
+    toArray(analysisRunIds).map(cleanText).filter(Boolean).forEach(function (id) {
+      allowedRuns[id] = true;
+    });
+
+    return toArray(records).filter(function (record) {
+      var runId = cleanText(record && record.analysisRunId);
+      return runId && (!Object.keys(allowedRuns).length || allowedRuns[runId]);
+    }).sort(function (a, b) {
+      return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+    }).slice(0, limit || 8).map(function (record) {
+      var review = record.sensitiveReview || {};
+      return {
+        id: cleanText(record.id),
+        analysisRunId: cleanText(record.analysisRunId),
+        cardId: cleanText(record.cardId),
+        cardTitle: cleanText(record.cardTitle),
+        exportType: cleanText(record.exportType || "markdown"),
+        exportLabel: exportTypeLabel(record.exportType),
+        destination: cleanText(record.destination || "clipboard"),
+        destinationLabel: destinationLabel(record.destination),
+        createdAt: record.createdAt || "",
+        sensitiveReviewRequired: Boolean(review.required),
+        sensitiveReviewApproved: Boolean(review.approved),
+        sensitiveCategories: toArray(review.categories).map(cleanText).filter(Boolean).slice(0, 6)
+      };
+    });
+  }
+
+  function exportTypeLabel(value) {
+    var type = cleanText(value || "markdown");
+    var labels = {
+      "markdown": "Markdown summary",
+      "plain-text": "Plain text export",
+      "mode-brief": "Selected mode brief",
+      "status-update": "Status update",
+      "ledger-json": "Ledger JSON",
+      "trello-comment-draft": "Trello comment draft",
+      "trello-comment": "Trello comment"
+    };
+    return labels[type] || type;
+  }
+
+  function destinationLabel(value) {
+    var destination = cleanText(value || "clipboard");
+    var labels = {
+      "clipboard": "copied",
+      "download": "downloaded",
+      "trello-comment": "posted to Trello"
+    };
+    return labels[destination] || destination;
   }
 
   function markdownForLedgerRun(run) {
@@ -1505,6 +1561,7 @@
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,
     createHumanFeedback: createHumanFeedback,
+    summarizeExportRecords: summarizeExportRecords,
     normalizePriorFeedback: normalizePriorFeedback,
     createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,

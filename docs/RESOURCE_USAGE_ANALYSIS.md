@@ -16,9 +16,9 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 167.9 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 278.4 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.42 MB.
+- Active popup initial local files: about 172.8 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 283.4 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.43 MB.
 - Large-card AI prompt after caps: 16,261 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -63,6 +63,7 @@ Current results:
    - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
    - Prior feedback readback is capped to 5 compact correction records, with each correction capped before it is shown or sent as AI prompt guidance.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
+   - Export/postback history is filtered to current-card analysis run ids and capped to 8 visible records.
    - Plain text, status update, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
    - Human-readable export evidence/source notes are bounded to compact claim and source-coverage summaries instead of duplicating full card content.
@@ -81,7 +82,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 278 KB, and the generated `SummarizeThisSetup.exe` is 187,392 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 283 KB, and the generated `SummarizeThisSetup.exe` is 189,440 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

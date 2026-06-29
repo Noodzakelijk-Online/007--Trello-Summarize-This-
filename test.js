@@ -344,11 +344,30 @@ assert.equal(approvedSensitiveExport.reviewedAt, "2026-06-29T12:06:45.000Z");
 
 const sensitiveExportRecord = CardIntelligenceLedger.createExportRecord(run.id, "ledger-json", "download", {
   now: "2026-06-29T12:06:50.000Z",
-  sensitiveReview: approvedSensitiveExport
+  sensitiveReview: approvedSensitiveExport,
+  cardId: run.cardId,
+  cardTitle: run.cardSnapshot.title
 });
 assert.equal(sensitiveExportRecord.sensitiveReview.required, true);
 assert.equal(sensitiveExportRecord.sensitiveReview.approved, true);
 assert.ok(sensitiveExportRecord.sensitiveReview.categories.includes("financial"));
+assert.equal(sensitiveExportRecord.cardId, run.cardId);
+
+const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
+  sensitiveExportRecord,
+  CardIntelligenceLedger.createExportRecord("other-run", "markdown", "clipboard", {
+    now: "2026-06-29T12:06:55.000Z"
+  }),
+  CardIntelligenceLedger.createExportRecord(run.id, "trello-comment", "trello-comment", {
+    now: "2026-06-29T12:07:05.000Z",
+    cardId: run.cardId
+  })
+], [run.id], 5);
+assert.equal(summarizedExports.length, 2);
+assert.equal(summarizedExports[0].exportLabel, "Trello comment");
+assert.equal(summarizedExports[0].destinationLabel, "posted to Trello");
+assert.equal(summarizedExports[1].exportLabel, "Ledger JSON");
+assert.equal(summarizedExports[1].sensitiveReviewApproved, true);
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
