@@ -118,6 +118,65 @@
     });
   }
 
+  function normalizeListContext(input, currentCardId, currentListName) {
+    var source = input || {};
+    var cards = toArray(source.cards || source.listCards || source.neighborCards).map(function (card) {
+      return {
+        id: cleanText(card.id),
+        name: cleanText(card.name || card.title || "Untitled card"),
+        labels: normalizeNames(card.labels).slice(0, 6),
+        due: card.due || null,
+        dueComplete: Boolean(card.dueComplete),
+        listName: normalizeName(card.list) || cleanText(card.listName)
+      };
+    }).filter(function (card) {
+      return card.name;
+    }).slice(0, 25);
+    var currentIndex = currentCardId
+      ? cards.findIndex(function (card) { return card.id === currentCardId; })
+      : -1;
+    var neighboringCards = currentIndex >= 0
+      ? cards.slice(Math.max(0, currentIndex - 2), currentIndex).concat(cards.slice(currentIndex + 1, currentIndex + 3))
+      : cards.slice(0, 4);
+
+    return {
+      enabled: source.enabled !== false,
+      listName: cleanText(source.listName || currentListName),
+      totalCards: toNumber(source.totalCards) || cards.length,
+      sampledCards: cards.length,
+      currentPosition: currentIndex >= 0 ? currentIndex + 1 : null,
+      neighboringCards: neighboringCards.map(function (card) {
+        return {
+          name: card.name,
+          labels: card.labels.slice(0, 4),
+          due: card.due,
+          dueComplete: card.dueComplete
+        };
+      }),
+      labelPatterns: topLabelsFromCards(cards),
+      source: cleanText(source.source)
+    };
+  }
+
+  function topLabelsFromCards(cards) {
+    var counts = {};
+    cards.forEach(function (card) {
+      toArray(card.labels).forEach(function (label) {
+        var key = cleanText(label);
+        if (!key) return;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+    return Object.keys(counts).sort(function (a, b) {
+      return counts[b] - counts[a] || a.localeCompare(b);
+    }).slice(0, 6).map(function (label) {
+      return {
+        label: label,
+        count: counts[label]
+      };
+    });
+  }
+
   function getObjectId(value) {
     if (!value) return "";
     if (typeof value === "string") return "";
@@ -161,6 +220,7 @@
     var comments = normalizeComments(base.comments);
     var badges = base.badges || {};
     var checklistSummary = getChecklistSummary(checklists);
+    var listName = normalizeName(base.list) || cleanText(base.listName);
 
     if (!checklistSummary.total && badges.checkItems) {
       checklistSummary.total = toNumber(badges.checkItems);
@@ -180,7 +240,7 @@
       labels: normalizeNames(base.labels),
       members: normalizeNames(base.members),
       boardName: normalizeName(base.board) || cleanText(base.boardName),
-      listName: normalizeName(base.list) || cleanText(base.listName),
+      listName: listName,
       due: base.due || null,
       dueComplete: Boolean(base.dueComplete),
       url: cleanText(base.url || base.shortUrl || base.shortLink),
@@ -192,7 +252,8 @@
       checklistSummary: checklistSummary,
       commentCount: comments.length || toNumber(badges.comments),
       attachmentCount: attachments.length || toNumber(badges.attachments),
-      customFields: toArray(base.customFields || base.customFieldItems)
+      customFields: toArray(base.customFields || base.customFieldItems),
+      listContext: normalizeListContext(base.listContext || base.boardListContext, cleanText(base.id), listName)
     };
   }
 
@@ -215,6 +276,7 @@
       members: card.members.slice(0, 25),
       boardName: card.boardName,
       listName: card.listName,
+      listContext: card.listContext && card.listContext.sampledCards ? card.listContext : null,
       url: card.url,
       sourceCompleteness: scoreSourceCompleteness(card),
       sourceCoverage: createSourceCoverage(input)
@@ -233,6 +295,7 @@
       : coverage("missing", "No description text was available."));
     addCoverage(items, "board", "Board", statusFromRead(status.board, Boolean(card.boardName), card.boardName ? "Board context: " + card.boardName + "." : "Board context was not available."));
     addCoverage(items, "list", "List", statusFromRead(status.list, Boolean(card.listName), card.listName ? "List context: " + card.listName + "." : "List context was not available."));
+    addCoverage(items, "listContext", "List context", listContextCoverage(status.listContext, card.listContext));
     addCoverage(items, "members", "Members", card.members.length
       ? coverage("available", card.members.length + " member(s) included.")
       : coverage("missing", "No assigned members were visible."));
@@ -317,6 +380,28 @@
     return coverage("missing", emptyDetail);
   }
 
+  function listContextCoverage(readStatus, listContext) {
+    if (readStatus && readStatus.ok === false) {
+      return coverage("failed", readStatus.error || "List context could not be read.");
+    }
+    if (listContext && listContext.enabled === false) {
+      return coverage("missing", "List context is disabled in settings.");
+    }
+    if (listContext && listContext.sampledCards > 0) {
+      var detail = listContext.sampledCards + " card(s) sampled from " + (listContext.listName || "the current list") + ".";
+      if (listContext.currentPosition) {
+        detail += " Current card position: " + listContext.currentPosition + " of " + listContext.totalCards + ".";
+      }
+      if (listContext.labelPatterns.length) {
+        detail += " Common labels: " + listContext.labelPatterns.map(function (item) {
+          return item.label + " (" + item.count + ")";
+        }).join(", ") + ".";
+      }
+      return coverage("available", detail);
+    }
+    return coverage("missing", "No neighboring list-card context was available.");
+  }
+
   function attachmentCoverage(card) {
     var extracted = card.attachments.filter(function (attachment) {
       return attachment.extractedTextAvailable;
@@ -345,6 +430,7 @@
     addEvidence(evidence, "description", "Card description", card.description, "card.description");
     addEvidence(evidence, "board", "Board", card.boardName, "card.board");
     addEvidence(evidence, "list", "Current list", card.listName, "card.list");
+    addListContextEvidence(evidence, card.listContext);
     addEvidence(evidence, "due", "Due date", card.due ? card.due + (card.dueComplete ? " (complete)" : "") : "", "card.due");
 
     card.labels.forEach(function (label, index) {
@@ -387,6 +473,27 @@
     });
 
     return evidence;
+  }
+
+  function addListContextEvidence(evidence, listContext) {
+    if (!listContext || !listContext.sampledCards) return;
+    var parts = [
+      listContext.sampledCards + " sampled card(s) in " + (listContext.listName || "the current list")
+    ];
+    if (listContext.currentPosition) {
+      parts.push("current card position " + listContext.currentPosition + " of " + listContext.totalCards);
+    }
+    if (listContext.neighboringCards.length) {
+      parts.push("nearby cards: " + listContext.neighboringCards.map(function (card) {
+        return card.name;
+      }).join("; "));
+    }
+    if (listContext.labelPatterns.length) {
+      parts.push("common labels: " + listContext.labelPatterns.map(function (item) {
+        return item.label + " (" + item.count + ")";
+      }).join(", "));
+    }
+    addEvidence(evidence, "list-context", "List context", parts.join(". "), "card.listContext");
   }
 
   function addEvidence(evidence, type, label, excerpt, path) {
@@ -660,6 +767,7 @@
     if (card.members.length) score += 10;
     if (card.due) score += 8;
     if (card.listName || card.boardName) score += 8;
+    if (card.listContext && card.listContext.sampledCards) score += 4;
     if (card.checklistSummary.total) score += 14;
     if (card.commentCount) score += 12;
     if (card.attachmentCount) score += 5;

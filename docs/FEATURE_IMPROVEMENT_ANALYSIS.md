@@ -100,11 +100,13 @@ Impact: High. This expands usefulness without changing the core architecture.
 
 Problem: A single card can be misleading without nearby board context.
 
+Status: Implemented for the active popup as bounded list context. The settings panel can enable or disable current-list context; when enabled, the popup reads a compact sample of current-list card titles, labels, and due state, then stores summary-only metadata in the ledger and AI prompt.
+
 Recommendation:
 
-- Optionally include list name, neighboring card count, and label patterns.
-- For AI mode, summarize how this card relates to its list or sprint.
-- Keep this optional to avoid extra Trello reads and larger prompts.
+- Keep list context bounded to compact neighboring-card metadata.
+- Do not include neighboring card descriptions, comments, or attachments unless a later explicit privacy setting is added.
+- Use the list-context source coverage signal to tell users when the read failed or was disabled.
 
 Impact: Medium. Stronger summaries for planning workflows.
 
@@ -177,7 +179,7 @@ Impact: Medium. Low implementation cost, high workflow usefulness.
 4. Trello setup assistant.
 5. Trust signals.
 6. Export formats.
-7. Optional board/list context.
+7. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
 8. Attachment extraction through a safer backend path.
 
 This order improves the existing user experience first, then expands capability where it needs more security and product design care.

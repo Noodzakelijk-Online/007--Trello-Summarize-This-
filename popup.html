@@ -577,6 +577,12 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">List context</h2>
+        <p id="listContextSummary" class="section-body">List context will appear after analysis.</p>
+        <ul id="listContextList" class="compact-list"></ul>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">Source coverage</h2>
         <p id="sourceCoverageSummary" class="section-body">Source coverage will appear after analysis.</p>
         <ul id="sourceCoverageList" class="source-list"></ul>
@@ -722,7 +728,7 @@
         try {
           t = inTrello ? TrelloPowerUp.iframe() : null;
           var settings = await loadSettings();
-          var cardData = await gatherCardData();
+          var cardData = await gatherCardData(settings);
           lastCardData = cardData;
 
           var normalized = SummarizeThis.normalizeCardData(cardData);
@@ -777,6 +783,8 @@
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
         document.getElementById("exportStatus").textContent = "";
+        document.getElementById("listContextSummary").textContent = "List context will appear after analysis.";
+        document.getElementById("listContextList").innerHTML = "";
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
         document.getElementById("sourceCoverageList").innerHTML = "";
         document.getElementById("trustSignalsSummary").textContent = "Trust signals will appear after analysis.";
@@ -811,6 +819,7 @@
           analysisMode: "auto",
           strategy: "cost-effective",
           outputMode: "operational-ledger",
+          includeListContext: true,
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -846,13 +855,14 @@
         });
       }
 
-      async function gatherCardData() {
+      async function gatherCardData(settings) {
         if (!t) {
           return Object.assign({}, SummarizeThis.sampleCardData(), {
             __sourceStatus: {
               card: { ok: true },
               board: { ok: true },
               list: { ok: true },
+              listContext: { ok: true },
               comments: { ok: true },
               customFields: { ok: true }
             }
@@ -869,22 +879,87 @@
           return t.list("all");
         }, null);
         var card = cardRead.value || {};
+        var listContextRead = await readListContext(card, listRead.value, settings);
         var commentsRead = await readCardComments(card);
         var customFieldItems = card.customFieldItems || card.customFields || [];
 
         return Object.assign({}, card, {
           board: boardRead.value,
           list: listRead.value,
+          listContext: listContextRead.value,
           comments: commentsRead.value,
           customFields: customFieldItems,
           __sourceStatus: {
             card: sourceReadStatus(cardRead),
             board: sourceReadStatus(boardRead),
             list: sourceReadStatus(listRead),
+            listContext: sourceReadStatus(listContextRead),
             comments: sourceReadStatus(commentsRead),
             customFields: { ok: Array.isArray(customFieldItems) }
           }
         });
+      }
+
+      async function readListContext(card, list, settings) {
+        var enabled = settings ? settings.includeListContext !== false : true;
+        if (!enabled) {
+          return {
+            ok: true,
+            value: { enabled: false, listName: list && list.name ? list.name : "" },
+            error: ""
+          };
+        }
+
+        var cards = extractListCards(list);
+        var source = "current list read";
+        if (!cards.length && t && typeof t.list === "function") {
+          var listCardsRead = await readSource(function () {
+            return t.list("cards");
+          }, []);
+          cards = extractListCards(listCardsRead.value);
+          source = "t.list(cards)";
+          if (!listCardsRead.ok) {
+            return {
+              ok: false,
+              value: createListContextValue(card, list, [], source, true),
+              error: listCardsRead.error
+            };
+          }
+        }
+
+        return {
+          ok: true,
+          value: createListContextValue(card, list, cards, source, false),
+          error: ""
+        };
+      }
+
+      function extractListCards(value) {
+        if (Array.isArray(value)) return value;
+        if (!value || typeof value !== "object") return [];
+        if (Array.isArray(value.cards)) return value.cards;
+        if (value.list && Array.isArray(value.list.cards)) return value.list.cards;
+        return [];
+      }
+
+      function createListContextValue(card, list, cards, source, failed) {
+        var listName = list && list.name ? list.name : "";
+        var limitedCards = (Array.isArray(cards) ? cards : []).slice(0, 25).map(function (item) {
+          return {
+            id: item.id || "",
+            name: item.name || item.title || "Untitled card",
+            labels: Array.isArray(item.labels) ? item.labels.slice(0, 8) : [],
+            due: item.due || null,
+            dueComplete: Boolean(item.dueComplete)
+          };
+        });
+        return {
+          enabled: true,
+          listName: listName,
+          totalCards: cards && cards.length ? cards.length : limitedCards.length,
+          cards: limitedCards,
+          source: failed ? source + " failed" : source
+        };
       }
 
       async function readSource(fn, fallback) {
@@ -1193,6 +1268,7 @@
         renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
+        renderListContext(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.listContext : null);
         renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
         renderTrustSignals(result && result.trustSignals ? result.trustSignals : CardIntelligenceLedger.createTrustSignals(cardData));
         renderOutputMode(ledgerRun);
@@ -1249,6 +1325,36 @@
           li.appendChild(document.createTextNode(item.excerpt));
           list.appendChild(li);
         });
+      }
+
+      function renderListContext(listContext) {
+        var summary = document.getElementById("listContextSummary");
+        var list = document.getElementById("listContextList");
+        list.innerHTML = "";
+
+        if (!listContext || !listContext.sampledCards) {
+          summary.textContent = "No neighboring list-card context was available.";
+          renderList("listContextList", ["Enable list context in settings when sprint or nearby-card comparison matters."], "");
+          return;
+        }
+
+        summary.textContent = listContext.sampledCards + " card(s) sampled from " + (listContext.listName || "the current list") + ".";
+        if (listContext.currentPosition) {
+          summary.textContent += " This card is position " + listContext.currentPosition + " of " + listContext.totalCards + ".";
+        }
+
+        var items = [];
+        if (listContext.neighboringCards && listContext.neighboringCards.length) {
+          items.push("Nearby cards: " + listContext.neighboringCards.map(function (card) {
+            return card.name;
+          }).join("; "));
+        }
+        if (listContext.labelPatterns && listContext.labelPatterns.length) {
+          items.push("Common labels: " + listContext.labelPatterns.map(function (item) {
+            return item.label + " (" + item.count + ")";
+          }).join(", "));
+        }
+        renderList("listContextList", items, "No nearby cards or label patterns were available.");
       }
 
       function renderSourceCoverage(coverage) {

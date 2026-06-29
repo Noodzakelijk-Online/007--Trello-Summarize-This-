@@ -10,6 +10,9 @@ assert.equal(normalized.name, "Prepare launch checklist");
 assert.equal(normalized.boardName, "Product Delivery");
 assert.equal(normalized.checklistStats.total, 3);
 assert.equal(normalized.checklistStats.complete, 1);
+assert.equal(normalized.listContext.sampledCards, 4);
+assert.equal(normalized.listContext.currentPosition, 2);
+assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()
@@ -20,6 +23,7 @@ assert.ok(local.summary.about.includes("Prepare launch checklist"));
 assert.ok(Array.isArray(local.summary.nextSteps));
 assert.ok(local.summary.nextSteps.length >= 1);
 assert.ok(local.qualityScore >= 60);
+assert.ok(local.summary.insights.some(item => item.includes("List context includes")));
 
 const prompt = SummarizeThis.buildAIPrompt(sample);
 assert.ok(prompt.includes("Return only valid JSON"));
@@ -36,6 +40,8 @@ const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample,
 }));
 assert.equal(riskPromptPayload.outputMode.key, "risk-review");
 assert.ok(riskPromptPayload.outputMode.instruction.includes("risks"));
+assert.equal(riskPromptPayload.listContext.sampledCards, 4);
+assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
 
 function parsePromptPayload(promptText) {
   return JSON.parse(promptText.slice(promptText.lastIndexOf("\n{") + 1));
@@ -160,6 +166,8 @@ assert.equal(snapshot.descriptionPresent, true);
 assert.ok(snapshot.descriptionHash);
 assert.equal(snapshot.description, undefined);
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "available"));
+assert.ok(snapshot.listContext);
+assert.ok(snapshot.sourceCoverage.some(item => item.key === "listContext" && item.status === "available"));
 
 const partialCoverage = CardIntelligenceLedger.createSourceCoverage(Object.assign({}, sample, {
   comments: [],
@@ -196,6 +204,7 @@ assert.ok(run.result.validationFindings.some(finding => finding.id === "decision
 assert.ok(run.result.confidence.overall >= 25);
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "description"));
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "comments"));
+assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "listContext"));
 assert.ok(run.result.trustSignals.needsReview.some(item => item.key === "missing-members"));
 assert.ok(run.result.trustSignals.whyScore.some(item => item.includes("Data completeness")));
 

@@ -95,6 +95,23 @@
       font-weight: 700;
     }
 
+    .checkbox-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin: 0;
+      color: var(--ink);
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      min-height: auto;
+      margin-top: 3px;
+      flex: 0 0 auto;
+    }
+
     .field-actions {
       display: flex;
       align-items: center;
@@ -253,6 +270,14 @@
         </select>
         <p class="warning">Larger context can improve messy-card analysis, but sends more Trello content to the configured AI provider.</p>
       </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="includeListContext">
+          <input id="includeListContext" type="checkbox">
+          <span>Include bounded list context</span>
+        </label>
+        <p class="help">Reads a small sample of current-list card titles, labels, and due states for sprint/neighbor context. Full descriptions and comments are not included.</p>
+      </div>
     </section>
 
     <section class="panel">
@@ -326,6 +351,7 @@
         promptCommentLimit: document.getElementById("promptCommentLimit"),
         promptCommentCharacters: document.getElementById("promptCommentCharacters"),
         promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
+        includeListContext: document.getElementById("includeListContext"),
         openaiKey: document.getElementById("openaiKey"),
         openaiModel: document.getElementById("openaiModel"),
         googleKey: document.getElementById("googleKey"),
@@ -366,6 +392,7 @@
         fields.promptCommentLimit.value = String(promptContext.commentLimit);
         fields.promptCommentCharacters.value = String(promptContext.commentCharacters);
         fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
+        fields.includeListContext.checked = settings.includeListContext !== false;
       }
 
       async function readSettings() {
@@ -374,6 +401,7 @@
           provider: "openai",
           strategy: "cost-effective",
           outputMode: "operational-ledger",
+          includeListContext: true,
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -412,6 +440,7 @@
           provider: fields.provider.value,
           strategy: fields.strategy.value,
           outputMode: normalizeOutputMode(fields.outputMode.value),
+          includeListContext: fields.includeListContext.checked,
           promptContext: normalizePromptContext({
             descriptionCharacters: fields.promptDescriptionCharacters.value,
             commentLimit: fields.promptCommentLimit.value,

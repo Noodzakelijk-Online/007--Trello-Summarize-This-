@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 134.7 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 243.5 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.38 MB.
-- Large-card AI prompt after caps: 14,596 characters.
+- Active popup initial local files: about 147.3 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 257.0 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.39 MB.
+- Large-card AI prompt after caps: 15,748 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -34,6 +34,7 @@ Current results:
    - The prompt now asks for a structured operational schema so fewer downstream repair steps are needed.
    - Larger context settings are user-selected and warn that more Trello content is sent to the configured AI provider.
    - Output modes add a short prompt focus instruction without changing default comment or description caps.
+   - List context is bounded to at most 25 current-list card titles, labels, and due states, and can be disabled in settings.
 
 2. Bounded AI response size and time:
    - OpenAI and Google outputs are capped at 900 output tokens.
@@ -62,7 +63,7 @@ Current results:
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
    - Plain text, status update, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
-   - Source coverage and trust signals store compact source statuses, warning labels, and confidence factors instead of duplicating full card bodies.
+   - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
 
 ## Resource Risk Review
 
@@ -76,7 +77,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 244 KB, and the generated `SummarizeThisSetup.exe` is 167,936 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 257 KB, and the generated `SummarizeThisSetup.exe` is 176,128 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

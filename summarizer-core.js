@@ -175,10 +175,80 @@
       dateLastActivity: base.dateLastActivity || base.lastActivity || null
     };
 
+    card.listContext = normalizeListContext(base.listContext || base.boardListContext, card.id, card.listName);
     card.checklistStats = getChecklistStats(card);
     card.commentCount = card.comments.length || toNumber(card.badges.comments);
     card.attachmentCount = card.attachments.length || toNumber(card.badges.attachments);
     return card;
+  }
+
+  function normalizeListContext(input, currentCardId, currentListName) {
+    var source = input || {};
+    var rawCards = toArray(source.cards || source.listCards || source.neighborCards);
+    var compactCards = rawCards.map(function (card) {
+      return {
+        id: cleanText(card.id),
+        name: cleanText(card.name || card.title || "Untitled card"),
+        labels: normalizeNamedItems(card.labels).slice(0, 6),
+        due: card.due || null,
+        dueComplete: Boolean(card.dueComplete),
+        listName: cleanText(card.listName || getObjectName(card.list))
+      };
+    }).filter(function (card) {
+      return card.name;
+    }).slice(0, 25);
+
+    var currentIndex = -1;
+    if (currentCardId) {
+      currentIndex = compactCards.findIndex(function (card) {
+        return card.id === currentCardId;
+      });
+    }
+
+    var neighbors = [];
+    if (currentIndex >= 0) {
+      neighbors = compactCards.slice(Math.max(0, currentIndex - 2), currentIndex)
+        .concat(compactCards.slice(currentIndex + 1, currentIndex + 3));
+    } else {
+      neighbors = compactCards.slice(0, 4);
+    }
+
+    return {
+      enabled: source.enabled !== false,
+      listName: cleanText(source.listName || currentListName),
+      totalCards: toNumber(source.totalCards) || compactCards.length,
+      sampledCards: compactCards.length,
+      currentPosition: currentIndex >= 0 ? currentIndex + 1 : null,
+      neighboringCards: neighbors.map(function (card) {
+        return {
+          name: card.name,
+          labels: card.labels.slice(0, 4),
+          due: card.due,
+          dueComplete: card.dueComplete
+        };
+      }),
+      labelPatterns: topLabelsFromCards(compactCards),
+      source: cleanText(source.source || "")
+    };
+  }
+
+  function topLabelsFromCards(cards) {
+    var counts = {};
+    cards.forEach(function (card) {
+      toArray(card.labels).forEach(function (label) {
+        var key = cleanText(label);
+        if (!key) return;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+    });
+    return Object.keys(counts).sort(function (a, b) {
+      return counts[b] - counts[a] || a.localeCompare(b);
+    }).slice(0, 6).map(function (label) {
+      return {
+        label: label,
+        count: counts[label]
+      };
+    });
   }
 
   function getChecklistStats(card) {
@@ -351,6 +421,14 @@
     if (card.attachmentCount) {
       insights.push(card.attachmentCount + " attachment" + (card.attachmentCount === 1 ? "" : "s") + " may contain supporting detail.");
     }
+    if (card.listContext && card.listContext.sampledCards) {
+      insights.push("List context includes " + card.listContext.sampledCards + " sampled card" + (card.listContext.sampledCards === 1 ? "" : "s") + " from " + (card.listContext.listName || "the current list") + ".");
+      if (card.listContext.labelPatterns.length) {
+        insights.push("Common list labels: " + card.listContext.labelPatterns.map(function (item) {
+          return item.label + " (" + item.count + ")";
+        }).join(", ") + ".");
+      }
+    }
     if (insights.length === 0) {
       insights.push("The card has sparse metadata, so the summary should be treated as a starting point.");
     }
@@ -374,6 +452,9 @@
     }
     if (card.commentCount === 0) {
       recommendations.push("Add a status comment when meaningful context lives outside the card.");
+    }
+    if (!card.listContext || !card.listContext.sampledCards) {
+      recommendations.push("Enable list context when this card needs sprint or neighboring-card comparison.");
     }
     if (due.state === "overdue") {
       recommendations.push("Reconfirm priority and update the due date after the owner reviews the card.");
@@ -438,6 +519,7 @@
       members: card.members.slice(0, 25),
       due: card.due,
       dueComplete: card.dueComplete,
+      listContext: card.listContext,
       checklistProgress: card.checklistStats,
       comments: comments,
       attachmentCount: card.attachmentCount,
@@ -447,7 +529,8 @@
         commentLimit: context.commentLimit,
         commentCharacters: context.commentCharacters,
         commentsAvailable: card.comments.length,
-        commentsIncluded: comments.length
+        commentsIncluded: comments.length,
+        listContextCards: card.listContext ? card.listContext.sampledCards : 0
       }
     };
 
@@ -476,6 +559,7 @@
       "}",
       "Be concrete. Prefer short operational sentences. Do not invent dates, people, amounts, attachment contents, or history.",
       "If attachments are present but text is not provided, say attachment contents were not verified.",
+      "Use listContext only as lightweight board/list signal; do not infer hidden card details from neighboring card titles.",
       "If Robert is mentioned or approval/client/financial/legal risk appears, create a Robert Yes/No decision.",
       "If an action can be delegated without Robert, include it in vaReadyActions.",
       "",
@@ -634,6 +718,17 @@
       members: [{ fullName: "Alex" }],
       board: { name: "Product Delivery" },
       list: { name: "In Progress" },
+      listContext: {
+        listName: "In Progress",
+        totalCards: 5,
+        source: "sample",
+        cards: [
+          { id: "sample-prior", name: "Confirm analytics baseline", labels: [{ name: "Launch" }] },
+          { id: "sample-card", name: "Prepare launch checklist", labels: [{ name: "Launch" }, { name: "Client" }] },
+          { id: "sample-next", name: "Draft support handoff", labels: [{ name: "Client" }, { name: "Support" }] },
+          { id: "sample-later", name: "Review billing test run", labels: [{ name: "Billing" }, { name: "Launch" }] }
+        ]
+      },
       checklists: [{
         name: "Launch tasks",
         checkItems: [
