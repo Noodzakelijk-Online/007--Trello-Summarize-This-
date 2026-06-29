@@ -15,6 +15,8 @@
     author_email: "support@summarizethis.com",
     author_url: "https://summarizethis.com",
     overview_url: "https://summarizethis.com/trello",
+    privacy_url: "./privacy.html",
+    terms_url: "./terms.html",
     icon: { url: "./icon.svg" },
     capabilities: [
       "card-buttons",
@@ -84,6 +86,8 @@
         "connector.js",
         "popup.html",
         "settings-powerup.html",
+        "privacy.html",
+        "terms.html",
         "manifest.json",
         "icon.svg",
         "trello-admin-config.js"
@@ -92,6 +96,7 @@
       verification: [
         "Open " + buildHostedUrl(targetBaseUrl, "connector.js") + " and confirm it loads without a 404.",
         "Open " + buildHostedUrl(targetBaseUrl, "manifest.json") + " and confirm it returns JSON.",
+        "Open " + buildHostedUrl(targetBaseUrl, "privacy.html") + " and " + buildHostedUrl(targetBaseUrl, "terms.html") + " and confirm both policy pages load.",
         "Copy the iframe Connector URL into Trello Power-Up admin only after the HTTPS URLs load publicly."
       ],
       resourceNote: "Deployment is static hosting only. No server, polling job, database, API key, or background worker is required."
@@ -126,7 +131,7 @@
         "Upload the required static files to a public HTTPS host.",
         "Confirm the host serves files directly from the selected folder.",
         "Replace the placeholder URL with the public HTTPS base URL.",
-        "Verify connector.js, manifest.json, popup.html, settings-powerup.html, and icon.svg load publicly.",
+        "Verify connector.js, manifest.json, popup.html, settings-powerup.html, privacy.html, terms.html, and icon.svg load publicly.",
         "Use the generated connector URL in Trello Power-Up admin."
       ];
     }
@@ -229,6 +234,8 @@
       authorEmail: clean(source.author_email || DEFAULT_MANIFEST.author_email),
       authorUrl: clean(source.author_url || DEFAULT_MANIFEST.author_url),
       overviewUrl: clean(source.overview_url || DEFAULT_MANIFEST.overview_url),
+      privacyUrl: absoluteManifestUrl(normalizedBase, source.privacy_url || DEFAULT_MANIFEST.privacy_url, "privacy.html"),
+      termsUrl: absoluteManifestUrl(normalizedBase, source.terms_url || DEFAULT_MANIFEST.terms_url, "terms.html"),
       connectorUrl: buildHostedUrl(normalizedBase, "connector.js"),
       manifestUrl: buildHostedUrl(normalizedBase, "manifest.json"),
       iconUrl: absoluteManifestUrl(normalizedBase, source.icon && source.icon.url, "icon.svg"),
@@ -303,6 +310,22 @@
         aliases: ["overview url", "iframe overview url", "power up overview url", "power-up overview url"]
       },
       {
+        key: "privacyUrl",
+        label: "Privacy policy URL",
+        value: values.privacyUrl,
+        required: false,
+        type: "url",
+        aliases: ["privacy policy url", "privacy url", "privacy policy"]
+      },
+      {
+        key: "termsUrl",
+        label: "Terms of service URL",
+        value: values.termsUrl,
+        required: false,
+        type: "url",
+        aliases: ["terms of service url", "terms url", "terms of use", "terms"]
+      },
+      {
         key: "connectorUrl",
         label: "iframe Connector URL",
         value: values.connectorUrl,
@@ -364,6 +387,8 @@
     var capabilities = toArray(values.capabilities);
     var connectorValidation = validateAbsoluteHttps(values.connectorUrl);
     var manifestValidation = validateAbsoluteHttps(values.manifestUrl);
+    var privacyValidation = validateAbsoluteHttps(values.privacyUrl);
+    var termsValidation = validateAbsoluteHttps(values.termsUrl);
     var iconValidation = validateAbsoluteHttps(values.iconUrl);
     return [
       {
@@ -383,6 +408,18 @@
         label: "Manifest URL is HTTPS",
         ok: manifestValidation.ok,
         detail: manifestValidation.message
+      },
+      {
+        key: "privacy-url",
+        label: "Privacy policy URL is HTTPS",
+        ok: privacyValidation.ok,
+        detail: privacyValidation.message
+      },
+      {
+        key: "terms-url",
+        label: "Terms URL is HTTPS",
+        ok: termsValidation.ok,
+        detail: termsValidation.message
       },
       {
         key: "icon-url",
@@ -443,6 +480,8 @@
         authorEmail: values.authorEmail,
         authorUrl: values.authorUrl,
         overviewUrl: values.overviewUrl,
+        privacyUrl: values.privacyUrl,
+        termsUrl: values.termsUrl,
         details: values.details,
         connectorUrl: values.connectorUrl,
         manifestUrl: values.manifestUrl,

@@ -373,6 +373,14 @@
             <code id="manifestUrl"></code>
           </div>
           <div class="copybox">
+            <strong>Privacy URL</strong>
+            <code id="privacyUrl"></code>
+          </div>
+          <div class="copybox">
+            <strong>Terms URL</strong>
+            <code id="termsUrl"></code>
+          </div>
+          <div class="copybox">
             <strong>Icon URL</strong>
             <code id="iconUrl"></code>
           </div>
@@ -462,6 +470,8 @@
         name: "Summarize This",
         details: "AI-assisted Trello card summarization with a local fallback summary when no AI provider is configured.",
         author: "Summarize This Team",
+        privacy_url: "./privacy.html",
+        terms_url: "./terms.html",
         icon: { url: "./icon.svg" },
         capabilities: [
           "card-buttons",
@@ -593,6 +603,8 @@
         fields.testConnectorLink.href = connectorUrl || "#";
         fields.adminBookmarkletLink.href = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
         document.getElementById("manifestUrl").textContent = adminConfig.manifestUrl;
+        document.getElementById("privacyUrl").textContent = adminConfig.privacyUrl;
+        document.getElementById("termsUrl").textContent = adminConfig.termsUrl;
         document.getElementById("iconUrl").textContent = iconUrl;
         fields.localNotice.style.display = validation.isReadyForTrello ? "none" : "block";
         renderReadinessChecklist(adminConfig, validation);

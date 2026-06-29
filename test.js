@@ -1009,31 +1009,38 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   author_email: "support@example.com",
   author_url: "https://example.com",
   overview_url: "https://example.com/trello",
+  privacy_url: "./privacy.html",
+  terms_url: "./terms.html",
   icon: { url: "./icon.svg" },
   capabilities: ["card-buttons", "show-settings"]
 }, "https://powerup.example.com/app/");
 assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.js");
 assert.equal(adminConfig.manifestUrl, "https://powerup.example.com/app/manifest.json");
 assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
+assert.equal(adminConfig.privacyUrl, "https://powerup.example.com/app/privacy.html");
+assert.equal(adminConfig.termsUrl, "https://powerup.example.com/app/terms.html");
 assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
 
 const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
 assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.js"));
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
+assert.ok(adminValuesText.includes("Privacy policy URL: https://powerup.example.com/app/privacy.html"));
+assert.ok(adminValuesText.includes("Terms of service URL: https://powerup.example.com/app/terms.html"));
 assert.ok(adminValuesText.includes("Capabilities: card-buttons, show-settings"));
 
 const adminFieldMap = TrelloAdminConfig.createAdminFieldMap(adminConfig);
 assert.ok(adminFieldMap.some((item) => item.key === "connectorUrl" && item.aliases.includes("iframe connector url")));
+assert.ok(adminFieldMap.some((item) => item.key === "privacyUrl" && item.aliases.includes("privacy policy url")));
+assert.ok(adminFieldMap.some((item) => item.key === "termsUrl" && item.aliases.includes("terms of service url")));
 assert.ok(adminFieldMap.some((item) => item.key === "capability:card-buttons" && item.type === "capability"));
 assert.ok(adminFieldMap.every((item) => Array.isArray(item.aliases) && item.aliases.length > 0));
-assert.equal(
-  adminFieldMap.some((item) => item.key === "overviewUrl" && item.aliases.includes("privacy policy url")),
-  false
-);
+assert.equal(adminFieldMap.some((item) => item.key === "overviewUrl" && item.aliases.includes("privacy policy url")), false);
 
 const adminFieldMapText = TrelloAdminConfig.makeAdminFieldMapText(adminConfig);
 assert.ok(adminFieldMapText.includes("Trello Power-Up field map"));
 assert.ok(adminFieldMapText.includes("Field: iframe Connector URL"));
+assert.ok(adminFieldMapText.includes("Field: Privacy policy URL"));
+assert.ok(adminFieldMapText.includes("Field: Terms of service URL"));
 assert.ok(adminFieldMapText.includes("Capability: card-buttons"));
 assert.doesNotMatch(adminFieldMapText, /sk-[a-z0-9]/i);
 
@@ -1043,6 +1050,8 @@ const adminReadiness = TrelloAdminConfig.createAdminReadinessChecklist(
 );
 assert.ok(adminReadiness.every((item) => typeof item.key === "string" && typeof item.ok === "boolean"));
 assert.ok(adminReadiness.some((item) => item.key === "hosted-base-url" && item.ok));
+assert.ok(adminReadiness.some((item) => item.key === "privacy-url" && item.ok));
+assert.ok(adminReadiness.some((item) => item.key === "terms-url" && item.ok));
 assert.ok(adminReadiness.some((item) => item.key === "manual-save" && item.ok && item.detail.includes("never saves")));
 
 const adminRunbookText = TrelloAdminConfig.makeAdminRunbookText(
@@ -1070,8 +1079,12 @@ assert.equal(adminSetupPackage.schemaVersion, "summarize-this-trello-admin-setup
 assert.equal(adminSetupPackage.generatedAt, "2026-06-29T12:08:00.000Z");
 assert.equal(adminSetupPackage.validation.isReadyForTrello, true);
 assert.equal(adminSetupPackage.adminValues.connectorUrl, adminConfig.connectorUrl);
+assert.equal(adminSetupPackage.adminValues.privacyUrl, adminConfig.privacyUrl);
+assert.equal(adminSetupPackage.adminValues.termsUrl, adminConfig.termsUrl);
 assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "connector-url" && item.ok));
+assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "privacy-url" && item.ok));
 assert.ok(adminSetupPackage.adminFieldMap.some((item) => item.key === "connectorUrl"));
+assert.ok(adminSetupPackage.adminFieldMap.some((item) => item.key === "privacyUrl"));
 assert.equal(adminSetupPackage.deploymentGuide.id, "github-pages");
 assert.ok(adminSetupPackage.deploymentGuide.steps.some((item) => item.includes("GitHub Pages")));
 assert.ok(adminSetupPackage.safetyNotes.some((item) => item.includes("does not save")));
@@ -1082,11 +1095,13 @@ assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/privacy.html"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/terms.html"));
 assert.ok(adminAutofillScript.includes("https://trello.com/power-ups/admin"));
 assert.ok(adminAutofillScript.includes("config.fields.forEach"));
 assert.ok(adminAutofillScript.includes("Missing:"));
 assert.ok(adminAutofillScript.includes("Review every field in Trello"));
-assert.equal(adminAutofillScript.includes("privacy policy url"), false);
+assert.ok(adminAutofillScript.includes("privacy policy url"));
 assert.doesNotMatch(adminAutofillScript, /form\.submit|submit\s*\(/i);
 assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
 assert.doesNotThrow(() => new Function(adminAutofillScript));
@@ -1147,7 +1162,10 @@ const githubDeploymentGuide = TrelloAdminConfig.createDeploymentGuide(
 assert.equal(githubDeploymentGuide.label, "GitHub Pages");
 assert.ok(githubDeploymentGuide.actionUrl.includes("/settings/pages"));
 assert.ok(githubDeploymentGuide.requiredFiles.includes("connector.js"));
+assert.ok(githubDeploymentGuide.requiredFiles.includes("privacy.html"));
+assert.ok(githubDeploymentGuide.requiredFiles.includes("terms.html"));
 assert.ok(githubDeploymentGuide.verification.some((item) => item.includes("manifest.json")));
+assert.ok(githubDeploymentGuide.verification.some((item) => item.includes("privacy.html") && item.includes("terms.html")));
 assert.ok(githubDeploymentGuide.resourceNote.includes("No server"));
 
 const deploymentGuideText = TrelloAdminConfig.makeDeploymentGuideText(githubDeploymentGuide);

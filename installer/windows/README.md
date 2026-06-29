@@ -16,6 +16,6 @@ The installer is a self-extracting .NET Framework executable, so it does not nee
 
 The installed payload includes the active popup helpers (`attachment-processor.js`, `summarizer-core.js`, and `card-intelligence-ledger.js`) plus the Trello setup assistant and admin configuration helper. The repository test suite checks that the build payload and install-copy list stay aligned.
 
-It also installs a `Configure Trello Power-Up` shortcut. That shortcut opens a setup assistant that prepares host-specific deployment steps, the iframe connector URL, app metadata, icon URL, and capability list for Trello's Power-Up Admin Portal. The assistant can copy a deployment guide, readiness checklist, or JSON setup package with exact admin values, validation state, safety notes, manual steps, and a no-submit autofill helper.
+It also installs a `Configure Trello Power-Up` shortcut. That shortcut opens a setup assistant that prepares host-specific deployment steps, the iframe connector URL, app metadata, privacy URL, terms URL, icon URL, and capability list for Trello's Power-Up Admin Portal. The assistant can copy a deployment guide, readiness checklist, or JSON setup package with exact admin values, validation state, safety notes, manual steps, and a no-submit autofill helper.
 
 This Windows launcher is for the standalone/local version of the tool. For Trello Power-Up use inside Trello, the same static files still need to be hosted on an HTTPS URL and configured in Trello's Power-Up admin page.
