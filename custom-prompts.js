@@ -219,61 +219,89 @@ Provide creative analysis in JSON format:
             throw new Error('Prompt not found');
         }
 
+        const safeCard = cardData && typeof cardData === 'object' ? cardData : {};
+        const safeBoard = safeCard.board && typeof safeCard.board === 'object' ? safeCard.board : { name: safeCard.board };
+        const safeList = safeCard.list && typeof safeCard.list === 'object' ? safeCard.list : { name: safeCard.list };
+        const cardName = String(safeCard.name || 'Unknown Card');
+        const boardName = String(safeBoard.name || 'Unknown Board');
+        const listName = String(safeList.name || 'Unknown List');
+
         // Format card data
-        let cardDataText = `CARD: ${cardData.name}\n`;
-        cardDataText += `BOARD: ${cardData.board.name}\n`;
-        cardDataText += `LIST: ${cardData.list.name}\n\n`;
+        let cardDataText = `CARD: ${cardName}\n`;
+        cardDataText += `BOARD: ${boardName}\n`;
+        cardDataText += `LIST: ${listName}\n\n`;
 
-        if (cardData.desc) {
-            cardDataText += `DESCRIPTION:\n${cardData.desc}\n\n`;
+        if (safeCard.desc) {
+            cardDataText += `DESCRIPTION:\n${String(safeCard.desc)}\n\n`;
         }
 
-        if (cardData.labels && cardData.labels.length > 0) {
-            cardDataText += `LABELS: ${cardData.labels.map(l => l.name).join(', ')}\n\n`;
+        const labels = Array.isArray(safeCard.labels) ? safeCard.labels : [];
+        if (labels.length > 0) {
+            const labelNames = labels
+                .map(label => typeof label === 'string' ? label : String(label && label.name ? label.name : ''));
+            cardDataText += `LABELS: ${labelNames.filter(Boolean).join(', ')}\n\n`;
         }
 
-        if (cardData.members && cardData.members.length > 0) {
-            cardDataText += `MEMBERS: ${cardData.members.map(m => m.fullName).join(', ')}\n\n`;
+        const members = Array.isArray(safeCard.members) ? safeCard.members : [];
+        if (members.length > 0) {
+            const memberNames = members
+                .map(member => typeof member === 'string' ? member : String(member && member.fullName ? member.fullName : ''));
+            cardDataText += `MEMBERS: ${memberNames.filter(Boolean).join(', ')}\n\n`;
         }
 
-        if (cardData.due) {
-            cardDataText += `DUE DATE: ${new Date(cardData.due).toLocaleString()}\n`;
-            cardDataText += `STATUS: ${cardData.dueComplete ? 'Completed' : 'Not completed'}\n\n`;
-        }
-
-        if (cardData.checklists && cardData.checklists.length > 0) {
-            cardDataText += `CHECKLISTS:\n`;
-            cardData.checklists.forEach(checklist => {
-                cardDataText += `\n${checklist.name}:\n`;
-                checklist.checkItems.forEach(item => {
-                    const status = item.state === 'complete' ? '✓' : '○';
-                    cardDataText += `  ${status} ${item.name}\n`;
-                });
-            });
-            if (cardData.checklistProgress) {
-                cardDataText += `\nProgress: ${cardData.checklistProgress}\n\n`;
+        if (safeCard.due) {
+            const dueDate = new Date(safeCard.due);
+            if (!Number.isNaN(dueDate.getTime())) {
+                cardDataText += `DUE DATE: ${dueDate.toLocaleString()}\n`;
+                cardDataText += `STATUS: ${safeCard.dueComplete ? 'Completed' : 'Not completed'}\n\n`;
             }
         }
 
-        if (cardData.comments && cardData.comments.length > 0) {
+        const checklists = Array.isArray(safeCard.checklists) ? safeCard.checklists : [];
+        if (checklists.length > 0) {
+            cardDataText += `CHECKLISTS:\n`;
+            checklists.forEach(checklist => {
+                const checklistName = String(checklist && checklist.name ? checklist.name : 'Checklist');
+                const checkItems = Array.isArray(checklist && checklist.checkItems) ? checklist.checkItems : [];
+                cardDataText += `\n${checklistName}:\n`;
+                checkItems.forEach(item => {
+                    const status = item && item.state === 'complete' ? '[x]' : '[ ]';
+                    cardDataText += `  ${status} ${String(item && item.name ? item.name : '')}\n`;
+                });
+            });
+            if (safeCard.checklistProgress) {
+                cardDataText += `\nProgress: ${safeCard.checklistProgress}\n\n`;
+            }
+        }
+
+        const comments = Array.isArray(safeCard.comments) ? safeCard.comments : [];
+        if (comments.length > 0) {
             cardDataText += `COMMENTS:\n`;
-            cardData.comments.forEach(comment => {
-                cardDataText += `\n${comment.memberCreator.fullName} (${new Date(comment.date).toLocaleDateString()}):\n`;
-                cardDataText += `${comment.text}\n`;
+            comments.forEach(comment => {
+                const commenter = this.getDisplayName(comment && comment.memberCreator);
+                const commentDateRaw = comment && comment.date ? new Date(comment.date) : null;
+                const commentDate = commentDateRaw && !Number.isNaN(commentDateRaw.getTime()) ? commentDateRaw.toLocaleDateString() : 'Unknown date';
+                const commentText = String(comment && comment.text ? comment.text : '');
+                cardDataText += `\n${commenter} (${commentDate}):\n`;
+                cardDataText += `${commentText}\n`;
             });
             cardDataText += `\n`;
         }
 
-        if (cardData.attachments && cardData.attachments.length > 0) {
+        const attachments = Array.isArray(safeCard.attachments) ? safeCard.attachments : [];
+        if (attachments.length > 0) {
             cardDataText += `ATTACHMENTS:\n`;
-            cardData.attachments.forEach(att => {
-                cardDataText += `- ${att.name} (${att.mimeType || 'unknown type'})\n`;
+            attachments.forEach(att => {
+                const name = String(att && att.name ? att.name : 'Unnamed attachment');
+                const mimeType = String(att && att.mimeType ? att.mimeType : 'unknown type');
+                cardDataText += `- ${name} (${mimeType})\n`;
             });
             cardDataText += `\n`;
         }
 
         // Replace template variables
-        const formattedTemplate = prompt.template.replace('{{CARD_DATA}}', cardDataText);
+        const template = String(prompt.template || '');
+        const formattedTemplate = template.replace('{{CARD_DATA}}', cardDataText);
 
         return {
             system: prompt.system,
@@ -281,6 +309,25 @@ Provide creative analysis in JSON format:
         };
     }
 
+    getDisplayName(value) {
+        if (typeof value === 'string') {
+            return value.trim() || 'Unknown';
+        }
+
+        if (value && typeof value === 'object') {
+            if (typeof value.fullName === 'string' && value.fullName.trim()) {
+                return value.fullName;
+            }
+            if (typeof value.username === 'string' && value.username.trim()) {
+                return value.username;
+            }
+            if (typeof value.name === 'string' && value.name.trim()) {
+                return value.name;
+            }
+        }
+
+        return 'Unknown';
+    }
     // Generate unique ID
     generateId() {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -314,20 +361,20 @@ Provide creative analysis in JSON format:
     // Render prompt list
     renderPromptList() {
         const prompts = this.getAllPrompts();
-        
+
         return prompts.map(prompt => `
             <div class="prompt-item ${prompt.editable ? 'custom' : 'default'}">
                 <div class="prompt-item-header">
-                    <h4>${prompt.name}</h4>
+                    <h4>${this.escapeHtml(prompt.name || '')}</h4>
                     <span class="prompt-badge">${prompt.editable ? 'Custom' : 'Default'}</span>
                 </div>
-                <p class="prompt-description">${prompt.description}</p>
+                <p class="prompt-description">${this.escapeHtml(prompt.description || '')}</p>
                 <div class="prompt-actions">
-                    <button onclick="window.customPromptManager.viewPrompt('${prompt.id}')">View</button>
-                    <button onclick="window.customPromptManager.duplicatePrompt('${prompt.id}')">Duplicate</button>
+                    <button onclick="window.customPromptManager.viewPrompt('${this.escapeHtml(prompt.id || '')}')">View</button>
+                    <button onclick="window.customPromptManager.duplicatePrompt('${this.escapeHtml(prompt.id || '')}')">Duplicate</button>
                     ${prompt.editable ? `
-                        <button onclick="window.customPromptManager.editPrompt('${prompt.id}')">Edit</button>
-                        <button onclick="window.customPromptManager.deletePrompt('${prompt.id}')">Delete</button>
+                        <button onclick="window.customPromptManager.editPrompt('${this.escapeHtml(prompt.id || '')}')">Edit</button>
+                        <button onclick="window.customPromptManager.deletePrompt('${this.escapeHtml(prompt.id || '')}')">Delete</button>
                     ` : ''}
                 </div>
             </div>
@@ -386,8 +433,58 @@ Provide creative analysis in JSON format:
         const prompt = this.getPrompt(id);
         if (!prompt) return;
 
-        alert(`${prompt.name}\n\n${prompt.description}\n\nSystem: ${prompt.system}\n\nTemplate:\n${prompt.template}`);
-        // TODO: Implement proper modal view
+        const existing = document.querySelector('.prompt-dialog');
+        if (existing) {
+            existing.remove();
+        }
+
+        const dialog = document.createElement('div');
+        dialog.className = 'prompt-dialog';
+        dialog.innerHTML = `
+            <div class="prompt-dialog-content">
+                <div class="prompt-dialog-header">
+                    <h3>${this.escapeHtml(prompt.name || 'Prompt')}</h3>
+                    <button type="button" class="prompt-dialog-close" data-close="promptView">×</button>
+                </div>
+                <div class="prompt-dialog-body">
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <div class="prompt-static-field">${this.escapeHtml(prompt.name || '')}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <div class="prompt-static-field">${this.escapeHtml(prompt.description || '')}</div>
+                    </div>
+                    <div class="form-group">
+                        <label>System Message:</label>
+                        <pre class="prompt-static-field prompt-pre-wrap">${this.escapeHtml(prompt.system || '')}</pre>
+                    </div>
+                    <div class="form-group">
+                        <label>Template:</label>
+                        <pre class="prompt-static-field prompt-pre-wrap">${this.escapeHtml(prompt.template || '')}</pre>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" data-close="promptView">Close</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+        const closeDialog = () => dialog.remove();
+        const closeButtons = dialog.querySelectorAll('[data-close="promptView"]');
+        closeButtons.forEach(button => button.addEventListener('click', closeDialog));
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                closeDialog();
+            }
+        });
+        window.setTimeout(() => {
+            const focusButton = dialog.querySelector('[data-close="promptView"]');
+            if (focusButton) {
+                focusButton.focus();
+            }
+        }, 0);
     }
 
     // Edit prompt
@@ -395,8 +492,65 @@ Provide creative analysis in JSON format:
         const prompt = this.getPrompt(id);
         if (!prompt || !prompt.editable) return;
 
-        // TODO: Implement edit dialog
-        alert('Edit functionality coming soon!');
+        const existing = document.querySelector('.prompt-dialog');
+        if (existing) {
+            existing.remove();
+        }
+
+        const dialog = document.createElement('div');
+        dialog.className = 'prompt-dialog';
+        dialog.innerHTML = `
+            <div class="prompt-dialog-content">
+                <div class="prompt-dialog-header">
+                    <h3>Edit Prompt</h3>
+                    <button type="button" class="prompt-dialog-close" data-close="promptEdit">×</button>
+                </div>
+                <form id="editPromptForm">
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="promptEditName" required value="${this.escapeHtml(prompt.name || '')}" />
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <input type="text" id="promptEditDescription" required value="${this.escapeHtml(prompt.description || '')}" />
+                    </div>
+                    <div class="form-group">
+                        <label>System Message:</label>
+                        <textarea id="promptEditSystem" rows="3" required>${this.escapeHtml(prompt.system || '')}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Template (use {{CARD_DATA}} for card information):</label>
+                        <textarea id="promptEditTemplate" rows="10" required>${this.escapeHtml(prompt.template || '')}</textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit">Save</button>
+                        <button type="button" data-close="promptEdit">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+        const closeDialog = () => dialog.remove();
+        const closeButtons = dialog.querySelectorAll('[data-close="promptEdit"]');
+        closeButtons.forEach(button => button.addEventListener('click', closeDialog));
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                closeDialog();
+            }
+        });
+
+        document.getElementById('editPromptForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            this.updatePrompt(prompt.id, {
+                name: document.getElementById('promptEditName').value,
+                description: document.getElementById('promptEditDescription').value,
+                system: document.getElementById('promptEditSystem').value,
+                template: document.getElementById('promptEditTemplate').value
+            });
+            closeDialog();
+            this.updateUI();
+        });
     }
 
     // Update UI
