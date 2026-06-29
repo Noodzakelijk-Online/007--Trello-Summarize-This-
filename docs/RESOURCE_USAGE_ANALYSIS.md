@@ -17,9 +17,9 @@ npm run analyze:resources
 Current results:
 
 - Active popup initial local files: about 236.6 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 362.9 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.53 MB.
-- Generated Windows installer executable: 229,888 bytes.
+- Windows installer runtime payload: about 370.6 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.54 MB.
+- Generated Windows installer executable: 233,984 bytes.
 - Large-card AI prompt after caps: 18,672 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -52,7 +52,7 @@ Current results:
 4. Lightweight Windows runtime:
    - The installer includes only runtime static files and launcher scripts, not the full repository, docs, benchmarks, or prototype modules.
    - The Windows launcher uses PowerShell and a tiny local HTTP server, avoiding Electron and background services.
-   - The Trello setup assistant, deployment presets, URL validation, and admin autofill helper add about 27.5 KB to the runtime payload and are not loaded by the active popup.
+   - The Trello setup assistant, deployment presets, URL validation, readiness package, and admin autofill helper add about 35.2 KB to the runtime payload and are not loaded by the active popup.
 
 5. No always-on service:
    - The installed app starts only when the user launches it.
@@ -93,7 +93,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 362.9 KB, and the generated `SummarizeThisSetup.exe` is 229,888 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 370.6 KB, and the generated `SummarizeThisSetup.exe` is 233,984 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

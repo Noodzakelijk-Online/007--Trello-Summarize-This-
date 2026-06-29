@@ -34,6 +34,12 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 1. Open the application URL in your browser
 2. The app works independently without Trello integration
 
+**Windows Setup Assistant:**
+1. Open **Configure Trello Power-Up** from the Start Menu after installing.
+2. Choose the hosting preset or enter the public HTTPS URL where the static files are deployed.
+3. Copy the connector URL, admin checklist, or setup package JSON.
+4. Use the autofill helper only to populate matching Trello admin fields; review and save manually in Trello.
+
 ### First-Time Setup
 
 1. **API Keys**: Enter at least one AI provider API key in Settings

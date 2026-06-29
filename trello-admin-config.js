@@ -152,6 +152,114 @@
     ].join("\n");
   }
 
+  function createAdminReadinessChecklist(config, validation) {
+    var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
+    var status = validation || validateHostedBaseUrl(values.connectorUrl.replace(/\/connector\.js$/i, ""));
+    var capabilities = toArray(values.capabilities);
+    var connectorValidation = validateAbsoluteHttps(values.connectorUrl);
+    var manifestValidation = validateAbsoluteHttps(values.manifestUrl);
+    var iconValidation = validateAbsoluteHttps(values.iconUrl);
+    return [
+      {
+        key: "hosted-base-url",
+        label: "Hosted base URL is public HTTPS",
+        ok: Boolean(status.isReadyForTrello),
+        detail: status.message
+      },
+      {
+        key: "connector-url",
+        label: "iframe Connector URL is HTTPS",
+        ok: connectorValidation.ok,
+        detail: connectorValidation.message
+      },
+      {
+        key: "manifest-url",
+        label: "Manifest URL is HTTPS",
+        ok: manifestValidation.ok,
+        detail: manifestValidation.message
+      },
+      {
+        key: "icon-url",
+        label: "Icon URL is HTTPS",
+        ok: iconValidation.ok,
+        detail: iconValidation.message
+      },
+      {
+        key: "required-capabilities",
+        label: "Required capabilities are listed",
+        ok: capabilities.indexOf("card-buttons") !== -1 && capabilities.indexOf("show-settings") !== -1,
+        detail: "Required: card-buttons and show-settings. Current: " + capabilities.join(", ")
+      },
+      {
+        key: "manual-save",
+        label: "Manual Trello admin save is still required",
+        ok: true,
+        detail: "The helper can fill matching fields, but it never saves or submits the Trello admin form."
+      }
+    ];
+  }
+
+  function makeAdminRunbookText(config, validation) {
+    var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
+    var checklist = createAdminReadinessChecklist(values, validation);
+    return [
+      "Summarize This Trello Power-Up admin runbook",
+      "",
+      makeAdminValuesText(values),
+      "",
+      "Readiness checklist:",
+      checklist.map(function (item) {
+        return "- [" + (item.ok ? "x" : " ") + "] " + item.label + " - " + item.detail;
+      }).join("\n"),
+      "",
+      "Manual steps:",
+      "1. Open https://trello.com/power-ups/admin.",
+      "2. Create or edit the Summarize This Power-Up.",
+      "3. Paste the admin values above, or run the autofill bookmarklet and review every field.",
+      "4. Confirm the capabilities match the list above.",
+      "5. Save manually in Trello only after review.",
+      "",
+      "Safety: The autofill helper fills matching fields only. It does not save, submit, create API keys, change Trello boards, or post to Trello cards."
+    ].join("\n");
+  }
+
+  function createAdminSetupPackage(config, validation, options) {
+    var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
+    var status = validation || validateHostedBaseUrl(values.connectorUrl.replace(/\/connector\.js$/i, ""));
+    var now = options && options.now ? options.now : new Date().toISOString();
+    return {
+      schemaVersion: "summarize-this-trello-admin-setup-v1",
+      generatedAt: now,
+      validation: status,
+      adminValues: {
+        appName: values.appName,
+        author: values.author,
+        authorEmail: values.authorEmail,
+        authorUrl: values.authorUrl,
+        overviewUrl: values.overviewUrl,
+        details: values.details,
+        connectorUrl: values.connectorUrl,
+        manifestUrl: values.manifestUrl,
+        iconUrl: values.iconUrl,
+        capabilities: values.capabilities
+      },
+      readinessChecklist: createAdminReadinessChecklist(values, status),
+      manualSteps: [
+        "Open https://trello.com/power-ups/admin.",
+        "Create or edit the Summarize This Power-Up.",
+        "Paste the admin values or use the autofill bookmarklet.",
+        "Review every populated field.",
+        "Save manually in Trello."
+      ],
+      safetyNotes: [
+        "The helper does not save or submit the Trello admin page.",
+        "The connector URL must be public HTTPS; localhost and file URLs are not Trello-ready.",
+        "No API keys or Trello tokens are included in this setup package."
+      ],
+      autofillBookmarklet: createAdminBookmarklet(values)
+    };
+  }
+
   function createAdminBookmarklet(config) {
     return "javascript:" + createAdminAutofillScript(config).replace(/\s+/g, " ");
   }
@@ -199,6 +307,23 @@
     return buildHostedUrl(baseUrl, value.replace(/^\.\//, "") || fallbackFile);
   }
 
+  function validateAbsoluteHttps(value) {
+    var text = clean(value);
+    try {
+      var parsed = new URL(text);
+      var ok = parsed.protocol === "https:" && !/^(localhost|127\.0\.0\.1|\[?::1\]?)$/i.test(parsed.hostname);
+      return {
+        ok: ok,
+        message: ok ? text : "Use a public HTTPS URL, not " + text
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: "Invalid URL: " + text
+      };
+    }
+  }
+
   function clean(value) {
     return String(value == null ? "" : value).trim();
   }
@@ -213,7 +338,10 @@
     validateHostedBaseUrl: validateHostedBaseUrl,
     buildHostedUrl: buildHostedUrl,
     createAdminConfig: createAdminConfig,
+    createAdminReadinessChecklist: createAdminReadinessChecklist,
+    createAdminSetupPackage: createAdminSetupPackage,
     makeAdminValuesText: makeAdminValuesText,
+    makeAdminRunbookText: makeAdminRunbookText,
     createAdminAutofillScript: createAdminAutofillScript,
     createAdminBookmarklet: createAdminBookmarklet
   };

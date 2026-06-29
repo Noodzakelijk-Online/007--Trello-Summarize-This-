@@ -39,6 +39,8 @@ Implemented:
 - It generates the hosted HTTPS iframe Connector URL, icon URL, manifest values, and capability list.
 - It provides a copy-all setup block for manual Trello Power-Up admin entry.
 - It provides a safe admin autofill bookmarklet that fills matching Trello admin fields and capabilities, but does not save or submit the page.
+- It now renders a readiness checklist for HTTPS hosting, connector/manifest/icon URLs, required capabilities, and manual-save safety.
+- It can copy a Trello admin runbook or JSON setup package containing exact admin values, validation state, manual steps, safety notes, and the autofill helper.
 
 Still recommended:
 

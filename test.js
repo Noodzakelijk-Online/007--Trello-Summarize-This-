@@ -736,6 +736,38 @@ assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.exampl
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Capabilities: card-buttons, show-settings"));
 
+const adminReadiness = TrelloAdminConfig.createAdminReadinessChecklist(
+  adminConfig,
+  TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/")
+);
+assert.ok(adminReadiness.every((item) => typeof item.key === "string" && typeof item.ok === "boolean"));
+assert.ok(adminReadiness.some((item) => item.key === "hosted-base-url" && item.ok));
+assert.ok(adminReadiness.some((item) => item.key === "manual-save" && item.ok && item.detail.includes("never saves")));
+
+const adminRunbookText = TrelloAdminConfig.makeAdminRunbookText(
+  adminConfig,
+  TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/")
+);
+assert.ok(adminRunbookText.includes("Trello Power-Up admin runbook"));
+assert.ok(adminRunbookText.includes("[x] Hosted base URL is public HTTPS"));
+assert.ok(adminRunbookText.includes("Save manually in Trello only after review."));
+assert.doesNotMatch(adminRunbookText, /sk-[a-z0-9]/i);
+
+const adminSetupPackage = TrelloAdminConfig.createAdminSetupPackage(
+  adminConfig,
+  TrelloAdminConfig.validateHostedBaseUrl("https://powerup.example-host.com/app/"),
+  { now: "2026-06-29T12:08:00.000Z" }
+);
+assert.equal(adminSetupPackage.schemaVersion, "summarize-this-trello-admin-setup-v1");
+assert.equal(adminSetupPackage.generatedAt, "2026-06-29T12:08:00.000Z");
+assert.equal(adminSetupPackage.validation.isReadyForTrello, true);
+assert.equal(adminSetupPackage.adminValues.connectorUrl, adminConfig.connectorUrl);
+assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "connector-url" && item.ok));
+assert.ok(adminSetupPackage.safetyNotes.some((item) => item.includes("does not save")));
+assert.ok(adminSetupPackage.autofillBookmarklet.startsWith("javascript:"));
+assert.equal(JSON.stringify(adminSetupPackage).includes("support@example.com"), true);
+assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
+
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));

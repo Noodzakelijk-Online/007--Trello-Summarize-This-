@@ -264,6 +264,16 @@
       font-size: 12px;
     }
 
+    .checklist li.ok {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .checklist li.warn {
+      color: #946f00;
+      font-weight: 700;
+    }
+
     @media (max-width: 780px) {
       .grid {
         grid-template-columns: 1fr;
@@ -361,6 +371,16 @@
             <li>If Trello changes its admin page labels, use the copied admin values manually.</li>
           </ul>
         </div>
+
+        <div class="panel">
+          <h2>Admin readiness package</h2>
+          <p class="help">Copy a review checklist or JSON package with exact admin values, validation state, manual steps, safety notes, and the autofill helper.</p>
+          <ul id="readinessChecklist" class="checklist"></ul>
+          <div class="actions">
+            <button id="copyRunbookButton" class="secondary" type="button">Copy admin checklist</button>
+            <button id="copySetupPackageButton" class="secondary" type="button">Copy setup package JSON</button>
+          </div>
+        </div>
       </section>
 
       <aside class="panel">
@@ -426,7 +446,8 @@
         localNotice: document.getElementById("localNotice"),
         urlStatusDot: document.getElementById("urlStatusDot"),
         urlStatusTitle: document.getElementById("urlStatusTitle"),
-        urlStatusText: document.getElementById("urlStatusText")
+        urlStatusText: document.getElementById("urlStatusText"),
+        readinessChecklist: document.getElementById("readinessChecklist")
       };
 
       renderDeploymentPresets();
@@ -436,6 +457,8 @@
       });
       document.getElementById("copyAllButton").addEventListener("click", copyAllValues);
       document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
+      document.getElementById("copyRunbookButton").addEventListener("click", copyAdminRunbook);
+      document.getElementById("copySetupPackageButton").addEventListener("click", copySetupPackage);
       fields.hostedBaseUrl.addEventListener("input", function () {
         activePresetId = detectPresetId(fields.hostedBaseUrl.value) || "custom";
         updatePresetButtons();
@@ -522,6 +545,7 @@
         document.getElementById("manifestUrl").textContent = adminConfig.manifestUrl;
         document.getElementById("iconUrl").textContent = iconUrl;
         fields.localNotice.style.display = validation.isReadyForTrello ? "none" : "block";
+        renderReadinessChecklist(adminConfig, validation);
 
         if (validation.isReadyForTrello) {
           fields.urlStatusDot.className = "dot ok";
@@ -532,6 +556,17 @@
           fields.urlStatusTitle.textContent = "Hosted HTTPS URL required";
           fields.urlStatusText.textContent = validation.message;
         }
+      }
+
+      function renderReadinessChecklist(adminConfig, validation) {
+        var items = TrelloAdminConfig.createAdminReadinessChecklist(adminConfig, validation);
+        fields.readinessChecklist.innerHTML = "";
+        items.forEach(function (item) {
+          var li = document.createElement("li");
+          li.className = item.ok ? "ok" : "warn";
+          li.textContent = (item.ok ? "Ready: " : "Review: ") + item.label + " - " + item.detail;
+          fields.readinessChecklist.appendChild(li);
+        });
       }
 
       function guessBaseUrl() {
@@ -551,12 +586,41 @@
         copyText(TrelloAdminConfig.createAdminBookmarklet(adminConfig), "Admin autofill helper copied.");
       }
 
+      function copyAdminRunbook() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
+        copyText(TrelloAdminConfig.makeAdminRunbookText(adminConfig, validation), "Admin checklist copied.");
+      }
+
+      function copySetupPackage() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
+        copyText(JSON.stringify(TrelloAdminConfig.createAdminSetupPackage(adminConfig, validation), null, 2), "Setup package JSON copied.");
+      }
+
       async function copyText(value, successMessage) {
         try {
           await navigator.clipboard.writeText(value);
           fields.message.textContent = successMessage;
         } catch (error) {
-          fields.message.textContent = "Select and copy the field manually.";
+          fallbackCopyText(value, successMessage);
+        }
+      }
+
+      function fallbackCopyText(value, successMessage) {
+        var textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        var copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        fields.message.textContent = copied ? successMessage : "Select and copy the field manually.";
+        if (!copied) {
           fields.connectorUrl.select();
         }
       }
