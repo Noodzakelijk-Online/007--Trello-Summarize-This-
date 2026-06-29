@@ -16,11 +16,11 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 247.8 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 389.6 KB.
+- Active popup initial local files: about 251.1 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 392.9 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.57 MB.
-- Generated Windows installer executable: 243,200 bytes.
-- Large-card AI prompt after caps: 19,032 characters.
+- Generated Windows installer executable: 244,736 bytes.
+- Large-card AI prompt after caps: 19,105 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -65,6 +65,7 @@ Current results:
    - History, review state, feedback, and export records use member-private Power-Up storage.
    - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
    - Prior feedback readback is capped to 5 compact correction records, with each correction capped before it is shown or sent as AI prompt guidance.
+   - Section-specific correction metadata stores only bounded ids, so it improves reanalysis targeting without retaining extra card content.
    - Review-state history is filtered to current-card analysis run ids and capped to 8 visible records.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
    - Export/postback history is filtered to current-card analysis run ids and capped to 8 visible records.

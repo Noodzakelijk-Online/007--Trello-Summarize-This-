@@ -1132,7 +1132,7 @@
       "If attachments are present but text is not provided, say attachment contents were not verified.",
       "Use listContext only as lightweight board/list signal; do not infer hidden card details from neighboring card titles.",
       "If sensitiveSignals are present, keep the response operational and avoid exposing unnecessary private details.",
-      "Use priorFeedback as user correction guidance only. Do not treat corrections as verified Trello facts unless card evidence also supports them.",
+      "Use priorFeedback as user correction guidance only. Pay attention to incorrectSections when revising those output areas, and do not treat corrections as verified Trello facts unless card evidence also supports them.",
       "If Robert is mentioned or approval/client/financial/legal risk appears, create a Robert Yes/No decision.",
       "If an action can be delegated without Robert, include it in vaReadyActions.",
       "",

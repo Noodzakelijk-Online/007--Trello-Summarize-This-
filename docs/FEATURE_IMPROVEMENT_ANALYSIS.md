@@ -179,6 +179,7 @@ Status: Implemented in the active popup and ledger export records.
 Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
 - Feedback records now store the card id and title, so corrections can be matched back to the same card.
+- The correction panel lets the user select the exact wrong or incomplete output sections, including blockers, next actions, Robert decisions, VA/team-ready actions, evidence/validation, and unresolved questions.
 - The next run reads recent matching corrections from private storage and includes compact correction guidance in local analysis, AI prompts, source coverage, and the popup.
 - Prior corrections are shown as guidance, not as verified Trello facts, to avoid turning user feedback into unsupported claims.
 - Sensitive detection also sees correction text before provider handoff, so sensitive feedback does not silently travel to AI providers.

@@ -106,6 +106,10 @@ Each analysis includes a confidence score (0-100%):
 - **50-69%**: Moderate confidence, limited data
 - **Below 50%**: Low confidence, minimal data
 
+### Review and Corrections
+
+The Review / correction panel stores feedback privately for the same card. When marking an analysis wrong, select the specific section that was wrong or incomplete, such as blockers, next actions, Robert decisions, VA/team-ready actions, evidence/validation, or unresolved questions. The next analysis receives those compact section-specific corrections as guidance, but they are still treated as user feedback rather than verified Trello facts.
+
 ---
 
 ## AI Providers

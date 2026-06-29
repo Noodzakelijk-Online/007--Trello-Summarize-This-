@@ -370,6 +370,20 @@
       font-weight: 700;
     }
 
+    .correction-sections {
+      margin-top: 10px;
+      border: 0;
+      padding: 0;
+    }
+
+    .correction-sections legend {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
     .checkbox-row {
       display: flex;
       gap: 8px;
@@ -724,6 +738,41 @@
         <h2 class="section-title">Review / correction</h2>
         <p class="section-body">Feedback is stored in your private Power-Up data and is not posted to Trello.</p>
         <textarea id="correctionText" placeholder="Optional correction or missing context"></textarea>
+        <fieldset class="correction-sections" id="correctionSections">
+          <legend>Wrong or incomplete sections</legend>
+          <label class="checkbox-row">
+            <input type="checkbox" value="overview">
+            <span>Overview</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="history-status">
+            <span>History / status</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="blockers">
+            <span>Blockers</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="next-actions">
+            <span>Next actions</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="robert-decisions">
+            <span>Robert decisions</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="va-team-actions">
+            <span>VA/team-ready actions</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="evidence-validation">
+            <span>Evidence / validation</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="unresolved-questions">
+            <span>Unresolved questions</span>
+          </label>
+        </fieldset>
         <div class="actions">
           <button class="secondary" type="button" id="usefulButton">Mark useful</button>
           <button class="secondary" type="button" id="wrongButton">This is wrong</button>
@@ -936,6 +985,7 @@
         elements.aiApprovalList.innerHTML = "";
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
+        clearCorrectionSections();
         document.getElementById("exportStatus").textContent = "";
         document.getElementById("exportSensitivityText").textContent = "";
         document.getElementById("exportSensitivityText").classList.add("hidden");
@@ -1831,6 +1881,33 @@
         });
       }
 
+      function correctionSectionLabel(section) {
+        var labels = {
+          "overview": "Overview",
+          "history-status": "History / status",
+          "blockers": "Blockers",
+          "next-actions": "Next actions",
+          "robert-decisions": "Robert decisions",
+          "va-team-actions": "VA/team-ready actions",
+          "evidence-validation": "Evidence / validation",
+          "unresolved-questions": "Unresolved questions",
+          "overall": "Overall"
+        };
+        return labels[section] || section;
+      }
+
+      function selectedCorrectionSections() {
+        return Array.prototype.slice.call(document.querySelectorAll("#correctionSections input:checked"))
+          .map(function (input) { return input.value; })
+          .filter(Boolean)
+          .slice(0, 8);
+      }
+
+      function clearCorrectionSections() {
+        Array.prototype.slice.call(document.querySelectorAll("#correctionSections input"))
+          .forEach(function (input) { input.checked = false; });
+      }
+
       function renderPriorFeedback(items) {
         var values = SummarizeThis.normalizePriorFeedback(items);
         var panel = document.getElementById("priorFeedbackPanel");
@@ -1848,7 +1925,7 @@
         values.forEach(function (item) {
           var li = document.createElement("li");
           var sections = item.incorrectSections && item.incorrectSections.length
-            ? " Sections: " + item.incorrectSections.join(", ") + "."
+            ? " Sections: " + item.incorrectSections.map(correctionSectionLabel).join(", ") + "."
             : "";
           li.textContent = [
             item.rating ? "Rating: " + item.rating + "." : "",
@@ -2644,10 +2721,18 @@
       async function saveFeedback(rating) {
         if (!lastLedgerRun) return;
         var correctionText = document.getElementById("correctionText").value;
+        var incorrectSections = rating === "wrong" ? selectedCorrectionSections() : [];
+        if (rating === "wrong" && !correctionText.trim() && !incorrectSections.length) {
+          document.getElementById("feedbackStatus").textContent = "Select the wrong section or add a correction before saving this as wrong.";
+          return;
+        }
+        if (rating === "wrong" && !incorrectSections.length) {
+          incorrectSections = ["overall"];
+        }
         var feedback = CardIntelligenceLedger.createHumanFeedback(lastLedgerRun.id, {
           rating: rating,
           correctionText: correctionText,
-          incorrectSections: rating === "wrong" ? ["summary"] : [],
+          incorrectSections: incorrectSections,
           cardId: lastLedgerRun.cardId,
           cardTitle: lastLedgerRun.cardSnapshot && lastLedgerRun.cardSnapshot.title,
           acceptedAt: rating === "useful" ? new Date().toISOString() : null
@@ -2660,6 +2745,8 @@
           lastCardData.priorFeedback = SummarizeThis.normalizePriorFeedback([feedback].concat(lastCardData.priorFeedback || []));
           renderPriorFeedback(lastCardData.priorFeedback);
         }
+        document.getElementById("correctionText").value = "";
+        clearCorrectionSections();
         document.getElementById("feedbackStatus").textContent = "Feedback saved privately and will guide the next analysis for this card.";
       }
 

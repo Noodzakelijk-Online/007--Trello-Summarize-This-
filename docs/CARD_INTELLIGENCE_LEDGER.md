@@ -18,7 +18,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `UnresolvedQuestion`: open questions derived from AI output, missing information, blockers, validation findings, and Robert decisions.
 - `ValidationFinding`: missing context, attachment metadata-only state, weak next actions, and decision review signals.
 - `ReviewRecord`: private analysis review state such as reviewed, accepted, or needs follow-up.
-- `HumanFeedback`: private correction/rating records.
+- `HumanFeedback`: private correction/rating records, including the specific output sections the user marked wrong or incomplete.
 - `ExportRecord`: private copy/export history.
 - `SettingsProfile`: output mode plus custom-guidance presence/hash metadata for the prompt used by a run.
 - `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, activity, attachments, and custom fields.
@@ -42,6 +42,8 @@ The active popup stores ledger history, feedback, and export records in Trello m
 - `summarizeThisExportRecords`
 
 Local preview mode uses `localStorage` for the same keys. The popup no longer silently writes the latest analysis into shared card storage.
+
+Feedback records remain compact. Correction text is capped, and `incorrectSections` stores only section ids such as `blockers`, `next-actions`, `robert-decisions`, `va-team-actions`, `evidence-validation`, and `unresolved-questions`. Prior feedback is included in later prompts as correction guidance only, not as verified card evidence.
 
 ## Current Limits
 

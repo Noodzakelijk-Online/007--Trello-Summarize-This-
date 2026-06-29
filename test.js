@@ -165,13 +165,16 @@ const cardWithPriorFeedback = Object.assign({}, sample, {
   priorFeedback: [{
     rating: "wrong",
     correctionText: "The invoice amount is still missing; do not say billing is complete.",
-    incorrectSections: ["risks"],
+    incorrectSections: ["evidence-validation", "unresolved-questions"],
     createdAt: "2026-06-29T12:04:00.000Z"
   }]
 });
-const feedbackPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(cardWithPriorFeedback));
+const feedbackPrompt = SummarizeThis.buildAIPrompt(cardWithPriorFeedback);
+const feedbackPromptPayload = parsePromptPayload(feedbackPrompt);
 assert.equal(feedbackPromptPayload.priorFeedback.length, 1);
 assert.ok(feedbackPromptPayload.priorFeedback[0].correctionText.includes("invoice amount"));
+assert.deepEqual(feedbackPromptPayload.priorFeedback[0].incorrectSections, ["evidence-validation", "unresolved-questions"]);
+assert.ok(feedbackPrompt.includes("incorrectSections"));
 assert.equal(feedbackPromptPayload.contextIncluded.priorFeedbackItems, 1);
 
 const feedbackLocal = SummarizeThis.buildRuleBasedAnalysis(cardWithPriorFeedback);
@@ -576,7 +579,7 @@ assert.ok(firstRunChange.text.includes("First saved analysis"));
 const feedback = CardIntelligenceLedger.createHumanFeedback(run.id, {
   rating: "wrong",
   correctionText: "The invoice amount is still missing.",
-  incorrectSections: ["risks"],
+  incorrectSections: ["robert-decisions", "va-team-actions"],
   cardId: run.cardId,
   cardTitle: run.cardSnapshot.title
 }, {
@@ -584,6 +587,7 @@ const feedback = CardIntelligenceLedger.createHumanFeedback(run.id, {
 });
 assert.equal(feedback.analysisRunId, run.id);
 assert.equal(feedback.correctionText, "The invoice amount is still missing.");
+assert.deepEqual(feedback.incorrectSections, ["robert-decisions", "va-team-actions"]);
 assert.equal(feedback.cardId, run.cardId);
 
 const reviewRecord = CardIntelligenceLedger.createReviewRecord(run.id, {
