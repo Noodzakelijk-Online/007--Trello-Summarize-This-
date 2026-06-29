@@ -175,6 +175,16 @@ Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and 
 - Runtime collection is capped to 25 activity items, and prompt/evidence usage is capped to 12 activity items.
 - Activity evidence is read-only and never triggers Trello writes.
 
+### 5h. Custom Prompt Guidance
+
+Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`.
+
+- Settings now include member-private Robert workflow guidance for AI prompts.
+- Guidance is capped to 600 characters and sent only as part of the explicit AI prompt context.
+- The prompt states that custom guidance cannot override evidence requirements, privacy safeguards, or Trello write-approval rules.
+- Ledger runs store only whether custom guidance was present, its character count, and a short hash.
+- Structured JSON exports do not include the full custom guidance text.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.
@@ -233,7 +243,7 @@ Impact: Medium. Low implementation cost, high workflow usefulness.
 ## Lower-Priority Improvements
 
 - Bulk summarize selected cards or a full list.
-- Saved custom prompt templates.
+- Saved custom prompt templates. First bounded custom guidance field is implemented; multi-template management remains future work.
 - Cost budget alerts per provider.
 - Dark mode.
 - Localization for Dutch and English.

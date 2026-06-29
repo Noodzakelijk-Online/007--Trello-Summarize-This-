@@ -1106,6 +1106,7 @@
       provider: (analysis && analysis.metadata && analysis.metadata.provider) || "Unknown",
       model: (analysis && analysis.metadata && analysis.metadata.model) || "",
       promptTemplateId: (options && options.promptTemplateId) || "operational-ledger-v1",
+      promptProfile: createPromptProfile(options),
       outputMode: outputMode,
       startedAt: timestamp,
       completedAt: timestamp,
@@ -1605,6 +1606,7 @@
         provider: run && run.provider,
         model: run && run.model,
         promptTemplateId: run && run.promptTemplateId,
+        promptProfile: run && run.promptProfile,
         outputMode: run && run.outputMode,
         completedAt: run && run.completedAt,
         inputHash: run && run.inputHash
@@ -1766,6 +1768,15 @@
       "client-friendly": true
     };
     return allowed[mode] ? mode : "operational-ledger";
+  }
+
+  function createPromptProfile(options) {
+    var customInstructions = cleanText(options && options.customInstructions);
+    return {
+      customInstructionsPresent: Boolean(customInstructions),
+      customInstructionsHash: customInstructions ? shortHash(customInstructions) : "",
+      customInstructionsCharacters: customInstructions.length
+    };
   }
 
   return {

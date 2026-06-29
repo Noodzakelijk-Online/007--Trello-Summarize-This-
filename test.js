@@ -53,10 +53,12 @@ assert.equal(SummarizeThis.normalizeOutputMode("unknown-mode"), "operational-led
 assert.equal(SummarizeThis.getOutputModeLabel("meeting-brief"), "Meeting brief");
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
-  outputMode: "risk-review"
+  outputMode: "risk-review",
+  customInstructions: "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
 }));
 assert.equal(riskPromptPayload.outputMode.key, "risk-review");
 assert.ok(riskPromptPayload.outputMode.instruction.includes("risks"));
+assert.equal(riskPromptPayload.customInstructions, "Prefer Yes/No decisions for Robert and keep VA-ready work separate.");
 assert.equal(riskPromptPayload.listContext.sampledCards, 4);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
 assert.equal(riskPromptPayload.customFields.length, 2);
@@ -67,6 +69,7 @@ assert.equal(riskPromptPayload.attachments.length, 3);
 assert.equal(riskPromptPayload.contextIncluded.attachmentsIncluded, 3);
 assert.ok(riskPromptPayload.attachments.some(item => item.category === "recording" && !item.extractedTextAvailable));
 assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
+assert.equal(SummarizeThis.normalizeCustomInstructions(" guidance ".repeat(100)).length, 600);
 
 const cardWithPriorFeedback = Object.assign({}, sample, {
   priorFeedback: [{
@@ -274,10 +277,13 @@ assert.ok(attachmentRun.result.evidence.some(item => item.type === "attachment" 
 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
   now: "2026-06-29T12:00:00.000Z",
-  outputMode: "meeting-brief"
+  outputMode: "meeting-brief",
+  customInstructions: "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
 });
 assert.equal(run.status, "completed");
 assert.equal(run.outputMode, "meeting-brief");
+assert.equal(run.promptProfile.customInstructionsPresent, true);
+assert.equal(run.promptProfile.customInstructionsCharacters, 67);
 assert.ok(run.result.blockers.length >= 2);
 assert.ok(run.result.robertDecisions.length >= 1);
 assert.ok(run.result.vaReadyActions.length >= 1);
@@ -501,6 +507,9 @@ assert.equal(ledgerJson.schemaVersion, "summarize-this-card-intelligence-export-
 assert.equal(ledgerJson.exportedAt, "2026-06-29T12:07:00.000Z");
 assert.equal(ledgerJson.analysisRun.id, run.id);
 assert.equal(ledgerJson.analysisRun.outputMode, "meeting-brief");
+assert.equal(ledgerJson.analysisRun.promptProfile.customInstructionsPresent, true);
+assert.ok(ledgerJson.analysisRun.promptProfile.customInstructionsHash);
+assert.equal(JSON.stringify(ledgerJson).includes("Prefer Yes/No decisions"), false);
 assert.equal(ledgerJson.cardSnapshot.description, undefined);
 assert.ok(Array.isArray(ledgerJson.result.blockers));
 

@@ -19,6 +19,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `ReviewRecord`: private analysis review state such as reviewed, accepted, or needs follow-up.
 - `HumanFeedback`: private correction/rating records.
 - `ExportRecord`: private copy/export history.
+- `SettingsProfile`: output mode plus custom-guidance presence/hash metadata for the prompt used by a run.
 - `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, activity, attachments, and custom fields.
 - `Activity`: compact recent non-comment Trello action metadata when available.
 - `AttachmentMetadata`: compact attachment name/type/category/status records for documents, transcripts, recordings, spreadsheets, presentations, images, links, and generic files.
@@ -47,6 +48,7 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 - The review-state UI shows whether the current analysis has been reviewed, accepted, or marked for follow-up.
 - The export history UI shows recent copy/download/postback records filtered to the current card's analysis run ids.
 - The Source coverage UI shows available, partial, missing, and failed source reads so missing comments or metadata-only attachments are explicit.
+- Custom prompt guidance is stored member-private in settings. Ledger runs and JSON exports record only a presence flag, character count, and short hash, not the full guidance text.
 - Custom fields are included as compact evidence and AI prompt context when available.
 - Recent activity is included as compact non-comment action evidence when available, capped to 25 stored items and 12 prompt/evidence items.
 - Attachment evidence is honest about metadata-only extraction and now classifies linked documents, transcripts, and recordings from metadata. Deeper PDF/Word/image/audio/video extraction still needs a safer extraction path.

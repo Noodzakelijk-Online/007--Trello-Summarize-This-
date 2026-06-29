@@ -16,11 +16,11 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 199.3 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 309.8 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.46 MB.
-- Generated Windows installer executable: 202,752 bytes.
-- Large-card AI prompt after caps: 17,599 characters.
+- Active popup initial local files: about 200.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 312.0 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.47 MB.
+- Generated Windows installer executable: 204,288 bytes.
+- Large-card AI prompt after caps: 17,790 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -75,6 +75,7 @@ Current results:
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
    - Attachment intelligence is metadata-only, capped to 25 normalized records and 12 AI prompt/evidence records, and does not fetch or parse attachment files.
+   - Custom prompt guidance is capped to 600 characters and ledger exports store only prompt metadata, not the full guidance text.
 
 ## Resource Risk Review
 
@@ -88,7 +89,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 310 KB, and the generated `SummarizeThisSetup.exe` is 202,752 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 312 KB, and the generated `SummarizeThisSetup.exe` is 204,288 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

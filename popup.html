@@ -835,7 +835,8 @@
           lastAnalysis = analysis;
           lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
             outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
-            promptTemplateId: "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode)
+            promptTemplateId: "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
+            customInstructions: settings.customInstructions
           });
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
           renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analysis.source === "local");
@@ -913,6 +914,7 @@
           analysisMode: "auto",
           strategy: "cost-effective",
           outputMode: "operational-ledger",
+          customInstructions: "",
           includeListContext: true,
           requireSensitiveAiApproval: true,
           promptContext: {
@@ -1253,7 +1255,8 @@
         var context = SummarizeThis.normalizePromptContext(settings && settings.promptContext);
         return {
           promptContext: context,
-          outputMode: SummarizeThis.normalizeOutputMode(settings && settings.outputMode)
+          outputMode: SummarizeThis.normalizeOutputMode(settings && settings.outputMode),
+          customInstructions: SummarizeThis.normalizeCustomInstructions(settings && settings.customInstructions)
         };
       }
 

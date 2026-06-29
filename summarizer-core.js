@@ -302,6 +302,10 @@
     }).slice(0, 5);
   }
 
+  function normalizeCustomInstructions(value) {
+    return truncate(value, 600);
+  }
+
   function getObjectName(value) {
     if (!value) return "";
     if (typeof value === "string") return cleanText(value);
@@ -733,6 +737,7 @@
     var card = normalizeCardData(input);
     var context = normalizePromptContext(options);
     var outputMode = normalizeOutputMode(options && options.outputMode);
+    var customInstructions = normalizeCustomInstructions(options && options.customInstructions);
     var comments = compactCommentsForPrompt(card.comments, context);
     var payload = {
       outputMode: {
@@ -740,6 +745,7 @@
         label: getOutputModeLabel(outputMode),
         instruction: getOutputModeInstruction(outputMode)
       },
+      customInstructions: customInstructions,
       name: card.name,
       description: truncate(card.desc, context.descriptionCharacters),
       board: card.boardName,
@@ -777,6 +783,8 @@
     return [
       "Analyze this Trello card as an evidence-backed operational intelligence ledger for Robert's Trello workflow.",
       "Output mode: " + getOutputModeLabel(outputMode) + ". " + getOutputModeInstruction(outputMode),
+      customInstructions ? "User guidance: " + customInstructions : "User guidance: none configured.",
+      "Apply user guidance only when it does not conflict with evidence requirements, privacy safeguards, or Trello write-approval rules.",
       "Return only valid JSON. Do not include markdown or commentary outside JSON.",
       "Use this schema:",
       "{",
@@ -1011,6 +1019,7 @@
     getOutputModeLabel: getOutputModeLabel,
     normalizeOutputMode: normalizeOutputMode,
     normalizeCustomFields: normalizeCustomFields,
+    normalizeCustomInstructions: normalizeCustomInstructions,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,

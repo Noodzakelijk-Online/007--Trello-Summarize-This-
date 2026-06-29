@@ -65,7 +65,8 @@
     }
 
     input,
-    select {
+    select,
+    textarea {
       width: 100%;
       min-height: 38px;
       border: 1px solid #b6c2cf;
@@ -76,8 +77,14 @@
       font: inherit;
     }
 
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
     input:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
       outline: 2px solid #85b8ff;
       border-color: var(--blue);
     }
@@ -236,6 +243,12 @@
         </select>
         <p class="help">AI mode uses this to focus the analysis. Exports can copy a brief in the same format.</p>
       </div>
+
+      <div class="group">
+        <label for="customInstructions">Robert workflow guidance</label>
+        <textarea id="customInstructions" maxlength="600" placeholder="Example: Prefer yes/no decision framing, flag what needs Robert, and keep VA actions separate."></textarea>
+        <p class="help">Optional member-private guidance added to AI prompts. It cannot override evidence, privacy, or Trello write-approval rules.</p>
+      </div>
     </section>
 
     <section class="panel">
@@ -356,6 +369,7 @@
         provider: document.getElementById("provider"),
         strategy: document.getElementById("strategy"),
         outputMode: document.getElementById("outputMode"),
+        customInstructions: document.getElementById("customInstructions"),
         promptCommentLimit: document.getElementById("promptCommentLimit"),
         promptCommentCharacters: document.getElementById("promptCommentCharacters"),
         promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
@@ -391,6 +405,7 @@
         fields.provider.value = settings.provider || "openai";
         fields.strategy.value = settings.strategy || "cost-effective";
         fields.outputMode.value = normalizeOutputMode(settings.outputMode);
+        fields.customInstructions.value = normalizeCustomInstructions(settings.customInstructions);
         fields.openaiKey.value = (settings.apiKeys && settings.apiKeys.openai) || "";
         fields.googleKey.value = (settings.apiKeys && settings.apiKeys.google) || "";
         fields.anthropicKey.value = (settings.apiKeys && settings.apiKeys.anthropic) || "";
@@ -411,6 +426,7 @@
           provider: "openai",
           strategy: "cost-effective",
           outputMode: "operational-ledger",
+          customInstructions: "",
           includeListContext: true,
           requireSensitiveAiApproval: true,
           promptContext: {
@@ -451,6 +467,7 @@
           provider: fields.provider.value,
           strategy: fields.strategy.value,
           outputMode: normalizeOutputMode(fields.outputMode.value),
+          customInstructions: normalizeCustomInstructions(fields.customInstructions.value),
           includeListContext: fields.includeListContext.checked,
           requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
           promptContext: normalizePromptContext({
@@ -528,6 +545,10 @@
           "client-friendly"
         ];
         return allowed.indexOf(String(value || "")) === -1 ? "operational-ledger" : String(value);
+      }
+
+      function normalizeCustomInstructions(value) {
+        return String(value || "").replace(/\s+/g, " ").trim().slice(0, 600);
       }
 
       async function testProvider(provider) {
