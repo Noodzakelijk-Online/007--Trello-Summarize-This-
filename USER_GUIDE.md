@@ -263,25 +263,25 @@ Track your usage:
 
 ### Setting Up Budget Limits
 
-1. Go to History section
-2. Enable "Budget Tracking"
-3. Set your budget limit (e.g., $10.00)
-4. Choose period: Daily, Weekly, or Monthly
-5. Set alert threshold (default: 80%)
+1. Open Power-Up settings.
+2. Set monthly limits for OpenAI, Google AI, and/or Anthropic.
+3. Leave a provider limit blank or `0` to disable alerts for that provider.
+4. Choose the warning threshold: 50%, 75%, 80%, 90%, or 100%.
+5. Save settings.
 
 ### Budget Alerts
 
-**Green**: Within budget, safe to continue
-**Yellow**: Approaching limit (80%+ used)
-**Red**: Budget exceeded, analysis blocked
+Budget alerts are advisory. They do not block analysis.
+
+**No alert**: No provider limit is configured, the run is local-only, or the monthly estimate is below the warning threshold.
+
+**Warning**: The current run brings the provider's estimated monthly usage above the configured threshold.
+
+**Exceeded**: The current run brings the provider's estimated monthly usage above the configured monthly limit.
 
 ### Budget Dashboard
 
-Monitor in real-time:
-- Current spending vs. limit
-- Percentage used
-- Remaining budget
-- Projected monthly cost
+The popup records compact member-private cost records for completed AI runs and shows a budget alert when a configured provider threshold is reached. Cost records include provider, model, token count, estimated cost, card id/title, run id, and timestamp. They do not include API keys or full card content.
 
 ### Tips for Managing Costs
 

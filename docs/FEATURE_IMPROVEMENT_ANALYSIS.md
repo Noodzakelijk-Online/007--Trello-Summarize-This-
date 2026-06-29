@@ -242,11 +242,26 @@ Recommendation:
 
 Impact: Medium. Low implementation cost, high workflow usefulness.
 
+### 9. Cost Budget Alerts
+
+Problem: The popup showed estimated per-run cost, but users had no guardrail for monthly provider spend.
+
+Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-core.js`.
+
+Implemented:
+
+- Settings now supports per-provider monthly budget limits for OpenAI, Google AI, and Anthropic.
+- The warning threshold is configurable at 50%, 75%, 80%, 90%, or 100%.
+- Completed AI runs write compact member-private cost records with provider, model, token count, cost estimate, card id/title, run id, and timestamp.
+- The popup evaluates the current run against the current-month provider budget and shows a visible warning or exceeded alert when applicable.
+- Local-only runs and providers without configured limits do not create budget noise.
+
+Impact: Medium. This reduces surprise API spend without blocking analysis or adding a backend.
+
 ## Lower-Priority Improvements
 
 - Bulk summarize selected cards or a full list.
 - Saved custom prompt templates. First bounded custom guidance field is implemented; multi-template management remains future work.
-- Cost budget alerts per provider.
 - Dark mode.
 - Localization for Dutch and English.
 - Optional update checker for the Windows installer.
@@ -259,7 +274,8 @@ Impact: Medium. Low implementation cost, high workflow usefulness.
 4. Trello setup assistant.
 5. Trust signals.
 6. Export formats.
-7. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
-8. Attachment extraction through a safer backend path.
+7. Cost budget alerts.
+8. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
+9. Attachment extraction through a safer backend path.
 
 This order improves the existing user experience first, then expands capability where it needs more security and product design care.

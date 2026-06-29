@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 200.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 318.4 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.47 MB.
-- Generated Windows installer executable: 208,384 bytes.
+- Active popup initial local files: about 207.9 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 328.7 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.49 MB.
+- Generated Windows installer executable: 214,016 bytes.
 - Large-card AI prompt after caps: 17,790 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -76,6 +76,7 @@ Current results:
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
    - Attachment intelligence is metadata-only, capped to 25 normalized records and 12 AI prompt/evidence records, and does not fetch or parse attachment files.
    - Custom prompt guidance is capped to 600 characters and ledger exports store only prompt metadata, not the full guidance text.
+   - Cost budget tracking stores only compact provider, model, token, cost, card id/title, run id, and timestamp records in member-private storage, capped to 200 records.
 
 ## Resource Risk Review
 
@@ -89,11 +90,11 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 312 KB, and the generated `SummarizeThisSetup.exe` is 204,288 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 328.7 KB, and the generated `SummarizeThisSetup.exe` is 214,016 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. In local-only mode no AI provider network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. In local-only mode no AI provider network request is made.
 
 ### Trello Runtime
 

@@ -88,6 +88,72 @@ const feedbackLocal = SummarizeThis.buildRuleBasedAnalysis(cardWithPriorFeedback
 assert.ok(feedbackLocal.summary.history.includes("prior correction"));
 assert.ok(feedbackLocal.summary.recommendations.some(item => item.includes("prior corrections")));
 
+const normalizedBudget = SummarizeThis.normalizeBudgetSettings({
+  warningPercent: 75,
+  providerMonthlyLimits: {
+    openai: "0.01",
+    google: "2.50",
+    anthropic: "-1"
+  }
+});
+assert.equal(normalizedBudget.warningPercent, 75);
+assert.equal(normalizedBudget.providerMonthlyLimits.openai, 0.01);
+assert.equal(normalizedBudget.providerMonthlyLimits.google, 2.5);
+assert.equal(normalizedBudget.providerMonthlyLimits.anthropic, 0);
+
+const costRecord = SummarizeThis.createCostRecord({
+  provider: "OpenAI",
+  model: "gpt-4o-mini",
+  tokens: 800,
+  cost: 0.004
+}, {
+  analysisRunId: "run-cost-1",
+  cardId: "card-cost",
+  cardTitle: "Card with budget tracking",
+  now: "2026-06-29T12:20:00.000Z"
+});
+assert.equal(costRecord.providerKey, "openai");
+assert.equal(costRecord.cost, 0.004);
+assert.equal(costRecord.createdAt, "2026-06-29T12:20:00.000Z");
+
+const providerTotals = SummarizeThis.summarizeMonthlyProviderCosts([
+  costRecord,
+  SummarizeThis.createCostRecord({ provider: "OpenAI", cost: 0.002 }, { now: "2026-06-01T08:00:00.000Z" }),
+  SummarizeThis.createCostRecord({ provider: "Google AI", cost: 0.5 }, { now: "2026-06-02T08:00:00.000Z" }),
+  SummarizeThis.createCostRecord({ provider: "OpenAI", cost: 10 }, { now: "2026-05-30T08:00:00.000Z" })
+], "2026-06");
+assert.equal(Number(providerTotals.openai.toFixed(3)), 0.006);
+assert.equal(providerTotals.google, 0.5);
+
+const budgetWarning = SummarizeThis.evaluateBudgetAlert([costRecord], {
+  provider: "OpenAI",
+  model: "gpt-4o-mini",
+  tokens: 100,
+  cost: 0.004
+}, normalizedBudget, {
+  now: "2026-06-29T12:25:00.000Z"
+});
+assert.equal(budgetWarning.status, "warning");
+assert.ok(budgetWarning.message.includes("OpenAI monthly budget warning"));
+assert.equal(Number(budgetWarning.projectedTotal.toFixed(3)), 0.008);
+
+const budgetExceeded = SummarizeThis.evaluateBudgetAlert([costRecord], {
+  provider: "OpenAI",
+  cost: 0.02
+}, normalizedBudget, {
+  now: "2026-06-29T12:30:00.000Z"
+});
+assert.equal(budgetExceeded.status, "exceeded");
+assert.ok(budgetExceeded.message.includes("would be exceeded"));
+
+const budgetDisabled = SummarizeThis.evaluateBudgetAlert([], {
+  provider: "Local rules",
+  cost: 0
+}, normalizedBudget, {
+  now: "2026-06-29T12:35:00.000Z"
+});
+assert.equal(budgetDisabled.status, "disabled");
+
 function parsePromptPayload(promptText) {
   return JSON.parse(promptText.slice(promptText.lastIndexOf("\n{") + 1));
 }

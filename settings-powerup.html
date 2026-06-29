@@ -303,6 +303,36 @@
 
     <section class="panel">
       <div class="group">
+        <label for="budgetWarningPercent">Budget warning threshold</label>
+        <select id="budgetWarningPercent">
+          <option value="50">Warn at 50%</option>
+          <option value="75">Warn at 75%</option>
+          <option value="80">Warn at 80%</option>
+          <option value="90">Warn at 90%</option>
+          <option value="100">Warn only at limit</option>
+        </select>
+        <p class="help">Budget alerts are advisory and use estimated provider cost from completed analysis runs.</p>
+      </div>
+
+      <div class="group">
+        <label for="openaiMonthlyLimit">OpenAI monthly budget in USD</label>
+        <input id="openaiMonthlyLimit" type="number" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0 disables alerts">
+      </div>
+
+      <div class="group">
+        <label for="googleMonthlyLimit">Google AI monthly budget in USD</label>
+        <input id="googleMonthlyLimit" type="number" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0 disables alerts">
+      </div>
+
+      <div class="group">
+        <label for="anthropicMonthlyLimit">Anthropic monthly budget in USD</label>
+        <input id="anthropicMonthlyLimit" type="number" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0 disables alerts">
+        <p class="help">Stored in member-private Power-Up settings. No card content or API keys are stored in the cost ledger.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="group">
         <label for="openaiKey">OpenAI API key</label>
         <input id="openaiKey" type="password" autocomplete="off" placeholder="sk-...">
         <p class="help">Used directly from the Power-Up iframe when OpenAI is selected.</p>
@@ -352,8 +382,9 @@
     </div>
   </div>
 
+  <script src="./summarizer-core.js"></script>
   <script>
-    /* global TrelloPowerUp */
+    /* global TrelloPowerUp, SummarizeThis */
 
     (function () {
       "use strict";
@@ -375,6 +406,10 @@
         promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
         includeListContext: document.getElementById("includeListContext"),
         requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
+        budgetWarningPercent: document.getElementById("budgetWarningPercent"),
+        openaiMonthlyLimit: document.getElementById("openaiMonthlyLimit"),
+        googleMonthlyLimit: document.getElementById("googleMonthlyLimit"),
+        anthropicMonthlyLimit: document.getElementById("anthropicMonthlyLimit"),
         openaiKey: document.getElementById("openaiKey"),
         openaiModel: document.getElementById("openaiModel"),
         googleKey: document.getElementById("googleKey"),
@@ -418,6 +453,11 @@
         fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
         fields.includeListContext.checked = settings.includeListContext !== false;
         fields.requireSensitiveAiApproval.checked = settings.requireSensitiveAiApproval !== false;
+        var budget = SummarizeThis.normalizeBudgetSettings(settings.budget);
+        fields.budgetWarningPercent.value = String(budget.warningPercent);
+        fields.openaiMonthlyLimit.value = budget.providerMonthlyLimits.openai ? String(budget.providerMonthlyLimits.openai) : "";
+        fields.googleMonthlyLimit.value = budget.providerMonthlyLimits.google ? String(budget.providerMonthlyLimits.google) : "";
+        fields.anthropicMonthlyLimit.value = budget.providerMonthlyLimits.anthropic ? String(budget.providerMonthlyLimits.anthropic) : "";
       }
 
       async function readSettings() {
@@ -434,6 +474,7 @@
             commentLimit: 12,
             commentCharacters: 700
           },
+          budget: SummarizeThis.normalizeBudgetSettings(),
           apiKeys: {}
         };
 
@@ -474,6 +515,14 @@
             descriptionCharacters: fields.promptDescriptionCharacters.value,
             commentLimit: fields.promptCommentLimit.value,
             commentCharacters: fields.promptCommentCharacters.value
+          }),
+          budget: SummarizeThis.normalizeBudgetSettings({
+            warningPercent: fields.budgetWarningPercent.value,
+            providerMonthlyLimits: {
+              openai: fields.openaiMonthlyLimit.value,
+              google: fields.googleMonthlyLimit.value,
+              anthropic: fields.anthropicMonthlyLimit.value
+            }
           }),
           apiKeys: {
             openai: fields.openaiKey.value.trim(),

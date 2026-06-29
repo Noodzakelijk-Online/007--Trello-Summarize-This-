@@ -957,6 +957,126 @@
     return lines.join("\n");
   }
 
+  function clampNumber(value, fallback, min, max) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) return fallback;
+    return Math.max(min, Math.min(max, number));
+  }
+
+  function normalizeBudgetSettings(input) {
+    var source = input || {};
+    var limits = source.providerMonthlyLimits || source.monthlyLimits || {};
+    return {
+      warningPercent: clampNumber(source.warningPercent, 80, 50, 100),
+      providerMonthlyLimits: {
+        openai: clampNumber(limits.openai, 0, 0, 10000),
+        google: clampNumber(limits.google, 0, 0, 10000),
+        anthropic: clampNumber(limits.anthropic, 0, 0, 10000)
+      }
+    };
+  }
+
+  function createCostRecord(metadata, options) {
+    var source = metadata || {};
+    var providerKey = normalizeProviderKey(source.provider);
+    var cost = Math.max(0, Number(source.cost) || 0);
+    return {
+      analysisRunId: options && options.analysisRunId ? String(options.analysisRunId) : "",
+      cardId: options && options.cardId ? String(options.cardId) : "",
+      cardTitle: truncate(String(options && options.cardTitle ? options.cardTitle : ""), 120),
+      provider: source.provider || "Unknown",
+      providerKey: providerKey,
+      model: source.model || "",
+      cost: Number(cost.toFixed(6)),
+      tokens: Math.max(0, Number(source.tokens) || 0),
+      createdAt: options && options.now ? new Date(options.now).toISOString() : new Date().toISOString()
+    };
+  }
+
+  function evaluateBudgetAlert(records, metadata, budgetSettings, options) {
+    var budget = normalizeBudgetSettings(budgetSettings);
+    var record = createCostRecord(metadata || {}, options || {});
+    var providerKey = record.providerKey;
+    var limit = budget.providerMonthlyLimits[providerKey] || 0;
+    var monthKey = currentMonthKey(options && options.now);
+    var existingTotal = summarizeMonthlyProviderCosts(records, monthKey)[providerKey] || 0;
+    var projectedTotal = existingTotal + record.cost;
+    var warningAmount = limit * (budget.warningPercent / 100);
+
+    var result = {
+      status: "disabled",
+      providerKey: providerKey,
+      provider: providerLabel(providerKey),
+      monthKey: monthKey,
+      monthlyLimit: limit,
+      warningPercent: budget.warningPercent,
+      existingTotal: Number(existingTotal.toFixed(6)),
+      runCost: record.cost,
+      projectedTotal: Number(projectedTotal.toFixed(6)),
+      message: ""
+    };
+
+    if (!limit || providerKey === "local" || providerKey === "unknown") {
+      result.message = "No monthly budget alert is configured for this provider.";
+      return result;
+    }
+
+    if (projectedTotal > limit) {
+      result.status = "exceeded";
+      result.message = providerLabel(providerKey) + " monthly budget would be exceeded: $" +
+        projectedTotal.toFixed(4) + " of $" + limit.toFixed(2) + ".";
+      return result;
+    }
+
+    if (projectedTotal >= warningAmount) {
+      result.status = "warning";
+      result.message = providerLabel(providerKey) + " monthly budget warning: $" +
+        projectedTotal.toFixed(4) + " of $" + limit.toFixed(2) + " used.";
+      return result;
+    }
+
+    result.status = "ok";
+    result.message = providerLabel(providerKey) + " monthly budget is within limit: $" +
+      projectedTotal.toFixed(4) + " of $" + limit.toFixed(2) + ".";
+    return result;
+  }
+
+  function summarizeMonthlyProviderCosts(records, monthKey) {
+    var targetMonth = monthKey || currentMonthKey();
+    return (Array.isArray(records) ? records : []).reduce(function (totals, record) {
+      if (!record || String(record.createdAt || "").slice(0, 7) !== targetMonth) return totals;
+      var providerKey = normalizeProviderKey(record.providerKey || record.provider);
+      if (providerKey === "local" || providerKey === "unknown") return totals;
+      totals[providerKey] = (totals[providerKey] || 0) + Math.max(0, Number(record.cost) || 0);
+      return totals;
+    }, {});
+  }
+
+  function normalizeProviderKey(value) {
+    var text = String(value || "").toLowerCase();
+    if (text.indexOf("openai") !== -1) return "openai";
+    if (text.indexOf("google") !== -1 || text.indexOf("gemini") !== -1) return "google";
+    if (text.indexOf("anthropic") !== -1 || text.indexOf("claude") !== -1) return "anthropic";
+    if (text.indexOf("local") !== -1) return "local";
+    return text || "unknown";
+  }
+
+  function providerLabel(providerKey) {
+    var labels = {
+      openai: "OpenAI",
+      google: "Google AI",
+      anthropic: "Anthropic",
+      local: "Local rules"
+    };
+    return labels[providerKey] || "Unknown provider";
+  }
+
+  function currentMonthKey(now) {
+    var date = now ? new Date(now) : new Date();
+    if (Number.isNaN(date.getTime())) date = new Date();
+    return date.toISOString().slice(0, 7);
+  }
+
   function sampleCardData() {
     return {
       id: "sample-card",
@@ -1014,12 +1134,16 @@
   return {
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
+    createCostRecord: createCostRecord,
     detectSensitiveSignals: detectSensitiveSignals,
+    evaluateBudgetAlert: evaluateBudgetAlert,
     getOutputModeInstruction: getOutputModeInstruction,
     getOutputModeLabel: getOutputModeLabel,
+    normalizeBudgetSettings: normalizeBudgetSettings,
     normalizeOutputMode: normalizeOutputMode,
     normalizeCustomFields: normalizeCustomFields,
     normalizeCustomInstructions: normalizeCustomInstructions,
+    normalizeProviderKey: normalizeProviderKey,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,
@@ -1027,6 +1151,7 @@
     normalizeActions: normalizeActions,
     normalizeAttachments: normalizeAttachments,
     normalizeCardData: normalizeCardData,
-    sampleCardData: sampleCardData
+    sampleCardData: sampleCardData,
+    summarizeMonthlyProviderCosts: summarizeMonthlyProviderCosts
   };
 }));

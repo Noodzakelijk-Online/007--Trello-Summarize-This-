@@ -522,6 +522,12 @@
         </div>
       </div>
 
+      <section id="budgetPanel" class="panel notice hidden">
+        <h2 class="section-title">Budget alert</h2>
+        <p id="budgetText" class="section-body"></p>
+        <ul id="budgetList" class="compact-list"></ul>
+      </section>
+
       <section class="grid">
         <article class="panel">
           <h2 class="section-title">What this card is about</h2>
@@ -843,6 +849,8 @@
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
           renderHistory(lastHistoryRuns);
+          var costUsage = await recordCostUsage(cardData, lastLedgerRun, analysis, settings);
+          renderBudgetAlert(costUsage.alert);
           await loadAndRenderReviewState();
           await loadAndRenderExportHistory();
         } catch (error) {
@@ -878,6 +886,9 @@
         document.getElementById("whyScoreList").innerHTML = "";
         document.getElementById("reviewStateSummary").textContent = "Review state will appear after analysis.";
         document.getElementById("reviewStateList").innerHTML = "";
+        document.getElementById("budgetPanel").classList.add("hidden");
+        document.getElementById("budgetText").textContent = "";
+        document.getElementById("budgetList").innerHTML = "";
         document.getElementById("reviewNote").value = "";
         document.getElementById("reviewStateStatus").textContent = "";
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
@@ -922,6 +933,7 @@
             commentLimit: 12,
             commentCharacters: 700
           },
+          budget: SummarizeThis.normalizeBudgetSettings(),
           apiKeys: {}
         };
 
@@ -1959,6 +1971,56 @@
 
         await saveLegacyPrivateHistory(cardData, ledgerRun);
         return allHistory[cardId];
+      }
+
+      async function recordCostUsage(cardData, ledgerRun, analysis, settings) {
+        var key = "summarizeThisCostRecords";
+        var records = await readPrivateObject(key, []);
+        if (!Array.isArray(records)) records = [];
+        var metadata = analysis && analysis.metadata ? analysis.metadata : {};
+        var options = {
+          analysisRunId: ledgerRun && ledgerRun.id,
+          cardId: cardData && cardData.id,
+          cardTitle: cardData && cardData.name,
+          now: ledgerRun && ledgerRun.completedAt
+        };
+        var alert = SummarizeThis.evaluateBudgetAlert(records, metadata, settings && settings.budget, options);
+        var record = SummarizeThis.createCostRecord(metadata, options);
+
+        if (record.cost > 0 && ["openai", "google", "anthropic"].indexOf(record.providerKey) !== -1) {
+          records.unshift(record);
+          await writePrivateObject(key, records.slice(0, 200));
+        }
+
+        return {
+          alert: alert,
+          records: records
+        };
+      }
+
+      function renderBudgetAlert(alert) {
+        var panel = document.getElementById("budgetPanel");
+        var text = document.getElementById("budgetText");
+        var list = document.getElementById("budgetList");
+        var visible = alert && (alert.status === "warning" || alert.status === "exceeded");
+        panel.classList.toggle("hidden", !visible);
+        list.innerHTML = "";
+        if (!visible) {
+          text.textContent = "";
+          return;
+        }
+
+        text.textContent = alert.message;
+        [
+          "Provider: " + alert.provider,
+          "Current run estimate: $" + Number(alert.runCost || 0).toFixed(4),
+          "Projected " + alert.monthKey + " usage: $" + Number(alert.projectedTotal || 0).toFixed(4),
+          "Configured monthly limit: $" + Number(alert.monthlyLimit || 0).toFixed(2)
+        ].forEach(function (item) {
+          var li = document.createElement("li");
+          li.textContent = item;
+          list.appendChild(li);
+        });
       }
 
       async function saveLegacyPrivateHistory(cardData, ledgerRun) {
