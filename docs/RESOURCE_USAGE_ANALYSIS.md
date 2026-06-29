@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 292.9 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 437.1 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.62 MB.
-- Generated Windows installer executable: 269,312 bytes.
+- Active popup initial local files: about 297.2 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 443.2 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.63 MB.
+- Generated Windows installer executable: 272,896 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -106,13 +106,13 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 437.1 KB, and the generated `SummarizeThisSetup.exe` is 269,312 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 443.2 KB, and the generated `SummarizeThisSetup.exe` is 272,896 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
 
-Local preview does not persist provider API keys, so AI-only mode requires the Trello Power-Up runtime where member-private storage is available.
+Local preview does not persist provider API keys, so AI-only mode requires either the Trello Power-Up runtime where member-private storage is available or a valid backend proxy endpoint. Proxy endpoints are saved only after normalization: HTTPS is required for Trello use, localhost/127.0.0.1 are allowed for development, and query strings, fragments, and embedded credentials are stripped or rejected.
 
 ### Trello Runtime
 
@@ -125,5 +125,5 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 
 ## Remaining Opportunities
 
-- Move AI calls behind an optional backend proxy to reduce browser-held key risk and enable better request caching.
+- Add a deployable reference proxy service with server-side provider-key storage, request logging controls, rate limits, and caching.
 - Split the standalone `index.html` demo from the production install if the installer should become even smaller.

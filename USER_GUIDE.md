@@ -154,7 +154,16 @@ The Review / correction panel stores feedback privately for the same card. When 
 4. Click "Save" or "Validate"
 5. Green checkmark = API key is valid
 
-In the Trello Power-Up runtime, provider API keys are saved in Trello member-private storage for the current member. In local preview or standalone Windows mode, the settings page saves only non-key settings to `localStorage`; API key fields are cleared and AI-only mode requires Trello member-private storage. If older local preview data contains keys, the popup/settings page strips them on load.
+In the Trello Power-Up runtime, provider API keys are saved in Trello member-private storage for the current member. In local preview or standalone Windows mode, the settings page saves only non-key settings to `localStorage`; API key fields are cleared and AI-only mode requires either Trello member-private storage or a valid backend proxy endpoint. If older local preview data contains keys, the popup/settings page strips them on load.
+
+### Optional Backend Proxy
+
+Settings can route AI calls through a backend proxy endpoint. When enabled, the browser sends the bounded AI prompt to your proxy and does not send OpenAI, Google, or Anthropic API keys from the Power-Up iframe. The proxy endpoint must add provider credentials server-side and return the same structured JSON summary fields used by direct provider mode.
+
+- Use HTTPS endpoints for Trello Power-Up mode.
+- Local development may use `http://localhost` or `http://127.0.0.1`.
+- Query strings, fragments, and embedded credentials are not saved as part of the proxy endpoint.
+- If proxy mode fails in Auto mode, the popup falls back to the local summarizer rather than silently switching back to browser-held provider keys.
 
 ---
 
@@ -563,15 +572,15 @@ Sensitive-card exports still require visible approval before copy or download.
 
 ### Data Handling
 
-- **API Keys**: Stored in Trello member-private Power-Up storage when running inside Trello; local preview strips API keys instead of persisting them in `localStorage`
-- **Card Data**: Sent to AI providers only when AI mode is used and sensitive handoff approval allows it
+- **API Keys**: Stored in Trello member-private Power-Up storage when running inside Trello; local preview strips API keys instead of persisting them in `localStorage`; proxy mode avoids sending provider keys from the browser
+- **Card Data**: Sent to AI providers or a configured backend proxy only when AI mode is used and sensitive handoff approval allows it
 - **History**: Stored in member-private Power-Up storage, with local preview using `localStorage` for non-secret preview data
 - **Exports**: Generated client-side
 
 ### Security Best Practices
 
 1. Never share API keys
-2. Configure API keys from the Trello Power-Up settings page, not from local preview
+2. Configure API keys from the Trello Power-Up settings page, or use a backend proxy for provider keys
 3. Use HTTPS connections only
 4. Review provider privacy policies
 5. Clear history periodically

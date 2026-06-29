@@ -1315,6 +1315,43 @@
     };
   }
 
+  function normalizeProxyEndpoint(value) {
+    var raw = cleanText(value);
+    if (!raw) return "";
+    if (raw.length > 300) return "";
+
+    try {
+      var parsed = new URL(raw);
+      var host = String(parsed.hostname || "").toLowerCase();
+      var isLoopback = host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+      if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
+        return "";
+      }
+      if (parsed.username || parsed.password) return "";
+      parsed.search = "";
+      parsed.hash = "";
+      return parsed.toString();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function normalizeProxySettings(input) {
+    var source = input || {};
+    var requested = source.enabled === true || source.useProxy === true || source.aiProxyEnabled === true;
+    var endpoint = normalizeProxyEndpoint(source.endpoint || source.url || source.proxyEndpoint || source.aiProxyEndpoint);
+    var error = "";
+    if (requested && !endpoint) {
+      error = "Enter a valid HTTPS proxy endpoint. Local development may use http://localhost or http://127.0.0.1.";
+    }
+    return {
+      enabled: requested && Boolean(endpoint),
+      endpoint: endpoint,
+      valid: !requested || Boolean(endpoint),
+      error: error
+    };
+  }
+
   function stripApiKeysForLocalPreview(settings) {
     var source = settings && typeof settings === "object" ? settings : {};
     return Object.assign({}, source, {
@@ -1403,6 +1440,7 @@
     if (text.indexOf("openai") !== -1) return "openai";
     if (text.indexOf("google") !== -1 || text.indexOf("gemini") !== -1) return "google";
     if (text.indexOf("anthropic") !== -1 || text.indexOf("claude") !== -1) return "anthropic";
+    if (text.indexOf("proxy") !== -1) return "proxy";
     if (text.indexOf("local") !== -1) return "local";
     return text || "unknown";
   }
@@ -1412,6 +1450,7 @@
       openai: "OpenAI",
       google: "Google AI",
       anthropic: "Anthropic",
+      proxy: "AI proxy",
       local: "Local rules"
     };
     return labels[providerKey] || "Unknown provider";
@@ -1545,6 +1584,7 @@
     normalizeOutputLanguage: normalizeOutputLanguage,
     normalizeCustomFields: normalizeCustomFields,
     normalizeCustomInstructions: normalizeCustomInstructions,
+    normalizeProxySettings: normalizeProxySettings,
     normalizePromptTemplates: normalizePromptTemplates,
     normalizePromptTemplateSettings: normalizePromptTemplateSettings,
     normalizeProviderKey: normalizeProviderKey,

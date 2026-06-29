@@ -189,8 +189,18 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-co
 
 - Trello runtime continues to save provider API keys only through member-private Power-Up storage.
 - Standalone/local preview saves non-key settings only and clears provider key fields after saving.
-- AI-only mode is blocked in local preview because it cannot safely persist provider API keys.
+- AI-only mode in local preview requires a valid backend proxy endpoint because local preview cannot safely persist provider API keys.
 - Older local preview data that contains an `apiKeys` object is cleaned on popup/settings load.
+
+### 5f.2. Optional AI Backend Proxy Adapter
+
+Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-core.js`.
+
+- Settings can enable a backend proxy endpoint for AI calls without storing or sending provider API keys from the browser.
+- Proxy endpoints must be HTTPS, except local development endpoints on `localhost`, `127.0.0.1`, or `::1`.
+- Query strings, fragments, and embedded credentials are stripped or rejected before saving.
+- When proxy mode is enabled, the popup uses the proxy path only. If the proxy fails in Auto mode, the result falls back to local summarization instead of silently using direct browser-held provider keys.
+- The proxy request uses a compact versioned JSON schema containing provider preference, model preference, strategy, output mode/language, and the bounded AI prompt.
 
 ### 5g. Feedback-Guided Reanalysis
 

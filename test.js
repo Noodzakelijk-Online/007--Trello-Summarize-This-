@@ -75,13 +75,48 @@ const localPreviewSettings = SummarizeThis.stripApiKeysForLocalPreview({
     openai: "sk-local-preview-secret",
     google: "google-local-preview-secret"
   },
+  proxy: {
+    enabled: true,
+    endpoint: "https://proxy.example.com/summarize"
+  },
   promptContext: {
     commentLimit: 12
   }
 });
 assert.deepEqual(localPreviewSettings.apiKeys, {});
 assert.equal(localPreviewSettings.analysisMode, "auto");
+assert.equal(localPreviewSettings.proxy.endpoint, "https://proxy.example.com/summarize");
 assert.equal(localPreviewSettings.promptContext.commentLimit, 12);
+
+const proxySettings = SummarizeThis.normalizeProxySettings({
+  enabled: true,
+  endpoint: "https://proxy.example.com/summarize?token=secret#debug"
+});
+assert.equal(proxySettings.enabled, true);
+assert.equal(proxySettings.endpoint, "https://proxy.example.com/summarize");
+assert.equal(proxySettings.valid, true);
+
+const localProxySettings = SummarizeThis.normalizeProxySettings({
+  enabled: true,
+  endpoint: "http://127.0.0.1:8787/ai"
+});
+assert.equal(localProxySettings.enabled, true);
+assert.equal(localProxySettings.endpoint, "http://127.0.0.1:8787/ai");
+
+const unsafeProxySettings = SummarizeThis.normalizeProxySettings({
+  enabled: true,
+  endpoint: "https://user:password@proxy.example.com/ai"
+});
+assert.equal(unsafeProxySettings.enabled, false);
+assert.equal(unsafeProxySettings.valid, false);
+assert.match(unsafeProxySettings.error, /valid HTTPS proxy endpoint/);
+
+const disabledProxySettings = SummarizeThis.normalizeProxySettings({
+  enabled: false,
+  endpoint: "https://proxy.example.com/ai"
+});
+assert.equal(disabledProxySettings.enabled, false);
+assert.equal(disabledProxySettings.endpoint, "https://proxy.example.com/ai");
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()

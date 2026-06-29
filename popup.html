@@ -946,11 +946,11 @@
           }
 
           if (settings.analysisMode !== "local") {
-            if (hasAnyConfiguredKey(settings)) {
+            if (hasAnyAIConnector(settings)) {
               if (shouldRequireSensitiveAiApproval(settings, sensitiveSignals, allowSensitiveAi)) {
-                warning = appendWarning(warning, "Sensitive-card signals were detected. The local result is shown first; AI provider handoff requires explicit approval.");
+                warning = appendWarning(warning, "Sensitive-card signals were detected. The local result is shown first; AI provider/proxy handoff requires explicit approval.");
               } else {
-                setStatus("Calling AI provider", "Asking the configured provider for a structured project summary.");
+                setStatus("Calling AI provider", "Asking the configured provider or proxy for a structured project summary.");
                 try {
                   analysis = await runConfiguredAI(cardData, settings, localAnalysis);
                   timingTracker.mark("ai-provider", "AI provider");
@@ -964,9 +964,9 @@
                 }
               }
             } else if (settings.analysisMode === "ai-only") {
-              throw new Error("AI-only mode is selected, but no provider API key is configured.");
+              throw new Error("AI-only mode is selected, but no provider API key or proxy endpoint is configured.");
             } else {
-              warning = appendWarning(warning, "No AI key is configured yet. This result uses the built-in summarizer.");
+              warning = appendWarning(warning, "No AI key or proxy endpoint is configured yet. This result uses the built-in summarizer.");
             }
           }
 
@@ -1083,6 +1083,7 @@
           includeListContext: true,
           requireSensitiveAiApproval: true,
           extractTextAttachments: false,
+          proxy: SummarizeThis.normalizeProxySettings(),
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -1096,6 +1097,7 @@
           try {
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
+            safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
               localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
             }
@@ -1126,7 +1128,8 @@
         var apiKeys = Object.assign({}, legacyKeys || {}, settings.apiKeys || {});
         var merged = Object.assign({}, fallback, settings || {}, {
           apiKeys: apiKeys,
-          strategy: settings.strategy || legacyStrategy || fallback.strategy
+          strategy: settings.strategy || legacyStrategy || fallback.strategy,
+          proxy: SummarizeThis.normalizeProxySettings(settings.proxy)
         });
         var promptProfile = SummarizeThis.normalizePromptTemplateSettings(merged);
         return Object.assign({}, merged, {
@@ -1464,9 +1467,18 @@
         }
       }
 
+      function hasUsableProxy(settings) {
+        var proxy = SummarizeThis.normalizeProxySettings(settings && settings.proxy);
+        return proxy.enabled;
+      }
+
       function hasAnyConfiguredKey(settings) {
         var keys = settings.apiKeys || {};
         return Boolean(keys.openai || keys.anthropic || keys.google);
+      }
+
+      function hasAnyAIConnector(settings) {
+        return hasUsableProxy(settings) || hasAnyConfiguredKey(settings);
       }
 
       function shouldRequireSensitiveAiApproval(settings, signals, approved) {
@@ -1474,7 +1486,7 @@
         if (!settings || settings.requireSensitiveAiApproval === false) return false;
         if (!signals || !signals.requiresAiApproval) return false;
         if (settings.analysisMode === "local") return false;
-        return hasAnyConfiguredKey(settings);
+        return hasAnyAIConnector(settings);
       }
 
       function appendWarning(existing, addition) {
@@ -1496,7 +1508,7 @@
 
         var approvalTargets = [];
         if (shouldRequireSensitiveAiApproval(settings, signals, approved)) {
-          approvalTargets.push("sent to the configured AI provider");
+          approvalTargets.push("sent to the configured AI provider or proxy");
         }
         if (attachmentExtractionSkipped) {
           approvalTargets.push("processed with bounded text/CSV attachment extraction");
@@ -1536,6 +1548,10 @@
       }
 
       async function runConfiguredAI(cardData, settings, localAnalysis) {
+        if (hasUsableProxy(settings)) {
+          return await callProxyAI(cardData, settings, localAnalysis);
+        }
+
         var providerOrder = settings.provider === "auto"
           ? ["openai", "google", "anthropic"]
           : [settings.provider || "openai"];
@@ -1562,6 +1578,56 @@
         }
 
         throw lastError || new Error("No configured provider was available.");
+      }
+
+      async function callProxyAI(cardData, settings, localAnalysis) {
+        var proxy = SummarizeThis.normalizeProxySettings(settings && settings.proxy);
+        if (!proxy.enabled) {
+          throw new Error("AI proxy is enabled but no valid proxy endpoint is configured.");
+        }
+
+        var provider = settings.provider === "auto" ? "auto" : settings.provider || "openai";
+        var model = selectedProxyModel(provider, settings);
+        var response = await fetchWithTimeout(proxy.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            schemaVersion: "summarize-this-ai-proxy-request-v1",
+            provider: provider,
+            model: model,
+            strategy: settings.strategy || "cost-effective",
+            outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
+            outputLanguage: SummarizeThis.normalizeOutputLanguage(settings.outputLanguage),
+            prompt: SummarizeThis.buildAIPrompt(cardData, promptContextOptions(settings))
+          })
+        }, 30000);
+
+        var data = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          throw new Error((data.error && data.error.message) || data.error || "AI proxy request failed.");
+        }
+
+        var content = data.analysis || data.summary || data.result || data.output || data.content || data;
+        var metadata = Object.assign({
+          provider: "AI proxy",
+          model: data.model || model || "proxy",
+          tokens: Number(data.tokens) || 0,
+          cost: Number(data.cost) || 0
+        }, data.metadata || {});
+        metadata.provider = metadata.provider || "AI proxy";
+        metadata.model = metadata.model || data.model || model || "proxy";
+        metadata.tokens = Number(metadata.tokens) || 0;
+        metadata.cost = Number(metadata.cost) || 0;
+        return createAIAnalysis(content, localAnalysis, metadata);
+      }
+
+      function selectedProxyModel(provider, settings) {
+        if (provider === "openai") return settings.openaiModel || "";
+        if (provider === "google") return settings.googleModel || "";
+        if (provider === "anthropic") return settings.anthropicModel || "";
+        return "";
       }
 
       async function callOpenAI(apiKey, cardData, settings, localAnalysis) {

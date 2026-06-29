@@ -332,6 +332,20 @@
         </label>
         <p class="help">When client, financial, legal, or personal signals are detected, the popup shows a local result first and waits for explicit approval before sending card context to an AI provider.</p>
       </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="useProxy">
+          <input id="useProxy" type="checkbox">
+          <span>Use backend proxy for AI calls</span>
+        </label>
+        <p class="help">Sends the AI prompt to your proxy endpoint instead of exposing provider API keys in the browser. The proxy must add provider credentials server-side and return the same structured JSON summary.</p>
+      </div>
+
+      <div class="group">
+        <label for="proxyEndpoint">Proxy endpoint</label>
+        <input id="proxyEndpoint" type="url" autocomplete="off" placeholder="https://your-domain.example/summarize-this/ai">
+        <p class="warning">Use HTTPS for Trello. Local development may use localhost or 127.0.0.1. Query strings and fragments are stripped before saving.</p>
+      </div>
     </section>
 
     <section class="panel">
@@ -444,6 +458,8 @@
         includeListContext: document.getElementById("includeListContext"),
         extractTextAttachments: document.getElementById("extractTextAttachments"),
         requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
+        useProxy: document.getElementById("useProxy"),
+        proxyEndpoint: document.getElementById("proxyEndpoint"),
         budgetWarningPercent: document.getElementById("budgetWarningPercent"),
         openaiMonthlyLimit: document.getElementById("openaiMonthlyLimit"),
         googleMonthlyLimit: document.getElementById("googleMonthlyLimit"),
@@ -500,6 +516,9 @@
         fields.includeListContext.checked = settings.includeListContext !== false;
         fields.extractTextAttachments.checked = settings.extractTextAttachments === true;
         fields.requireSensitiveAiApproval.checked = settings.requireSensitiveAiApproval !== false;
+        var proxySettings = SummarizeThis.normalizeProxySettings(settings.proxy);
+        fields.useProxy.checked = proxySettings.enabled;
+        fields.proxyEndpoint.value = proxySettings.endpoint;
         var budget = SummarizeThis.normalizeBudgetSettings(settings.budget);
         fields.budgetWarningPercent.value = String(budget.warningPercent);
         fields.openaiMonthlyLimit.value = budget.providerMonthlyLimits.openai ? String(budget.providerMonthlyLimits.openai) : "";
@@ -520,6 +539,7 @@
           includeListContext: true,
           extractTextAttachments: false,
           requireSensitiveAiApproval: true,
+          proxy: SummarizeThis.normalizeProxySettings(),
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -533,6 +553,7 @@
           try {
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
+            safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
               localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
             }
@@ -554,7 +575,8 @@
 
         return Object.assign({}, fallback, current || {}, {
           apiKeys: Object.assign({}, legacyKeys || {}, current && current.apiKeys ? current.apiKeys : {}),
-          strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy
+          strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy,
+          proxy: SummarizeThis.normalizeProxySettings(current && current.proxy)
         });
       }
 
@@ -577,6 +599,10 @@
           includeListContext: fields.includeListContext.checked,
           extractTextAttachments: fields.extractTextAttachments.checked,
           requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
+          proxy: SummarizeThis.normalizeProxySettings({
+            enabled: fields.useProxy.checked,
+            endpoint: fields.proxyEndpoint.value
+          }),
           promptContext: normalizePromptContext({
             descriptionCharacters: fields.promptDescriptionCharacters.value,
             commentLimit: fields.promptCommentLimit.value,
@@ -611,10 +637,17 @@
           if (!settings.apiKeys[key]) delete settings.apiKeys[key];
         });
 
-        if (settings.analysisMode === "ai-only" && (Object.keys(settings.apiKeys).length === 0 || !t)) {
+        if (fields.useProxy.checked && !settings.proxy.valid) {
+          showMessage(settings.proxy.error, "error");
+          return;
+        }
+
+        var hasProxy = settings.proxy && settings.proxy.enabled;
+        var usableKeyCount = t ? Object.keys(settings.apiKeys).length : 0;
+        if (settings.analysisMode === "ai-only" && usableKeyCount === 0 && !hasProxy) {
           showMessage(!t
-            ? "AI-only mode requires Trello member-private storage. Choose Auto/local mode for local preview."
-            : "Add at least one API key or choose Auto/local mode.", "error");
+            ? "AI-only mode requires a valid proxy endpoint in local preview."
+            : "Add at least one API key, configure a valid proxy endpoint, or choose Auto/local mode.", "error");
           return;
         }
 
