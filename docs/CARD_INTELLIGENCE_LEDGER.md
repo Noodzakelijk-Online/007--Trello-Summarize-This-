@@ -21,6 +21,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `ExportRecord`: private copy/export history.
 - `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, activity, attachments, and custom fields.
 - `Activity`: compact recent non-comment Trello action metadata when available.
+- `AttachmentMetadata`: compact attachment name/type/category/status records for documents, transcripts, recordings, spreadsheets, presentations, images, links, and generic files.
 - `CustomField`: compact normalized custom field name/value/type metadata when Trello exposes custom field items.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
 - Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
@@ -48,7 +49,7 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 - The Source coverage UI shows available, partial, missing, and failed source reads so missing comments or metadata-only attachments are explicit.
 - Custom fields are included as compact evidence and AI prompt context when available.
 - Recent activity is included as compact non-comment action evidence when available, capped to 25 stored items and 12 prompt/evidence items.
-- Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
+- Attachment evidence is honest about metadata-only extraction and now classifies linked documents, transcripts, and recordings from metadata. Deeper PDF/Word/image/audio/video extraction still needs a safer extraction path.
 - JSON export uses the compact ledger run and card snapshot. It does not include full card descriptions, but evidence excerpts may still contain card context selected by the analysis.
 - Human-readable exports now include bounded evidence-backed claims and source coverage, so copied markdown/plain text/status briefs and Trello comment drafts remain traceable outside the popup.
 - Trello comment writeback is capability-dependent. If the Trello Power-Up runtime does not expose a supported comment API, the popup remains copy-only.

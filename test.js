@@ -17,6 +17,10 @@ assert.equal(normalized.customFields.length, 2);
 assert.ok(normalized.customFields.some(item => item.name === "Priority" && item.value === "High"));
 assert.equal(normalized.actions.length, 1);
 assert.equal(normalized.actions[0].type, "updateCard");
+assert.equal(normalized.attachments.length, 3);
+assert.ok(normalized.attachments.some(item => item.name === "launch-plan.pdf" && item.category === "document"));
+assert.ok(normalized.attachments.some(item => item.name === "kickoff-transcript.txt" && item.category === "transcript"));
+assert.ok(normalized.attachments.some(item => item.name === "demo-recording.mp4" && item.category === "recording"));
 const sensitiveSignals = SummarizeThis.detectSensitiveSignals(sample);
 assert.equal(sensitiveSignals.requiresAiApproval, true);
 assert.ok(sensitiveSignals.categories.includes("client"));
@@ -35,6 +39,8 @@ assert.ok(local.summary.insights.some(item => item.includes("List context includ
 assert.ok(local.summary.insights.some(item => item.includes("Custom fields included")));
 assert.ok(local.summary.history.includes("recent activity"));
 assert.ok(local.summary.insights.some(item => item.includes("Recent activity included")));
+assert.ok(local.summary.insights.some(item => item.includes("Attachment metadata includes")));
+assert.ok(local.summary.risks.some(item => item.includes("Attachment contents were not verified")));
 
 const prompt = SummarizeThis.buildAIPrompt(sample);
 assert.ok(prompt.includes("Return only valid JSON"));
@@ -57,6 +63,9 @@ assert.equal(riskPromptPayload.customFields.length, 2);
 assert.equal(riskPromptPayload.contextIncluded.customFieldsIncluded, 2);
 assert.equal(riskPromptPayload.activity.length, 1);
 assert.equal(riskPromptPayload.contextIncluded.activityItemsIncluded, 1);
+assert.equal(riskPromptPayload.attachments.length, 3);
+assert.equal(riskPromptPayload.contextIncluded.attachmentsIncluded, 3);
+assert.ok(riskPromptPayload.attachments.some(item => item.category === "recording" && !item.extractedTextAvailable));
 assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
 
 const cardWithPriorFeedback = Object.assign({}, sample, {
@@ -214,6 +223,8 @@ assert.ok(snapshot.descriptionHash);
 assert.equal(snapshot.description, undefined);
 assert.equal(snapshot.customFieldCount, 2);
 assert.equal(snapshot.activityCount, 1);
+assert.equal(snapshot.linkedDocumentCount, 1);
+assert.ok(snapshot.attachmentCategories.includes("document"));
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "available"));
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "activity" && item.status === "available"));
 assert.ok(snapshot.listContext);
@@ -249,6 +260,17 @@ assert.ok(partialCoverage.some(item => item.key === "activity" && item.status ==
 assert.ok(partialCoverage.some(item => item.key === "checklists" && item.status === "partial"));
 assert.ok(partialCoverage.some(item => item.key === "attachments" && item.status === "partial"));
 assert.ok(partialCoverage.some(item => item.key === "board" && item.detail.includes("Board read failed")));
+
+const attachmentRun = CardIntelligenceLedger.createAnalysisRun(sample, local, {
+  now: "2026-06-29T12:00:10.000Z"
+});
+assert.equal(attachmentRun.cardSnapshot.transcriptCount, 1);
+assert.equal(attachmentRun.cardSnapshot.recordingCount, 1);
+assert.ok(attachmentRun.cardSnapshot.sourceCoverage.some(item => item.key === "attachments" && item.detail.includes("Metadata types")));
+assert.ok(attachmentRun.result.validationFindings.some(item => item.id === "attachment-transcript-unverified"));
+assert.ok(attachmentRun.result.validationFindings.some(item => item.id === "attachment-recording-unverified"));
+assert.ok(attachmentRun.result.missingInfo.some(item => item.id === "attachment-transcript-unverified"));
+assert.ok(attachmentRun.result.evidence.some(item => item.type === "attachment" && item.excerpt.includes("[recording]")));
 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
   now: "2026-06-29T12:00:00.000Z",

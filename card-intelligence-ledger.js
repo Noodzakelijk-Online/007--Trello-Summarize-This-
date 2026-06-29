@@ -142,17 +142,62 @@
 
   function normalizeAttachments(attachments) {
     return toArray(attachments).map(function (attachment, index) {
+      if (typeof attachment === "string") {
+        attachment = { name: attachment };
+      }
+      var error = cleanText(attachment.error);
+      var extractedTextAvailable = Boolean(cleanText(attachment.extractedText || attachment.text));
+      var processed = attachment.processed === true;
+      var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : processed ? "metadata-only" : "not-extracted";
       return {
         id: cleanText(attachment.id || "attachment-" + (index + 1)),
         name: cleanText(attachment.name || "Attachment"),
         mimeType: cleanText(attachment.mimeType || attachment.type),
+        extension: getAttachmentExtension(attachment),
+        category: classifyAttachment(attachment),
         bytes: toNumber(attachment.bytes || attachment.size),
-        processed: attachment.processed === true,
-        extractedTextAvailable: Boolean(cleanText(attachment.extractedText || attachment.text)),
-        error: cleanText(attachment.error),
+        processed: processed,
+        extractedTextAvailable: extractedTextAvailable,
+        status: status,
+        error: error,
         url: cleanText(attachment.url)
       };
+    }).filter(function (attachment) {
+      return attachment.name;
+    }).slice(0, 25);
+  }
+
+  function getAttachmentExtension(attachment) {
+    var source = cleanText((attachment && (attachment.name || attachment.url)) || attachment);
+    var path = source.split("?")[0].split("#")[0];
+    var match = /\.([a-z0-9]{1,8})$/i.exec(path);
+    return match ? match[1].toLowerCase() : "";
+  }
+
+  function classifyAttachment(attachment) {
+    var name = cleanText((attachment && attachment.name) || attachment).toLowerCase();
+    var mime = cleanText(attachment && (attachment.mimeType || attachment.type)).toLowerCase();
+    var extension = getAttachmentExtension(attachment);
+
+    if (/transcript|captions?|subtitle|minutes|meeting notes/.test(name) || ["vtt", "srt", "txt"].indexOf(extension) !== -1) return "transcript";
+    if (/recording|video|audio|zoom|meet|teams|loom|call/.test(name) || /^video\//.test(mime) || /^audio\//.test(mime) || ["mp4", "mov", "m4v", "webm", "mp3", "m4a", "wav", "aac"].indexOf(extension) !== -1) return "recording";
+    if (/spreadsheet|excel|csv/.test(mime) || ["xls", "xlsx", "csv", "tsv"].indexOf(extension) !== -1) return "spreadsheet";
+    if (/presentation|powerpoint/.test(mime) || ["ppt", "pptx", "key"].indexOf(extension) !== -1) return "presentation";
+    if (/pdf|word|document|text/.test(mime) || ["pdf", "doc", "docx", "rtf", "md"].indexOf(extension) !== -1) return "document";
+    if (/^image\//.test(mime) || ["png", "jpg", "jpeg", "gif", "webp", "svg"].indexOf(extension) !== -1) return "image";
+    if (cleanText(attachment && attachment.url)) return "link";
+    return "file";
+  }
+
+  function summarizeAttachmentCategories(attachments) {
+    var counts = {};
+    toArray(attachments).forEach(function (attachment) {
+      var category = attachment.category || "file";
+      counts[category] = (counts[category] || 0) + 1;
     });
+    return Object.keys(counts).sort().map(function (category) {
+      return counts[category] + " " + category + (counts[category] === 1 ? "" : "s");
+    }).join(", ");
   }
 
   function valueFromCustomField(item) {
@@ -357,6 +402,10 @@
       commentCount: card.commentCount,
       activityCount: card.actions.length,
       attachmentCount: card.attachmentCount,
+      attachmentCategories: summarizeAttachmentCategories(card.attachments),
+      linkedDocumentCount: card.attachments.filter(function (attachment) { return ["document", "spreadsheet", "presentation"].indexOf(attachment.category) !== -1; }).length,
+      transcriptCount: card.attachments.filter(function (attachment) { return attachment.category === "transcript"; }).length,
+      recordingCount: card.attachments.filter(function (attachment) { return attachment.category === "recording"; }).length,
       priorFeedbackCount: card.priorFeedback.length,
       customFieldCount: card.customFields.length,
       due: card.due,
@@ -510,10 +559,10 @@
     }).length;
 
     if (card.attachments.length > 0 && extracted > 0) {
-      return coverage("available", card.attachments.length + " attachment(s) included; " + extracted + " had extracted text.");
+      return coverage("available", card.attachments.length + " attachment(s) included; " + extracted + " had extracted text. Metadata types: " + summarizeAttachmentCategories(card.attachments) + ".");
     }
     if (card.attachments.length > 0) {
-      return coverage("partial", card.attachments.length + " attachment(s) included as metadata only; " + failed + " failed extraction.");
+      return coverage("partial", card.attachments.length + " attachment(s) included as metadata only; " + failed + " failed extraction. Metadata types: " + summarizeAttachmentCategories(card.attachments) + ".");
     }
     if (card.attachmentCount > 0) {
       return coverage("partial", "Trello reported " + card.attachmentCount + " attachment(s), but attachment details were not loaded.");
@@ -568,10 +617,10 @@
     });
 
     card.attachments.forEach(function (attachment, index) {
-      var detail = attachment.name;
+      var detail = attachment.name + " [" + attachment.category + "]";
       if (attachment.extractedTextAvailable) detail += " (text extracted)";
-      else if (attachment.processed) detail += " (metadata only)";
       else if (attachment.error) detail += " (failed: " + attachment.error + ")";
+      else if (attachment.processed) detail += " (metadata only)";
       else detail += " (not extracted)";
       addEvidence(evidence, "attachment", "Attachment", detail, "card.attachments[" + index + "]");
     });
@@ -846,6 +895,12 @@
     if (card.attachmentCount && !card.attachments.some(function (attachment) { return attachment.extractedTextAvailable; })) {
       findings.push(finding("attachments-metadata-only", "medium", "Attachments are present but no attachment text was verified as extracted.", findEvidenceIds(evidence, ["attachment"])));
     }
+    if (card.attachments.some(function (attachment) { return attachment.category === "transcript" && !attachment.extractedTextAvailable; })) {
+      findings.push(finding("attachment-transcript-unverified", "medium", "Transcript-like attachment metadata is present, but transcript text was not verified as extracted.", findEvidenceIds(evidence, ["attachment"])));
+    }
+    if (card.attachments.some(function (attachment) { return attachment.category === "recording" && !attachment.extractedTextAvailable; })) {
+      findings.push(finding("attachment-recording-unverified", "medium", "Recording-like attachment metadata is present, but recording contents were not processed.", findEvidenceIds(evidence, ["attachment"])));
+    }
     if (!toArray(summary && summary.nextSteps).length) {
       findings.push(finding("missing-next-actions", "medium", "Analysis did not provide specific next actions.", findEvidenceIds(evidence, ["title", "description"])));
     }
@@ -1075,7 +1130,7 @@
         missingInfo: toArray(summary.missingInfo).map(function (item, index) {
           return finding("ai-missing-" + (index + 1), "medium", item, findEvidenceIds(operational.evidence, ["title", "description", "comment", "attachment"]));
         }).concat(operational.validationFindings.filter(function (item) {
-          return item.id.indexOf("missing") === 0 || item.id === "no-comments" || item.id === "attachments-metadata-only";
+          return item.id.indexOf("missing") === 0 || item.id === "no-comments" || item.id === "attachments-metadata-only" || item.id.indexOf("attachment-") === 0;
         })),
         confidence: operational.confidence,
         confidenceReason: cleanText(summary.confidenceReason),
@@ -1724,6 +1779,7 @@
     summarizeReviewRecords: summarizeReviewRecords,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizeActions: normalizeActions,
+    normalizeAttachments: normalizeAttachments,
     normalizeCustomFields: normalizeCustomFields,
     createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,

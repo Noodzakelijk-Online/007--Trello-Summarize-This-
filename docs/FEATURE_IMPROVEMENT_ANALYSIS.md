@@ -179,6 +179,17 @@ Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and 
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.
 
+Status: Metadata intelligence implemented in `summarizer-core.js` and `card-intelligence-ledger.js`; deep content extraction remains deferred.
+
+Implemented:
+
+- Attachment metadata is normalized into compact name, MIME type, extension, category, extraction status, and error fields.
+- Attachments are classified as document, transcript, recording, spreadsheet, presentation, image, link, or file without fetching content.
+- Compact attachment metadata is included in local insights, AI prompt context, source coverage, evidence, snapshots, and validation findings.
+- Transcript-like and recording-like attachments are explicitly flagged when their content was not verified as extracted.
+- Prompt/evidence usage is capped to 12 attachment records; normalized runtime metadata is capped to 25 attachment records.
+- Attachment URLs and extracted content are not sent in the AI prompt by this metadata-only slice.
+
 Recommendation:
 
 - Add optional attachment text extraction only for trusted HTTPS Trello attachment files.

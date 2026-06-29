@@ -105,6 +105,82 @@
     }).slice(0, 25);
   }
 
+  function getAttachmentExtension(attachment) {
+    var source = cleanText((attachment && (attachment.name || attachment.url)) || attachment);
+    var path = source.split("?")[0].split("#")[0];
+    var match = /\.([a-z0-9]{1,8})$/i.exec(path);
+    return match ? match[1].toLowerCase() : "";
+  }
+
+  function classifyAttachment(attachment) {
+    var name = cleanText((attachment && attachment.name) || attachment).toLowerCase();
+    var mime = cleanText(attachment && (attachment.mimeType || attachment.type)).toLowerCase();
+    var extension = getAttachmentExtension(attachment);
+
+    if (/transcript|captions?|subtitle|minutes|meeting notes/.test(name) || ["vtt", "srt", "txt"].indexOf(extension) !== -1) return "transcript";
+    if (/recording|video|audio|zoom|meet|teams|loom|call/.test(name) || /^video\//.test(mime) || /^audio\//.test(mime) || ["mp4", "mov", "m4v", "webm", "mp3", "m4a", "wav", "aac"].indexOf(extension) !== -1) return "recording";
+    if (/spreadsheet|excel|csv/.test(mime) || ["xls", "xlsx", "csv", "tsv"].indexOf(extension) !== -1) return "spreadsheet";
+    if (/presentation|powerpoint/.test(mime) || ["ppt", "pptx", "key"].indexOf(extension) !== -1) return "presentation";
+    if (/pdf|word|document|text/.test(mime) || ["pdf", "doc", "docx", "rtf", "md"].indexOf(extension) !== -1) return "document";
+    if (/^image\//.test(mime) || ["png", "jpg", "jpeg", "gif", "webp", "svg"].indexOf(extension) !== -1) return "image";
+    if (cleanText(attachment && attachment.url)) return "link";
+    return "file";
+  }
+
+  function normalizeAttachments(attachments) {
+    return toArray(attachments).map(function (attachment, index) {
+      if (typeof attachment === "string") {
+        attachment = { name: attachment };
+      }
+      var name = cleanText(attachment.name || "Attachment");
+      var mimeType = cleanText(attachment.mimeType || attachment.type);
+      var error = cleanText(attachment.error);
+      var extractedTextAvailable = Boolean(cleanText(attachment.extractedText || attachment.text));
+      var processed = attachment.processed === true;
+      var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : processed ? "metadata-only" : "not-extracted";
+      return {
+        id: cleanText(attachment.id || "attachment-" + (index + 1)),
+        name: truncate(name, 160),
+        mimeType: mimeType,
+        extension: getAttachmentExtension(attachment),
+        category: classifyAttachment(attachment),
+        bytes: toNumber(attachment.bytes || attachment.size),
+        processed: processed,
+        extractedTextAvailable: extractedTextAvailable,
+        status: status,
+        error: error
+      };
+    }).filter(function (attachment) {
+      return attachment.name;
+    }).slice(0, 25);
+  }
+
+  function summarizeAttachmentCategories(attachments) {
+    var counts = {};
+    toArray(attachments).forEach(function (attachment) {
+      var category = attachment.category || "file";
+      counts[category] = (counts[category] || 0) + 1;
+    });
+    var parts = Object.keys(counts).sort().map(function (category) {
+      return counts[category] + " " + category + (counts[category] === 1 ? "" : "s");
+    });
+    return parts.length ? parts.join(", ") : "no attachment metadata";
+  }
+
+  function compactAttachmentsForPrompt(attachments) {
+    return toArray(attachments).slice(0, 12).map(function (attachment) {
+      return {
+        name: attachment.name,
+        category: attachment.category,
+        extension: attachment.extension,
+        mimeType: attachment.mimeType,
+        status: attachment.status,
+        extractedTextAvailable: attachment.extractedTextAvailable,
+        error: attachment.error
+      };
+    });
+  }
+
   function valueFromCustomField(item) {
     if (!item || typeof item !== "object") return cleanText(item);
     var value = item.value || {};
@@ -248,7 +324,7 @@
       dueComplete: Boolean(base.dueComplete),
       labels: normalizeNamedItems(base.labels),
       members: normalizeNamedItems(base.members),
-      attachments: toArray(base.attachments || base.attachmentDetails),
+      attachments: normalizeAttachments(base.attachments || base.attachmentDetails),
       checklists: toArray(base.checklists),
       comments: normalizeComments(base.comments),
       actions: normalizeActions(base.actions || base.activity),
@@ -448,7 +524,7 @@
       card.labels.join(" "),
       card.members.join(" "),
       card.customFields.map(function (field) { return [field.name, field.value].join(" "); }).join(" "),
-      card.attachments.map(function (attachment) { return attachment.name || ""; }).join(" "),
+      card.attachments.map(function (attachment) { return [attachment.name, attachment.category, attachment.status].join(" "); }).join(" "),
       card.comments.slice(0, 12).map(function (comment) { return comment.text || ""; }).join(" "),
       card.actions.slice(0, 12).map(function (action) { return [action.type, action.text, action.author].join(" "); }).join(" "),
       card.priorFeedback.map(function (item) { return item.correctionText || ""; }).join(" ")
@@ -551,6 +627,10 @@
     }
     if (card.attachmentCount) {
       insights.push(card.attachmentCount + " attachment" + (card.attachmentCount === 1 ? "" : "s") + " may contain supporting detail.");
+      insights.push("Attachment metadata includes: " + summarizeAttachmentCategories(card.attachments) + ".");
+      if (card.attachments.some(function (attachment) { return !attachment.extractedTextAvailable; })) {
+        risks.push("Attachment contents were not verified; only attachment metadata is available for one or more file(s).");
+      }
     }
     if (card.actions.length) {
       insights.push("Recent activity included: " + card.actions.slice(0, 3).map(function (action) {
@@ -671,6 +751,7 @@
       listContext: card.listContext,
       customFields: card.customFields,
       activity: card.actions.slice(0, 12),
+      attachments: compactAttachmentsForPrompt(card.attachments),
       sensitiveSignals: detectSensitiveSignals(input),
       priorFeedback: card.priorFeedback,
       checklistProgress: card.checklistStats,
@@ -685,6 +766,8 @@
         commentsIncluded: comments.length,
         activityItemsAvailable: card.actions.length,
         activityItemsIncluded: Math.min(card.actions.length, 12),
+        attachmentsAvailable: card.attachments.length,
+        attachmentsIncluded: Math.min(card.attachments.length, 12),
         listContextCards: card.listContext ? card.listContext.sampledCards : 0,
         customFieldsIncluded: card.customFields.length,
         priorFeedbackItems: card.priorFeedback.length
@@ -709,7 +792,7 @@
       "  \"risks\": [\"deadline, quality, communication, financial, legal, or client-sensitive risk\"],",
       "  \"missingInfo\": [\"missing data that limits confidence\"],",
       "  \"recommendations\": [\"practical recommendation\"],",
-      "  \"evidenceClaims\": [{\"claim\":\"factual claim\",\"source\":\"title|description|comment|checklist|label|member|due|attachment\",\"confidence\":\"supported|uncertain\"}],",
+      "  \"evidenceClaims\": [{\"claim\":\"factual claim\",\"source\":\"title|description|comment|activity|checklist|label|member|due|attachment|custom-field\",\"confidence\":\"supported|uncertain\"}],",
       "  \"validationFindings\": [\"unsupported, conflicting, incomplete, or attachment-extraction issue\"],",
       "  \"confidence\": \"high|medium|low\",",
       "  \"confidenceReason\": \"brief explanation from data completeness and evidence coverage\"",
@@ -908,7 +991,11 @@
         memberCreator: { fullName: "Maya" },
         data: { card: { name: "Prepare launch checklist" } }
       }],
-      attachments: [{ name: "launch-plan.pdf" }],
+      attachments: [
+        { name: "launch-plan.pdf", mimeType: "application/pdf" },
+        { name: "kickoff-transcript.txt", mimeType: "text/plain" },
+        { name: "demo-recording.mp4", mimeType: "video/mp4" }
+      ],
       customFields: [
         { name: "Priority", value: { text: "High" } },
         { name: "Release window", value: { text: "This week" } }
@@ -929,6 +1016,7 @@
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,
     normalizeActions: normalizeActions,
+    normalizeAttachments: normalizeAttachments,
     normalizeCardData: normalizeCardData,
     sampleCardData: sampleCardData
   };

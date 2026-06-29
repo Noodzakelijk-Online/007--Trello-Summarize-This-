@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Summarize This</title>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
-  <script src="./summarizer-core.js?v=1.2.0"></script>
-  <script src="./card-intelligence-ledger.js?v=1.2.0"></script>
+  <script src="./summarizer-core.js?v=1.3.0"></script>
+  <script src="./card-intelligence-ledger.js?v=1.3.0"></script>
   <style>
     :root {
       color-scheme: light;
@@ -1512,6 +1512,7 @@
         var values = allEvidence.slice(0, 10);
         preserveEvidenceType(values, allEvidence, "custom-field", 2);
         preserveEvidenceType(values, allEvidence, "activity", 2);
+        preserveEvidenceType(values, allEvidence, "attachment", 3);
         if (!values.length) {
           var empty = document.createElement("li");
           empty.textContent = "No evidence references were created.";
@@ -1538,9 +1539,20 @@
             return visible && visible.path === item.path;
           });
           if (alreadyVisible) return;
-          if (values.length >= 10) values.pop();
+          if (values.length >= 10) {
+            values.splice(findEvidenceRemovalIndex(values), 1);
+          }
           values.push(item);
         });
+      }
+
+      function findEvidenceRemovalIndex(values) {
+        for (var index = values.length - 1; index >= 0; index -= 1) {
+          if (!values[index] || ["custom-field", "activity", "attachment"].indexOf(values[index].type) === -1) {
+            return index;
+          }
+        }
+        return values.length - 1;
       }
 
       function renderListContext(listContext) {
