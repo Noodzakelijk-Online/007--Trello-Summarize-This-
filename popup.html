@@ -586,6 +586,11 @@
         </article>
 
         <article class="panel">
+          <h2 class="section-title">Waiting on</h2>
+          <ul id="waitingOnList" class="compact-list"></ul>
+        </article>
+
+        <article class="panel">
           <h2 class="section-title">Robert decisions</h2>
           <ul id="robertDecisionsList" class="compact-list"></ul>
         </article>
@@ -751,6 +756,10 @@
           <label class="checkbox-row">
             <input type="checkbox" value="blockers">
             <span>Blockers</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="waiting-on">
+            <span>Waiting on</span>
           </label>
           <label class="checkbox-row">
             <input type="checkbox" value="next-actions">
@@ -1622,6 +1631,7 @@
         renderList("risksList", summary.risks, "No material risks detected.");
         renderList("recommendationsList", summary.recommendations, "No recommendations available.");
         renderOperationalList("blockersList", result ? result.blockers : [], "No blockers detected.");
+        renderOperationalList("waitingOnList", result ? result.waitingOn : [], "No waiting state detected.");
         renderOperationalList("robertDecisionsList", result ? result.robertDecisions : [], "No Robert-specific decision detected.");
         renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
         renderOperationalList("unresolvedQuestionsList", result ? result.unresolvedQuestions : [], "No unresolved questions detected.");
@@ -1901,6 +1911,7 @@
           "overview": "Overview",
           "history-status": "History / status",
           "blockers": "Blockers",
+          "waiting-on": "Waiting on",
           "next-actions": "Next actions",
           "robert-decisions": "Robert decisions",
           "va-team-actions": "VA/team-ready actions",

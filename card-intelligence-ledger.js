@@ -14,6 +14,11 @@
     "dependency", "issue", "problem", "need approval", "needs approval",
     "pending", "no response", "external", "invoice", "payment"
   ];
+  var WAITING_WORDS = [
+    "waiting", "wait on", "waiting on", "pending", "no response", "blocked until",
+    "depends on", "dependent on", "dependency", "external", "client reply", "approval",
+    "confirm", "invoice", "payment"
+  ];
   var ROBERT_DECISION_WORDS = [
     "robert", "approve", "approval", "decision", "decide", "confirm",
     "permission", "budget", "payment", "invoice", "legal", "client",
@@ -792,6 +797,51 @@
     return dedupeItems(blockers);
   }
 
+  function extractWaitingOn(input, summary, evidence, blockers) {
+    var card = normalizeCard(input);
+    var waiting = [];
+    var sourceText = [
+      card.title,
+      card.description,
+      cleanText(summary && (summary.status || summary.currentStatus)),
+      toArray(summary && summary.waitingOn).join(" "),
+      toArray(summary && summary.blockers).join(" "),
+      toArray(summary && summary.risks).join(" "),
+      card.comments.map(function (comment) { return comment.text; }).join(" "),
+      card.actions.map(function (action) { return action.text; }).join(" ")
+    ].join(" ");
+
+    toArray(summary && summary.waitingOn).forEach(function (text, index) {
+      var cleaned = cleanText(text);
+      if (!cleaned) return;
+      waiting.push(makeItem("waiting-ai-" + (index + 1), cleaned, findEvidenceIds(evidence, ["description", "comment", "activity", "checklist", "attachment"]), {
+        owner: detectWaitingOwner(cleaned, card),
+        severity: includesAny(cleaned, ["legal", "payment", "invoice", "overdue", "client"]) ? "high" : "medium",
+        category: "ai-structured"
+      }));
+    });
+
+    toArray(blockers).forEach(function (item, index) {
+      var text = cleanText(item && item.text);
+      if (!includesAny(text, WAITING_WORDS)) return;
+      waiting.push(makeItem("waiting-blocker-" + (index + 1), text, item.sourceIds || findEvidenceIds(evidence, ["description", "comment"]), {
+        owner: detectWaitingOwner(text, card),
+        severity: item.severity || "medium",
+        category: "blocker"
+      }));
+    });
+
+    if (includesAny(sourceText, WAITING_WORDS)) {
+      waiting.push(makeItem("waiting-text", "Card appears to be waiting on an approval, reply, missing input, or external dependency.", findEvidenceIds(evidence, ["description", "comment", "activity"]), {
+        owner: detectWaitingOwner(sourceText, card),
+        severity: includesAny(sourceText, ["legal", "payment", "invoice", "overdue", "client"]) ? "high" : "medium",
+        category: "text-signal"
+      }));
+    }
+
+    return dedupeItems(waiting).slice(0, 6);
+  }
+
   function getDueState(card) {
     if (!card.due || card.dueComplete) return "none";
     var due = new Date(card.due);
@@ -831,6 +881,15 @@
     if (lower.indexOf("robert") !== -1) return "Robert";
     if (lower.indexOf("va") !== -1 || lower.indexOf("assistant") !== -1) return "VA/team";
     return card.members[0] || "";
+  }
+
+  function detectWaitingOwner(text, card) {
+    var lower = cleanText(text).toLowerCase();
+    if (lower.indexOf("robert") !== -1) return "Robert";
+    if (lower.indexOf("va") !== -1 || lower.indexOf("assistant") !== -1) return "VA/team";
+    if (includesAny(lower, ["client", "customer", "external", "vendor", "supplier", "partner", "no response", "reply"])) return "External party";
+    if (includesAny(lower, ["invoice", "payment", "budget"])) return "Robert/finance";
+    return card.members[0] || "Owner to confirm";
   }
 
   function extractRobertDecisions(input, summary, evidence) {
@@ -914,7 +973,7 @@
     return findings;
   }
 
-  function createUnresolvedQuestions(summary, missingInfo, blockers, decisions, validationFindings, evidence) {
+  function createUnresolvedQuestions(summary, missingInfo, blockers, waitingOn, decisions, validationFindings, evidence) {
     var questions = [];
 
     toArray(summary && summary.unresolvedQuestions).forEach(function (item, index) {
@@ -935,6 +994,14 @@
       var text = cleanText(item && item.text);
       if (!text) return;
       questions.push(makeQuestion("question-blocker-" + (index + 1), "blocker", "What is needed to clear this blocker? " + text, item.sourceIds, severity, "Owner to confirm"));
+    });
+
+    toArray(waitingOn).forEach(function (item, index) {
+      var severity = cleanText(item && item.severity);
+      if (severity === "low") return;
+      var text = cleanText(item && item.text);
+      if (!text) return;
+      questions.push(makeQuestion("question-waiting-" + (index + 1), "waiting-on", "Who or what must respond to unblock this waiting state? " + text, item.sourceIds, severity || "medium", item.owner || "Owner to confirm"));
     });
 
     toArray(decisions).forEach(function (item, index) {
@@ -1120,12 +1187,14 @@
     var evidence = createEvidenceMap(input);
     var normalizedSummary = summary || {};
     var blockers = extractBlockers(input, normalizedSummary, evidence);
+    var waitingOn = extractWaitingOn(input, normalizedSummary, evidence, blockers);
     var nextActions = extractNextActions(input, normalizedSummary, evidence);
     var robertDecisions = extractRobertDecisions(input, normalizedSummary, evidence);
     var vaReadyActions = extractVaReadyActions(input, normalizedSummary, evidence);
     var evidenceClaims = createEvidenceClaims(normalizedSummary, evidence);
     var operational = {
       blockers: blockers,
+      waitingOn: waitingOn,
       nextActions: nextActions,
       robertDecisions: robertDecisions,
       vaReadyActions: vaReadyActions,
@@ -1156,6 +1225,7 @@
       summary,
       missingInfo,
       operational.blockers,
+      operational.waitingOn,
       operational.robertDecisions,
       operational.validationFindings,
       operational.evidence
@@ -1187,6 +1257,7 @@
           ? toArray(summary.completedWork)
           : card.checklistSummary.complete ? [card.checklistSummary.complete + " checklist item(s) complete."] : [],
         blockers: operational.blockers,
+        waitingOn: operational.waitingOn,
         nextActions: operational.nextActions,
         robertDecisions: operational.robertDecisions,
         vaReadyActions: operational.vaReadyActions,
@@ -1269,6 +1340,7 @@
     compareNumber("Comment count", currentSnapshot.commentCount, previousSnapshot.commentCount, changes);
     compareNumber("Attachment count", currentSnapshot.attachmentCount, previousSnapshot.attachmentCount, changes);
     compareNumber("Detected blocker count", toArray(currentResult.blockers).length, toArray(previousResult.blockers).length, changes);
+    compareNumber("Waiting-on item count", toArray(currentResult.waitingOn).length, toArray(previousResult.waitingOn).length, changes);
     compareNumber("Robert decision count", toArray(currentResult.robertDecisions).length, toArray(previousResult.robertDecisions).length, changes);
     compareNumber("VA/team-ready action count", toArray(currentResult.vaReadyActions).length, toArray(previousResult.vaReadyActions).length, changes);
 
@@ -1493,6 +1565,8 @@
     ];
 
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "## Waiting on");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "## Next actions");
     appendItems(lines, result.nextActions, "No next actions detected.");
     lines.push("", "## Robert decisions");
@@ -1527,6 +1601,8 @@
     ];
 
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Waiting on:");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Next actions:");
     appendItems(lines, result.nextActions, "No next actions detected.");
     lines.push("", "Robert decisions:");
@@ -1555,6 +1631,7 @@
       "",
       "Top next action: " + firstItemText(result.nextActions, "No next action detected."),
       "Main blocker: " + firstItemText(result.blockers, "No blocker detected."),
+      "Waiting on: " + firstItemText(result.waitingOn, "No waiting state detected."),
       "Open question: " + firstItemText(result.unresolvedQuestions, "No unresolved question detected."),
       "Robert decision: " + firstItemText(result.robertDecisions, "No Robert-specific decision detected."),
       "VA/team handoff: " + firstItemText(result.vaReadyActions, "No VA/team-ready action detected."),
@@ -1587,6 +1664,8 @@
     appendDecisionFraming(lines, result.robertDecisions);
     lines.push("", "Blockers to consider:");
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Waiting on:");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Recommended next action:");
@@ -1618,6 +1697,8 @@
     appendItems(lines, result.nextActions, "No next actions detected.");
     lines.push("", "Blockers to avoid:");
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Waiting on:");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Robert decisions not delegated:");
@@ -1652,6 +1733,8 @@
       "Risks and blockers:"
     ];
     appendItems(lines, toArray(result.risks).concat(toArray(result.blockers)), "No risks or blockers detected.");
+    lines.push("", "Waiting on:");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Missing information:");
     appendItems(lines, result.missingInfo, "No missing information detected.");
     lines.push("", "Unresolved questions:");
@@ -1684,6 +1767,8 @@
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "Follow-up actions:");
     appendItems(lines, result.nextActions, "No follow-up actions detected.");
+    lines.push("", "Waiting on:");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "VA/team handoff:");
@@ -1707,6 +1792,8 @@
     appendCheckboxItems(lines, result.vaReadyActions, "No VA/team-ready action detected.");
     lines.push("", "Blocked by:");
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Waiting on:");
+    appendCheckboxItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Questions to resolve:");
     appendCheckboxItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     appendEvidenceClaimSummary(lines, result, "Evidence-backed claims:", 4);
@@ -1729,6 +1816,9 @@
     ];
     if (toArray(result.blockers).length) {
       lines.push("", "Open item:", firstItemText(result.blockers, "No open item detected."));
+    }
+    if (toArray(result.waitingOn).length) {
+      lines.push("", "Waiting on:", firstItemText(result.waitingOn, "No waiting state detected."));
     }
     appendSourceCoverageSummary(lines, run, "Source coverage:", 4);
     return lines.join("\n");
@@ -1777,6 +1867,8 @@
     ];
 
     appendItems(lines, result.blockers, "No blockers detected.");
+    lines.push("", "Waiting on:");
+    appendItems(lines, result.waitingOn, "No waiting state detected.");
     lines.push("", "Next actions:");
     appendItems(lines, result.nextActions, "No next actions detected.");
     lines.push("", "Unresolved questions:");
@@ -1791,8 +1883,13 @@
     }
     appendEvidenceClaimSummary(lines, result, "Evidence notes:", 3);
     appendSourceCoverageSummary(lines, run, "Source coverage:", 4);
-    lines.push("", "Review note: this draft was generated by Summarize This and should be reviewed before use.");
-    return lines.join("\n").slice(0, 4000);
+    var reviewNote = "Review note: this draft was generated by Summarize This and should be reviewed before use.";
+    var draft = lines.join("\n");
+    var suffix = "\n\n" + reviewNote;
+    if (draft.length + suffix.length > 4000) {
+      return draft.slice(0, 4000 - suffix.length).replace(/\s+$/, "") + suffix;
+    }
+    return draft + suffix;
   }
 
   function appendDecisionFraming(lines, decisions) {

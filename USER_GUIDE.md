@@ -108,7 +108,7 @@ Each analysis includes a confidence score (0-100%):
 
 ### Review and Corrections
 
-The Review / correction panel stores feedback privately for the same card. When marking an analysis wrong, select the specific section that was wrong or incomplete, such as blockers, next actions, Robert decisions, VA/team-ready actions, evidence/validation, or unresolved questions. The next analysis receives those compact section-specific corrections as guidance, but they are still treated as user feedback rather than verified Trello facts.
+The Review / correction panel stores feedback privately for the same card. When marking an analysis wrong, select the specific section that was wrong or incomplete, such as blockers, waiting-on items, next actions, Robert decisions, VA/team-ready actions, evidence/validation, or unresolved questions. The next analysis receives those compact section-specific corrections as guidance, but they are still treated as user feedback rather than verified Trello facts.
 
 ---
 
@@ -440,8 +440,8 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 ### Active Popup Handoff Formats
 
 - **Copy selected mode brief**: uses the saved output mode, such as meeting brief, risk review, status update, next-action checklist, or client-friendly summary.
-- **Copy Robert decisions**: creates a focused Robert decision brief with Yes/No framing, blockers, unresolved questions, confidence, evidence claims, and source coverage.
-- **Copy VA handoff**: creates a VA/team handoff brief that separates delegated work and unresolved questions from Robert-only decisions.
+- **Copy Robert decisions**: creates a focused Robert decision brief with Yes/No framing, blockers, waiting states, unresolved questions, confidence, evidence claims, and source coverage.
+- **Copy VA handoff**: creates a VA/team handoff brief that separates delegated work, waiting states, and unresolved questions from Robert-only decisions.
 - **Copy status update**: creates a compact status message for email, chat, or Trello.
 - **Copy JSON / Download JSON**: exports the compact card intelligence ledger for Sneup, HAI, or another structured workflow.
 

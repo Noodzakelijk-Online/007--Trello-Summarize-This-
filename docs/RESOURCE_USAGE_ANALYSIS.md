@@ -16,11 +16,11 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 252.8 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 394.6 KB.
+- Active popup initial local files: about 258.2 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 400.0 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.58 MB.
-- Generated Windows installer executable: 245,760 bytes.
-- Large-card AI prompt after caps: 19,105 characters.
+- Generated Windows installer executable: 247,808 bytes.
+- Large-card AI prompt after caps: 19,212 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -36,6 +36,7 @@ Current results:
    - Larger context settings are user-selected and warn that more Trello content is sent to the configured AI provider.
    - Output modes add a short prompt focus instruction without changing default comment or description caps.
    - Output language adds a short prompt instruction and compact ledger metadata without changing default comment or description caps.
+   - Waiting-on extraction reuses bounded card, comment, activity, blocker, and AI summary context instead of adding another Trello read.
    - List context is bounded to at most 25 current-list card titles, labels, and due states, and can be disabled in settings.
    - Custom fields are capped to 25 compact name/value/type records, with values capped to 180 characters each.
 
@@ -72,6 +73,7 @@ Current results:
    - Plain text, status update, Robert decision, VA/team handoff, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
    - Unresolved questions are compact derived records capped to 10 items and reuse existing evidence/source ids instead of storing full card text.
+   - Waiting-on items are compact derived records capped to 6 items and reuse existing evidence/source ids instead of storing full card text.
    - Human-readable export evidence/source notes are bounded to compact claim and source-coverage summaries instead of duplicating full card content.
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
@@ -96,7 +98,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 380.9 KB, and the generated `SummarizeThisSetup.exe` is 240,128 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 400.0 KB, and the generated `SummarizeThisSetup.exe` is 247,808 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

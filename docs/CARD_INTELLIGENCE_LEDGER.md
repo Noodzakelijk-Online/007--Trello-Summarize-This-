@@ -12,10 +12,11 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `AnalysisRun`: provider/model metadata, input hash, timing, structured result, and audit event.
 - `EvidenceClaim`: summary claims linked to card title, description, list, due date, checklist, comment, activity, attachment, label, member, or custom-field evidence.
 - `Blocker`: explicit and implied blockers from card text, missing context, overdue state, low checklist progress, and attachment extraction limitations.
+- `WaitingOn`: explicit waiting states, external replies, approvals, missing input, and dependency signals that block movement.
 - `NextAction`: extracted next steps plus open checklist items.
 - `DecisionItem`: Robert-specific approval or Yes/No decision candidates.
 - `VA/team-ready action`: delegate-ready actions that do not require Robert approval.
-- `UnresolvedQuestion`: open questions derived from AI output, missing information, blockers, validation findings, and Robert decisions.
+- `UnresolvedQuestion`: open questions derived from AI output, missing information, blockers, waiting states, validation findings, and Robert decisions.
 - `ValidationFinding`: missing context, attachment metadata-only state, weak next actions, and decision review signals.
 - `ReviewRecord`: private analysis review state such as reviewed, accepted, or needs follow-up.
 - `HumanFeedback`: private correction/rating records, including the specific output sections the user marked wrong or incomplete.
@@ -25,8 +26,8 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `Activity`: compact recent non-comment Trello action metadata when available.
 - `AttachmentMetadata`: compact attachment name/type/category/status records for documents, transcripts, recordings, spreadsheets, presentations, images, links, and generic files.
 - `CustomField`: compact normalized custom field name/value/type metadata when Trello exposes custom field items.
-- History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
-- Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
+- History comparison: source-data, description, checklist, comment, attachment, blocker, waiting-state, decision, VA action, and confidence changes between runs.
+- Operational AI schema: providers are prompted to return blockers, waiting-on items, next actions, Robert decisions, VA-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
 - Operational item display: popup lists and human-readable exports preserve compact owner, priority, severity, risk, category, Robert-required, and delegation metadata where available.
 - Ledger export formats: the popup can copy markdown, plain text, status/email text, copy structured JSON, and download compact JSON for Sneup/HAI-style ingestion.
 - Trello comment approval: the popup generates an exact comment draft, supports copy-only use, and only attempts Trello posting after the user checks an approval box and confirms the action.
@@ -44,7 +45,7 @@ The active popup stores ledger history, feedback, and export records in Trello m
 
 Local preview mode uses `localStorage` for the same keys. The popup no longer silently writes the latest analysis into shared card storage.
 
-Feedback records remain compact. Correction text is capped, and `incorrectSections` stores only section ids such as `blockers`, `next-actions`, `robert-decisions`, `va-team-actions`, `evidence-validation`, and `unresolved-questions`. Prior feedback is included in later prompts as correction guidance only, not as verified card evidence.
+Feedback records remain compact. Correction text is capped, and `incorrectSections` stores only section ids such as `blockers`, `waiting-on`, `next-actions`, `robert-decisions`, `va-team-actions`, `evidence-validation`, and `unresolved-questions`. Prior feedback is included in later prompts as correction guidance only, not as verified card evidence.
 
 ## Current Limits
 

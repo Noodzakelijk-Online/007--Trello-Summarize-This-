@@ -17,12 +17,12 @@ Status: First working slice implemented in `card-intelligence-ledger.js` and `po
 Implemented:
 
 - Creates a private analysis run per card with a card snapshot, input hash, provider/model metadata, structured result, evidence claims, validation findings, and audit event.
-- Extracts blockers, next actions, Robert decision items, VA/team-ready actions, and unresolved questions from the existing summary and card data.
+- Extracts blockers, waiting-on items, next actions, Robert decision items, VA/team-ready actions, and unresolved questions from the existing summary and card data.
 - Shows compact operational metadata such as owner, priority, severity, risk, category, Robert-required status, and delegation safety in popup lists and copied briefs.
 - Stores history, review state, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
 - Reads matching prior corrections back into the next analysis run as guidance, while keeping them distinct from verified Trello evidence.
 - Avoids silently writing analysis results to shared card storage.
-- Shows evidence, validation, decision, blocker, unresolved-question, review-state, export/postback history, prior-correction, and correction panels in the active popup.
+- Shows evidence, validation, decision, blocker, waiting-on, unresolved-question, review-state, export/postback history, prior-correction, and correction panels in the active popup.
 
 Impact: High. This turns the active popup into the first real card intelligence layer instead of only a summary display.
 
@@ -88,7 +88,7 @@ Status: Implemented through the operational AI schema, ledger extraction, settin
 
 Implemented:
 
-- AI providers are now prompted to return blockers, next actions, Robert decisions, VA/team-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
+- AI providers are now prompted to return blockers, waiting-on items, next actions, Robert decisions, VA/team-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
 - The ledger preserves these structured AI fields when present and still falls back to deterministic extraction.
 - Settings now include user-selectable output modes:
   - Operational ledger.
@@ -180,7 +180,7 @@ Status: Implemented in the active popup and ledger export records.
 Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
 - Feedback records now store the card id and title, so corrections can be matched back to the same card.
-- The correction panel lets the user select the exact wrong or incomplete output sections, including blockers, next actions, Robert decisions, VA/team-ready actions, evidence/validation, and unresolved questions.
+- The correction panel lets the user select the exact wrong or incomplete output sections, including blockers, waiting-on items, next actions, Robert decisions, VA/team-ready actions, evidence/validation, and unresolved questions.
 - The next run reads recent matching corrections from private storage and includes compact correction guidance in local analysis, AI prompts, source coverage, and the popup.
 - Prior corrections are shown as guidance, not as verified Trello facts, to avoid turning user feedback into unsupported claims.
 - Sensitive detection also sees correction text before provider handoff, so sensitive feedback does not silently travel to AI providers.
@@ -294,8 +294,8 @@ Recommendation:
   - Structured JSON for Sneup/HAI ingestion. Implemented.
   - Trello comment. Implemented as an approval-gated draft/post flow with compact evidence/source notes when the Trello runtime exposes a supported comment API.
   - Email/status update. Implemented as a copy-ready status format with compact source coverage.
-  - Robert decision brief. Implemented as a copy-ready brief with Yes/No framing, blockers, confidence, evidence claims, and source coverage.
-  - VA/team handoff brief. Implemented as a copy-ready handoff separating delegated actions from Robert-only decisions.
+  - Robert decision brief. Implemented as a copy-ready brief with Yes/No framing, blockers, waiting states, confidence, evidence claims, and source coverage.
+  - VA/team handoff brief. Implemented as a copy-ready handoff separating delegated actions, waiting states, and unresolved questions from Robert-only decisions.
 - Show recent export/postback records. Implemented as a private per-card popup panel filtered to the current card's analysis run ids.
 
 Impact: Medium. Low implementation cost, high workflow usefulness.
