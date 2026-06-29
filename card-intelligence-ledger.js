@@ -161,9 +161,12 @@
       }
       var error = cleanText(attachment.error);
       var extractedText = cleanText(attachment.extractedText || attachment.text);
-      var extractedTextAvailable = Boolean(extractedText);
+      var extractedTextPreview = extractedText
+        ? limitText(extractedText, 700)
+        : cleanText(attachment.extractedTextPreview);
+      var extractedTextAvailable = Boolean(extractedText || attachment.extractedTextAvailable);
       var processed = attachment.processed === true;
-      var extractionStatus = cleanText(attachment.extractionStatus);
+      var extractionStatus = cleanText(attachment.extractionStatus || attachment.status);
       var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : extractionStatus || (processed ? "metadata-only" : "not-extracted");
       return {
         id: cleanText(attachment.id || "attachment-" + (index + 1)),
@@ -174,7 +177,7 @@
         bytes: toNumber(attachment.bytes || attachment.size),
         processed: processed,
         extractedTextAvailable: extractedTextAvailable,
-        extractedTextPreview: limitText(extractedText, 700),
+        extractedTextPreview: extractedTextPreview,
         status: status,
         error: error,
         url: cleanText(attachment.url)
@@ -215,6 +218,53 @@
     return Object.keys(counts).sort().map(function (category) {
       return counts[category] + " " + category + (counts[category] === 1 ? "" : "s");
     }).join(", ");
+  }
+
+  function createAttachmentFacts(cardOrRun) {
+    var card = cardOrRun && cardOrRun.cardSnapshot
+      && Array.isArray(cardOrRun.cardSnapshot.attachments)
+      ? cardOrRun.cardSnapshot
+      : normalizeCard(cardOrRun || {});
+    var attachments = normalizeAttachments(card.attachments || []);
+    var extracted = attachments.filter(function (attachment) {
+      return attachment.extractedTextAvailable;
+    });
+    var failed = attachments.filter(function (attachment) {
+      return attachment.status === "failed" || attachment.error;
+    });
+    var metadataOnly = attachments.filter(function (attachment) {
+      return !attachment.extractedTextAvailable && attachment.status !== "failed";
+    });
+    var facts = attachments.slice(0, 8).map(function (attachment) {
+      var statusLabel = attachment.extractedTextAvailable
+        ? "text extracted"
+        : attachment.status === "failed"
+          ? "failed"
+          : "metadata only";
+      var detail = attachment.name + " [" + attachment.category + "; " + statusLabel + "]";
+      if (attachment.extractedTextPreview) detail += ": " + limitText(attachment.extractedTextPreview, 180);
+      if (attachment.error) detail += " (" + attachment.error + ")";
+      return {
+        id: attachment.id,
+        name: attachment.name,
+        category: attachment.category,
+        status: attachment.status,
+        extractedTextAvailable: attachment.extractedTextAvailable,
+        detail: detail
+      };
+    });
+
+    return {
+      total: attachments.length,
+      extracted: extracted.length,
+      metadataOnly: metadataOnly.length,
+      failed: failed.length,
+      categories: summarizeAttachmentCategories(attachments) || "none",
+      facts: facts,
+      summary: attachments.length
+        ? attachments.length + " attachment(s): " + extracted.length + " text extracted, " + metadataOnly.length + " metadata-only, " + failed.length + " failed."
+        : "No attachments were available."
+    };
   }
 
   function valueFromCustomField(item) {
@@ -2175,6 +2225,7 @@
 
   return {
     createAnalysisRun: createAnalysisRun,
+    createAttachmentFacts: createAttachmentFacts,
     createCardSnapshot: createCardSnapshot,
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,

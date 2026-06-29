@@ -287,12 +287,12 @@ Implemented:
 - Settings now include an off-by-default option to extract small HTTPS text-like attachments (`.txt`, `.md`, `.csv`, `.tsv`) with strict attachment count, byte, timeout, and character caps.
 - If attachment metadata or card context already contains sensitive signals, text/CSV extraction remains metadata-only until the user approves the sensitive run.
 - Extracted text previews are bounded before they enter source coverage, evidence, ledger JSON, or AI prompt context.
+- The active popup now shows a separate Attachment facts panel with category counts, extraction status, metadata-only files, failures, and bounded extracted text previews.
 - PDFs, Word files, spreadsheets other than CSV/TSV, images, audio, video, and arbitrary links remain metadata-only in the active popup.
 
 Recommendation:
 
 - Prefer backend extraction for PDFs/docs to avoid browser-side arbitrary fetch risks.
-- Show attachment-derived facts separately so users know where claims came from.
 
 Impact: Medium-high, but should be implemented carefully for security and resource use.
 

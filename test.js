@@ -563,6 +563,12 @@ assert.ok(attachmentRun.result.validationFindings.some(item => item.id === "atta
 assert.ok(attachmentRun.result.validationFindings.some(item => item.id === "attachment-recording-unverified"));
 assert.ok(attachmentRun.result.missingInfo.some(item => item.id === "attachment-transcript-unverified"));
 assert.ok(attachmentRun.result.evidence.some(item => item.type === "attachment" && item.excerpt.includes("[recording]")));
+const attachmentFacts = CardIntelligenceLedger.createAttachmentFacts(sample);
+assert.equal(attachmentFacts.total, 3);
+assert.equal(attachmentFacts.extracted, 0);
+assert.ok(attachmentFacts.summary.includes("metadata-only"));
+assert.ok(attachmentFacts.categories.includes("recording"));
+assert.ok(attachmentFacts.facts.some(item => item.detail.includes("demo-recording.mp4") && item.detail.includes("metadata only")));
 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
   now: "2026-06-29T12:00:00.000Z",
@@ -1249,6 +1255,10 @@ async function runAsyncTests() {
     assert.ok(promptWithAttachmentText.attachments.some(item => item.name === "notes.txt" && item.textPreview.includes("Line one")));
     const extractedRun = CardIntelligenceLedger.createAnalysisRun(extractedCard, local);
     assert.ok(extractedRun.result.evidence.some(item => item.type === "attachment" && item.excerpt.includes("Line one")));
+    const extractedFacts = CardIntelligenceLedger.createAttachmentFacts(extractedCard);
+    assert.equal(extractedFacts.extracted, 1);
+    assert.equal(extractedFacts.metadataOnly, 1);
+    assert.ok(extractedFacts.facts.some(item => item.name === "notes.txt" && item.detail.includes("Line one")));
   } finally {
     global.fetch = originalFetch;
   }

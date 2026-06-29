@@ -16,9 +16,9 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 297.2 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 443.2 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.65 MB.
+- Active popup initial local files: about 300.6 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 446.6 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.66 MB.
 - Generated Windows installer executable: 272,896 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
@@ -87,7 +87,7 @@ Current results:
    - The batch analysis plan is generated on demand from the same bounded list context, capped to 12 queue seed cards, and does not run AI, fetch neighboring full card bodies, or start background processing.
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
-   - Attachment intelligence is metadata-first, capped to 25 normalized records and 12 AI prompt/evidence records.
+   - Attachment intelligence is metadata-first, capped to 25 normalized records and 12 AI prompt/evidence records. The Attachment facts panel renders from the same existing normalized records and caps visible facts to 8 rows.
    - Optional text/CSV extraction is off by default and only fetches small HTTPS text-like files, up to 5 attachments, 200 KB each, 3,000 extracted characters each, and a 10-second fetch timeout. Sensitive cards stay metadata-only until approval.
    - PDF, Word, image, audio, video, and arbitrary link attachments remain metadata-only in the active popup.
    - Custom prompt guidance is capped to 600 characters, saved prompt templates are capped to 10 member-private records, and ledger exports store only prompt/language metadata, not the full guidance text.

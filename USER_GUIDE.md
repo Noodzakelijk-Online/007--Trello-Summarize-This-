@@ -235,7 +235,8 @@ Other files remain metadata-only in the active popup:
 1. **Metadata detection**: Attachment names, MIME types, extensions, and categories are included as evidence.
 2. **Optional text extraction**: Enable **Extract small text/CSV attachment contents** in settings to fetch only small HTTPS text-like files.
 3. **Bounded previews**: Extracted text is capped before it appears in evidence, JSON exports, or AI prompt context.
-4. **Honest fallback**: Unsupported or disabled extraction is shown as metadata-only, not as verified attachment content.
+4. **Attachment facts panel**: The popup separates attachment facts from generic evidence, showing category counts, extraction status, metadata-only files, failures, and bounded text previews when available.
+5. **Honest fallback**: Unsupported or disabled extraction is shown as metadata-only, not as verified attachment content.
 
 ### Library Status
 
