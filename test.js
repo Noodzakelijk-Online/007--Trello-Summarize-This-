@@ -50,6 +50,7 @@ assert.ok(prompt.includes("robertDecisions"));
 assert.ok(prompt.includes("vaReadyActions"));
 assert.ok(prompt.includes("unresolvedQuestions"));
 assert.ok(prompt.includes("waitingOn"));
+assert.ok(prompt.includes("unclearPoints"));
 assert.ok(prompt.includes("evidenceClaims"));
 assert.ok(prompt.includes("Prepare launch checklist"));
 assert.equal(SummarizeThis.normalizeOutputMode("risk-review"), "risk-review");
@@ -336,6 +337,7 @@ const aiSummary = SummarizeThis.normalizeAIAnalysis({
   insights: ["Useful insight"],
   risks: [],
   missingInfo: ["Invoice amount is not in the card"],
+  unclearPoints: [{ text: "Card says billing is complete but invoice amount is missing" }],
   unresolvedQuestions: ["Who owns the invoice amount confirmation?"],
   evidenceClaims: [{
     claim: "Billing is still open",
@@ -355,6 +357,7 @@ assert.deepEqual(aiSummary.waitingOn, ["Waiting on Robert approval and client in
 assert.deepEqual(aiSummary.robertDecisions, ["Approve VA follow-up? Yes/No"]);
 assert.deepEqual(aiSummary.vaReadyActions, ["VA collect the missing screenshot"]);
 assert.deepEqual(aiSummary.missingInfo, ["Invoice amount is not in the card"]);
+assert.deepEqual(aiSummary.unclearPoints, ["Card says billing is complete but invoice amount is missing"]);
 assert.deepEqual(aiSummary.unresolvedQuestions, ["Who owns the invoice amount confirmation?"]);
 assert.equal(aiSummary.evidenceClaims[0].claim, "Billing is still open");
 assert.equal(aiSummary.validationFindings[0], "Attachment contents were not verified");
@@ -369,6 +372,7 @@ const operationalCard = Object.assign({}, sample, {
   id: "card-robert-va",
   desc: "Client launch is waiting on invoice approval. Robert must approve whether the VA may send the follow-up today.",
   due: new Date(Date.now() - 86400000).toISOString(),
+  dueComplete: true,
   members: [],
   comments: [{
     text: "Blocked until Robert confirms yes/no on sending the payment reminder.",
@@ -486,12 +490,14 @@ assert.equal(run.promptProfile.customInstructionsPresent, true);
 assert.equal(run.promptProfile.customInstructionsCharacters, 67);
 assert.ok(run.result.blockers.length >= 2);
 assert.ok(run.result.waitingOn.length >= 1);
+assert.ok(run.result.unclearPoints.length >= 1);
 assert.ok(run.result.robertDecisions.length >= 1);
 assert.ok(run.result.vaReadyActions.length >= 1);
 assert.ok(run.result.unresolvedQuestions.length >= 1);
 assert.ok(run.result.nextActions.some(item => item.owner === "Robert" && item.priority === "high"));
 assert.ok(run.result.blockers.some(item => item.severity === "high" || item.severity === "medium"));
 assert.ok(run.result.waitingOn.some(item => item.owner === "Robert" || item.owner === "Robert/finance"));
+assert.ok(run.result.unclearPoints.some(item => item.id === "unclear-due-checklist"));
 assert.ok(run.result.robertDecisions.some(item => item.requiredBy === "Robert" && item.riskLevel));
 assert.ok(run.result.vaReadyActions.some(item => item.owner === "VA/team" && item.needsRobert === false));
 assert.ok(run.result.unresolvedQuestions.some(item => item.text.includes("Robert decision still open")));
@@ -553,6 +559,7 @@ const aiStructuredRun = CardIntelligenceLedger.createAnalysisRun(operationalCard
 });
 assert.ok(aiStructuredRun.result.blockers.some(item => item.text.includes("Waiting on Robert approval")));
 assert.ok(aiStructuredRun.result.waitingOn.some(item => item.text.includes("Waiting on Robert approval")));
+assert.ok(aiStructuredRun.result.unclearPoints.some(item => item.text.includes("billing is complete")));
 assert.ok(aiStructuredRun.result.robertDecisions.some(item => item.text.includes("Approve: Yes/No")));
 assert.ok(aiStructuredRun.result.vaReadyActions.some(item => item.text.includes("VA collect the missing screenshot")));
 assert.ok(aiStructuredRun.result.missingInfo.some(item => item.text.includes("Invoice amount")));
@@ -699,6 +706,7 @@ assert.equal(summarizedExports[5].exportLabel, "List planning JSON");
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
 assert.ok(ledgerMarkdown.includes("## Waiting on"));
+assert.ok(ledgerMarkdown.includes("## Unclear or conflicting points"));
 assert.ok(ledgerMarkdown.includes("## Unresolved questions"));
 assert.ok(ledgerMarkdown.includes("VA collect"));
 assert.ok(ledgerMarkdown.includes("owner: Robert"));
@@ -713,6 +721,7 @@ const ledgerPlainText = CardIntelligenceLedger.plainTextForLedgerRun(run);
 assert.ok(ledgerPlainText.includes("Trello Card Intelligence"));
 assert.ok(ledgerPlainText.includes("Missing information:"));
 assert.ok(ledgerPlainText.includes("Waiting on:"));
+assert.ok(ledgerPlainText.includes("Unclear or conflicting points:"));
 assert.ok(ledgerPlainText.includes("Robert decisions:"));
 assert.ok(ledgerPlainText.includes("Unresolved questions:"));
 assert.ok(ledgerPlainText.includes("Evidence-backed claims:"));
@@ -723,6 +732,7 @@ assert.ok(ledgerStatusUpdate.includes("Status update:"));
 assert.ok(ledgerStatusUpdate.includes("Top next action:"));
 assert.ok(ledgerStatusUpdate.includes("owner: Robert"));
 assert.ok(ledgerStatusUpdate.includes("Waiting on:"));
+assert.ok(ledgerStatusUpdate.includes("Unclear point:"));
 assert.ok(ledgerStatusUpdate.includes("Open question:"));
 assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
 assert.ok(ledgerStatusUpdate.includes("Source coverage:"));
@@ -732,6 +742,7 @@ assert.ok(robertDecisionBrief.includes("Robert decision brief:"));
 assert.ok(robertDecisionBrief.includes("Decision needed:"));
 assert.ok(robertDecisionBrief.includes("Yes/No framing:"));
 assert.ok(robertDecisionBrief.includes("Waiting on:"));
+assert.ok(robertDecisionBrief.includes("Unclear or conflicting points:"));
 assert.ok(robertDecisionBrief.includes("Unresolved questions:"));
 assert.ok(robertDecisionBrief.includes("Evidence-backed claims:"));
 assert.ok(robertDecisionBrief.includes("Source coverage:"));
@@ -742,6 +753,7 @@ assert.ok(vaHandoffBrief.includes("VA/team handoff:"));
 assert.ok(vaHandoffBrief.includes("VA/team-ready actions:"));
 assert.ok(vaHandoffBrief.includes("Blockers to avoid:"));
 assert.ok(vaHandoffBrief.includes("Waiting on:"));
+assert.ok(vaHandoffBrief.includes("Unclear or conflicting points:"));
 assert.ok(vaHandoffBrief.includes("Unresolved questions:"));
 assert.ok(vaHandoffBrief.includes("Robert decisions not delegated:"));
 assert.ok(vaHandoffBrief.includes("Evidence-backed claims:"));
@@ -752,6 +764,7 @@ const meetingBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run);
 assert.ok(meetingBrief.includes("Meeting brief:"));
 assert.ok(meetingBrief.includes("Decisions to cover:"));
 assert.ok(meetingBrief.includes("Waiting on:"));
+assert.ok(meetingBrief.includes("Unclear or conflicting points:"));
 assert.ok(meetingBrief.includes("Unresolved questions:"));
 assert.ok(meetingBrief.includes("Source coverage:"));
 
@@ -759,6 +772,7 @@ const riskBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run, "risk-review
 assert.ok(riskBrief.includes("Risk review:"));
 assert.ok(riskBrief.includes("Validation findings:"));
 assert.ok(riskBrief.includes("Waiting on:"));
+assert.ok(riskBrief.includes("Unclear or conflicting points:"));
 assert.ok(riskBrief.includes("Unresolved questions:"));
 assert.ok(riskBrief.includes("Evidence-backed claims:"));
 
@@ -767,6 +781,7 @@ assert.ok(checklistBrief.includes("Next-action checklist:"));
 assert.ok(checklistBrief.includes("- [ ]"));
 assert.ok(checklistBrief.includes("owner: Robert"));
 assert.ok(checklistBrief.includes("Waiting on:"));
+assert.ok(checklistBrief.includes("Unclear or conflicting points:"));
 assert.ok(checklistBrief.includes("Questions to resolve:"));
 assert.ok(checklistBrief.includes("Evidence-backed claims:"));
 
@@ -787,6 +802,7 @@ assert.equal(JSON.stringify(ledgerJson).includes("Prefer Yes/No decisions"), fal
 assert.equal(ledgerJson.cardSnapshot.description, undefined);
 assert.ok(Array.isArray(ledgerJson.result.blockers));
 assert.ok(Array.isArray(ledgerJson.result.waitingOn));
+assert.ok(Array.isArray(ledgerJson.result.unclearPoints));
 assert.ok(Array.isArray(ledgerJson.result.unresolvedQuestions));
 
 const trelloCommentDraft = CardIntelligenceLedger.createTrelloCommentDraft(run);
@@ -794,6 +810,7 @@ assert.ok(trelloCommentDraft.includes("Summarize This - Card Intelligence"));
 assert.ok(trelloCommentDraft.includes("Robert decisions:"));
 assert.ok(trelloCommentDraft.includes("VA/team-ready actions:"));
 assert.ok(trelloCommentDraft.includes("Waiting on:"));
+assert.ok(trelloCommentDraft.includes("Unclear or conflicting points:"));
 assert.ok(trelloCommentDraft.includes("Unresolved questions:"));
 assert.ok(trelloCommentDraft.includes("Confidence:"));
 assert.ok(trelloCommentDraft.includes("Evidence notes:"));

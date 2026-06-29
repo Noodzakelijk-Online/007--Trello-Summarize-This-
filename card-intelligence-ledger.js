@@ -29,6 +29,10 @@
     "attach", "screenshot", "check", "verify", "document", "status",
     "send", "schedule", "organize", "clean", "copy"
   ];
+  var UNCLEAR_WORDS = [
+    "contradict", "conflict", "conflicting", "unclear", "ambiguous",
+    "ambiguity", "inconsistent", "mismatch", "does not match", "cannot verify"
+  ];
 
   function cleanText(value) {
     if (value === null || value === undefined) return "";
@@ -842,6 +846,62 @@
     return dedupeItems(waiting).slice(0, 6);
   }
 
+  function extractUnclearPoints(input, summary, evidence, blockers, waitingOn) {
+    var card = normalizeCard(input);
+    var points = [];
+    var sourceText = [
+      card.title,
+      card.description,
+      cleanText(summary && (summary.status || summary.currentStatus)),
+      toArray(summary && summary.completedWork).join(" "),
+      toArray(summary && summary.blockers).join(" "),
+      toArray(summary && summary.waitingOn).join(" "),
+      toArray(summary && summary.risks).join(" "),
+      card.comments.map(function (comment) { return comment.text; }).join(" "),
+      card.actions.map(function (action) { return action.text; }).join(" ")
+    ].join(" ");
+
+    toArray(summary && summary.unclearPoints).forEach(function (text, index) {
+      var cleaned = cleanText(text);
+      if (!cleaned) return;
+      points.push(makeItem("unclear-ai-" + (index + 1), cleaned, findEvidenceIds(evidence, ["title", "description", "comment", "activity", "checklist", "attachment", "custom-field"]), {
+        severity: includesAny(cleaned, ["legal", "payment", "invoice", "client", "conflict", "contradict"]) ? "high" : "medium",
+        category: "ai-structured"
+      }));
+    });
+
+    toArray(summary && summary.validationFindings).forEach(function (text, index) {
+      var cleaned = cleanText(text);
+      if (!includesAny(cleaned, UNCLEAR_WORDS)) return;
+      points.push(makeItem("unclear-validation-" + (index + 1), cleaned, findEvidenceIds(evidence, ["title", "description", "comment", "checklist", "attachment"]), {
+        severity: includesAny(cleaned, ["legal", "payment", "invoice", "client"]) ? "high" : "medium",
+        category: "validation"
+      }));
+    });
+
+    if (card.dueComplete && card.checklistSummary.incomplete > 0) {
+      points.push(makeItem("unclear-due-checklist", "Due date is marked complete, but " + card.checklistSummary.incomplete + " checklist item(s) remain open.", findEvidenceIds(evidence, ["due", "checklist"]), {
+        severity: "high",
+        category: "status-conflict"
+      }));
+    }
+
+    if (hasCompletionClaim(sourceText) && (toArray(blockers).length || toArray(waitingOn).length || card.checklistSummary.incomplete > 0)) {
+      points.push(makeItem("unclear-complete-vs-open", "Card text suggests completion, but blockers, waiting states, or open checklist items still exist.", findEvidenceIds(evidence, ["description", "comment", "activity", "checklist"]), {
+        severity: "medium",
+        category: "status-conflict"
+      }));
+    }
+
+    return dedupeItems(points).slice(0, 6);
+  }
+
+  function hasCompletionClaim(text) {
+    var lower = cleanText(text).toLowerCase();
+    return /\b(card|task|work|this|it)\s+(is\s+)?(done|complete|completed|finished|closed)\b/.test(lower) ||
+      /\b(all done|ready to ship|ready to send|ready for release|marked complete)\b/.test(lower);
+  }
+
   function getDueState(card) {
     if (!card.due || card.dueComplete) return "none";
     var due = new Date(card.due);
@@ -973,7 +1033,7 @@
     return findings;
   }
 
-  function createUnresolvedQuestions(summary, missingInfo, blockers, waitingOn, decisions, validationFindings, evidence) {
+  function createUnresolvedQuestions(summary, missingInfo, blockers, waitingOn, unclearPoints, decisions, validationFindings, evidence) {
     var questions = [];
 
     toArray(summary && summary.unresolvedQuestions).forEach(function (item, index) {
@@ -1002,6 +1062,14 @@
       var text = cleanText(item && item.text);
       if (!text) return;
       questions.push(makeQuestion("question-waiting-" + (index + 1), "waiting-on", "Who or what must respond to unblock this waiting state? " + text, item.sourceIds, severity || "medium", item.owner || "Owner to confirm"));
+    });
+
+    toArray(unclearPoints).forEach(function (item, index) {
+      var severity = cleanText(item && item.severity);
+      if (severity === "low") return;
+      var text = cleanText(item && item.text);
+      if (!text) return;
+      questions.push(makeQuestion("question-unclear-" + (index + 1), "unclear-point", "Resolve this unclear or conflicting point before acting: " + text, item.sourceIds, severity || "medium", "Reviewer"));
     });
 
     toArray(decisions).forEach(function (item, index) {
@@ -1188,6 +1256,7 @@
     var normalizedSummary = summary || {};
     var blockers = extractBlockers(input, normalizedSummary, evidence);
     var waitingOn = extractWaitingOn(input, normalizedSummary, evidence, blockers);
+    var unclearPoints = extractUnclearPoints(input, normalizedSummary, evidence, blockers, waitingOn);
     var nextActions = extractNextActions(input, normalizedSummary, evidence);
     var robertDecisions = extractRobertDecisions(input, normalizedSummary, evidence);
     var vaReadyActions = extractVaReadyActions(input, normalizedSummary, evidence);
@@ -1195,6 +1264,7 @@
     var operational = {
       blockers: blockers,
       waitingOn: waitingOn,
+      unclearPoints: unclearPoints,
       nextActions: nextActions,
       robertDecisions: robertDecisions,
       vaReadyActions: vaReadyActions,
@@ -1226,6 +1296,7 @@
       missingInfo,
       operational.blockers,
       operational.waitingOn,
+      operational.unclearPoints,
       operational.robertDecisions,
       operational.validationFindings,
       operational.evidence
@@ -1258,6 +1329,7 @@
           : card.checklistSummary.complete ? [card.checklistSummary.complete + " checklist item(s) complete."] : [],
         blockers: operational.blockers,
         waitingOn: operational.waitingOn,
+        unclearPoints: operational.unclearPoints,
         nextActions: operational.nextActions,
         robertDecisions: operational.robertDecisions,
         vaReadyActions: operational.vaReadyActions,
@@ -1341,6 +1413,7 @@
     compareNumber("Attachment count", currentSnapshot.attachmentCount, previousSnapshot.attachmentCount, changes);
     compareNumber("Detected blocker count", toArray(currentResult.blockers).length, toArray(previousResult.blockers).length, changes);
     compareNumber("Waiting-on item count", toArray(currentResult.waitingOn).length, toArray(previousResult.waitingOn).length, changes);
+    compareNumber("Unclear point count", toArray(currentResult.unclearPoints).length, toArray(previousResult.unclearPoints).length, changes);
     compareNumber("Robert decision count", toArray(currentResult.robertDecisions).length, toArray(previousResult.robertDecisions).length, changes);
     compareNumber("VA/team-ready action count", toArray(currentResult.vaReadyActions).length, toArray(previousResult.vaReadyActions).length, changes);
 
@@ -1573,6 +1646,8 @@
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "## VA/team-ready actions");
     appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    lines.push("", "## Unclear or conflicting points");
+    appendItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "## Unresolved questions");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "## Validation");
@@ -1609,6 +1684,8 @@
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "VA/team-ready actions:");
     appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Missing information:");
@@ -1632,6 +1709,7 @@
       "Top next action: " + firstItemText(result.nextActions, "No next action detected."),
       "Main blocker: " + firstItemText(result.blockers, "No blocker detected."),
       "Waiting on: " + firstItemText(result.waitingOn, "No waiting state detected."),
+      "Unclear point: " + firstItemText(result.unclearPoints, "No unclear or conflicting point detected."),
       "Open question: " + firstItemText(result.unresolvedQuestions, "No unresolved question detected."),
       "Robert decision: " + firstItemText(result.robertDecisions, "No Robert-specific decision detected."),
       "VA/team handoff: " + firstItemText(result.vaReadyActions, "No VA/team-ready action detected."),
@@ -1666,6 +1744,8 @@
     appendItems(lines, result.blockers, "No blockers detected.");
     lines.push("", "Waiting on:");
     appendItems(lines, result.waitingOn, "No waiting state detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Recommended next action:");
@@ -1699,6 +1779,8 @@
     appendItems(lines, result.blockers, "No blockers detected.");
     lines.push("", "Waiting on:");
     appendItems(lines, result.waitingOn, "No waiting state detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "Robert decisions not delegated:");
@@ -1735,6 +1817,8 @@
     appendItems(lines, toArray(result.risks).concat(toArray(result.blockers)), "No risks or blockers detected.");
     lines.push("", "Waiting on:");
     appendItems(lines, result.waitingOn, "No waiting state detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "Missing information:");
     appendItems(lines, result.missingInfo, "No missing information detected.");
     lines.push("", "Unresolved questions:");
@@ -1769,6 +1853,8 @@
     appendItems(lines, result.nextActions, "No follow-up actions detected.");
     lines.push("", "Waiting on:");
     appendItems(lines, result.waitingOn, "No waiting state detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "Unresolved questions:");
     appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     lines.push("", "VA/team handoff:");
@@ -1794,6 +1880,8 @@
     appendItems(lines, result.blockers, "No blockers detected.");
     lines.push("", "Waiting on:");
     appendCheckboxItems(lines, result.waitingOn, "No waiting state detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendCheckboxItems(lines, result.unclearPoints, "No unclear or conflicting points detected.");
     lines.push("", "Questions to resolve:");
     appendCheckboxItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
     appendEvidenceClaimSummary(lines, result, "Evidence-backed claims:", 4);
@@ -1819,6 +1907,9 @@
     }
     if (toArray(result.waitingOn).length) {
       lines.push("", "Waiting on:", firstItemText(result.waitingOn, "No waiting state detected."));
+    }
+    if (toArray(result.unclearPoints).length) {
+      lines.push("", "Unclear point:", firstItemText(result.unclearPoints, "No unclear or conflicting point detected."));
     }
     appendSourceCoverageSummary(lines, run, "Source coverage:", 4);
     return lines.join("\n");
@@ -1866,13 +1957,15 @@
       "Blockers:"
     ];
 
-    appendItems(lines, result.blockers, "No blockers detected.");
+    appendItems(lines, toArray(result.blockers).slice(0, 4), "No blockers detected.");
     lines.push("", "Waiting on:");
-    appendItems(lines, result.waitingOn, "No waiting state detected.");
+    appendItems(lines, toArray(result.waitingOn).slice(0, 4), "No waiting state detected.");
     lines.push("", "Next actions:");
-    appendItems(lines, result.nextActions, "No next actions detected.");
+    appendItems(lines, toArray(result.nextActions).slice(0, 4), "No next actions detected.");
+    lines.push("", "Unclear or conflicting points:");
+    appendItems(lines, toArray(result.unclearPoints).slice(0, 3), "No unclear or conflicting points detected.");
     lines.push("", "Unresolved questions:");
-    appendItems(lines, result.unresolvedQuestions, "No unresolved questions detected.");
+    appendItems(lines, toArray(result.unresolvedQuestions).slice(0, 5), "No unresolved questions detected.");
     lines.push("", "Robert decisions:");
     appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
     lines.push("", "VA/team-ready actions:");

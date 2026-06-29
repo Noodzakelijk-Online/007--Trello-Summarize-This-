@@ -607,6 +607,11 @@
         </article>
 
         <article class="panel">
+          <h2 class="section-title">Unclear points</h2>
+          <ul id="unclearPointsList" class="compact-list"></ul>
+        </article>
+
+        <article class="panel">
           <h2 class="section-title">Validation</h2>
           <ul id="validationList" class="compact-list"></ul>
         </article>
@@ -761,6 +766,10 @@
           <label class="checkbox-row">
             <input type="checkbox" value="waiting-on">
             <span>Waiting on</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" value="unclear-points">
+            <span>Unclear points</span>
           </label>
           <label class="checkbox-row">
             <input type="checkbox" value="next-actions">
@@ -1636,6 +1645,7 @@
         renderOperationalList("robertDecisionsList", result ? result.robertDecisions : [], "No Robert-specific decision detected.");
         renderOperationalList("vaReadyActionsList", result ? result.vaReadyActions : [], "No VA/team-ready actions detected.");
         renderOperationalList("unresolvedQuestionsList", result ? result.unresolvedQuestions : [], "No unresolved questions detected.");
+        renderOperationalList("unclearPointsList", result ? result.unclearPoints : [], "No unclear or conflicting points detected.");
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
         renderListContext(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.listContext : null);
@@ -1913,6 +1923,7 @@
           "history-status": "History / status",
           "blockers": "Blockers",
           "waiting-on": "Waiting on",
+          "unclear-points": "Unclear points",
           "next-actions": "Next actions",
           "robert-decisions": "Robert decisions",
           "va-team-actions": "VA/team-ready actions",
