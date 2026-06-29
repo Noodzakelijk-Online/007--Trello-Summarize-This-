@@ -15,6 +15,8 @@ assert.equal(normalized.listContext.currentPosition, 2);
 assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
 assert.equal(normalized.customFields.length, 2);
 assert.ok(normalized.customFields.some(item => item.name === "Priority" && item.value === "High"));
+assert.equal(normalized.actions.length, 1);
+assert.equal(normalized.actions[0].type, "updateCard");
 const sensitiveSignals = SummarizeThis.detectSensitiveSignals(sample);
 assert.equal(sensitiveSignals.requiresAiApproval, true);
 assert.ok(sensitiveSignals.categories.includes("client"));
@@ -31,6 +33,8 @@ assert.ok(local.summary.nextSteps.length >= 1);
 assert.ok(local.qualityScore >= 60);
 assert.ok(local.summary.insights.some(item => item.includes("List context includes")));
 assert.ok(local.summary.insights.some(item => item.includes("Custom fields included")));
+assert.ok(local.summary.history.includes("recent activity"));
+assert.ok(local.summary.insights.some(item => item.includes("Recent activity included")));
 
 const prompt = SummarizeThis.buildAIPrompt(sample);
 assert.ok(prompt.includes("Return only valid JSON"));
@@ -51,6 +55,8 @@ assert.equal(riskPromptPayload.listContext.sampledCards, 4);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
 assert.equal(riskPromptPayload.customFields.length, 2);
 assert.equal(riskPromptPayload.contextIncluded.customFieldsIncluded, 2);
+assert.equal(riskPromptPayload.activity.length, 1);
+assert.equal(riskPromptPayload.contextIncluded.activityItemsIncluded, 1);
 assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
 
 const cardWithPriorFeedback = Object.assign({}, sample, {
@@ -78,11 +84,18 @@ const largeCard = Object.assign({}, sample, {
   desc: "Long description ".repeat(400),
   comments: Array.from({ length: 25 }, (_, index) => ({
     text: `Comment ${index + 1} ` + "detail ".repeat(250)
+  })),
+  actions: Array.from({ length: 30 }, (_, index) => ({
+    id: `action-${index + 1}`,
+    type: index === 0 ? "updateCard" : "addLabelToCard",
+    text: `Activity ${index + 1}`,
+    memberCreator: { fullName: "Jamie" }
   }))
 });
 const largePromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(largeCard));
 assert.ok(largePromptPayload.description.length <= 2500);
 assert.equal(largePromptPayload.comments.length, 12);
+assert.equal(largePromptPayload.activity.length, 12);
 assert.ok(largePromptPayload.comments.every(comment => comment.text.length <= 700));
 assert.equal(largePromptPayload.contextIncluded.commentLimit, 12);
 assert.equal(largePromptPayload.contextIncluded.commentCharacters, 700);
@@ -163,6 +176,13 @@ const operationalCard = Object.assign({}, sample, {
     processed: true,
     extractedText: "",
     error: ""
+  }],
+  actions: [{
+    id: "action-robert",
+    type: "updateCard",
+    text: "Moved card to Waiting on Robert",
+    date: new Date().toISOString(),
+    memberCreator: { fullName: "Jamie" }
   }]
 });
 const operationalAnalysis = {
@@ -193,7 +213,9 @@ assert.equal(snapshot.descriptionPresent, true);
 assert.ok(snapshot.descriptionHash);
 assert.equal(snapshot.description, undefined);
 assert.equal(snapshot.customFieldCount, 2);
+assert.equal(snapshot.activityCount, 1);
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "available"));
+assert.ok(snapshot.sourceCoverage.some(item => item.key === "activity" && item.status === "available"));
 assert.ok(snapshot.listContext);
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "listContext" && item.status === "available"));
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "customFields" && item.status === "available"));
@@ -206,6 +228,7 @@ assert.ok(feedbackSnapshot.sourceCoverage.some(item => item.key === "priorFeedba
 
 const partialCoverage = CardIntelligenceLedger.createSourceCoverage(Object.assign({}, sample, {
   comments: [],
+  actions: [],
   checklists: [],
   attachments: [],
   badges: {
@@ -216,11 +239,13 @@ const partialCoverage = CardIntelligenceLedger.createSourceCoverage(Object.assig
   },
   __sourceStatus: {
     comments: { ok: false, error: "Comment API was not available." },
+    activity: { ok: false, error: "Activity API was not available." },
     board: { ok: false, error: "Board read failed." },
     list: { ok: true }
   }
 }));
 assert.ok(partialCoverage.some(item => item.key === "comments" && item.status === "failed"));
+assert.ok(partialCoverage.some(item => item.key === "activity" && item.status === "failed"));
 assert.ok(partialCoverage.some(item => item.key === "checklists" && item.status === "partial"));
 assert.ok(partialCoverage.some(item => item.key === "attachments" && item.status === "partial"));
 assert.ok(partialCoverage.some(item => item.key === "board" && item.detail.includes("Board read failed")));
@@ -239,11 +264,13 @@ assert.ok(run.result.validationFindings.some(finding => finding.id === "decision
 assert.ok(run.result.confidence.overall >= 25);
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "description"));
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "comments"));
+assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "activity"));
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "listContext"));
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "customFields"));
 assert.ok(run.result.trustSignals.needsReview.some(item => item.key === "missing-members"));
 assert.ok(run.result.trustSignals.whyScore.some(item => item.includes("Data completeness")));
 assert.ok(run.result.evidence.some(item => item.type === "custom-field" && item.excerpt.includes("Priority")));
+assert.ok(run.result.evidence.some(item => item.type === "activity" && item.excerpt.includes("Waiting on Robert")));
 
 const sparseTrustSignals = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, sample, {
   desc: "",
@@ -266,13 +293,16 @@ assert.ok(sparseTrustSignals.needsReview.some(item => item.label === "No comment
 
 const failedReadRun = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, sample, {
   __sourceStatus: {
-    comments: { ok: false, error: "Comment API was not available." }
+    comments: { ok: false, error: "Comment API was not available." },
+    activity: { ok: false, error: "Activity API was not available." }
   }
 }), operationalAnalysis, {
   now: "2026-06-29T12:00:45.000Z"
 });
 assert.ok(failedReadRun.cardSnapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "failed"));
+assert.ok(failedReadRun.cardSnapshot.sourceCoverage.some(item => item.key === "activity" && item.status === "failed"));
 assert.ok(failedReadRun.result.trustSignals.needsReview.some(item => item.key === "comments-failed"));
+assert.ok(failedReadRun.result.trustSignals.needsReview.some(item => item.key === "activity-failed"));
 
 const aiStructuredRun = CardIntelligenceLedger.createAnalysisRun(operationalCard, {
   summary: aiSummary,

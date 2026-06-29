@@ -16,11 +16,11 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 184.9 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 295.4 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.44 MB.
-- Generated Windows installer executable: 195,072 bytes.
-- Large-card AI prompt after caps: 16,545 characters.
+- Active popup initial local files: about 190.5 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 301.0 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.45 MB.
+- Generated Windows installer executable: 197,120 bytes.
+- Large-card AI prompt after caps: 16,804 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -73,6 +73,7 @@ Current results:
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
+   - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
 
 ## Resource Risk Review
 
@@ -86,7 +87,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 295 KB, and the generated `SummarizeThisSetup.exe` is 195,072 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 301 KB, and the generated `SummarizeThisSetup.exe` is 197,120 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

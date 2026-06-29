@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Summarize This</title>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
-  <script src="./summarizer-core.js?v=1.1.0"></script>
-  <script src="./card-intelligence-ledger.js?v=1.1.0"></script>
+  <script src="./summarizer-core.js?v=1.2.0"></script>
+  <script src="./card-intelligence-ledger.js?v=1.2.0"></script>
   <style>
     :root {
       color-scheme: light;
@@ -959,6 +959,7 @@
               list: { ok: true },
               listContext: { ok: true },
               comments: { ok: true },
+              activity: { ok: true },
               customFields: { ok: true }
             }
           });
@@ -976,6 +977,7 @@
         var card = cardRead.value || {};
         var listContextRead = await readListContext(card, listRead.value, settings);
         var commentsRead = await readCardComments(card);
+        var activityRead = await readCardActivity(card);
         var customFieldItems = card.customFieldItems || card.customFields || [];
 
         return Object.assign({}, card, {
@@ -983,6 +985,7 @@
           list: listRead.value,
           listContext: listContextRead.value,
           comments: commentsRead.value,
+          actions: activityRead.value,
           customFields: customFieldItems,
           __sourceStatus: {
             card: sourceReadStatus(cardRead),
@@ -990,6 +993,7 @@
             list: sourceReadStatus(listRead),
             listContext: sourceReadStatus(listContextRead),
             comments: sourceReadStatus(commentsRead),
+            activity: sourceReadStatus(activityRead),
             customFields: { ok: Array.isArray(customFieldItems) }
           }
         });
@@ -1138,6 +1142,57 @@
           return {
             ok: true,
             value: Array.isArray(actions) ? actions : [],
+            error: ""
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            value: [],
+            error: error.message || String(error)
+          };
+        }
+      }
+
+      async function readCardActivity(card) {
+        var existingActions = Array.isArray(card.actions) ? card.actions : [];
+        if (existingActions.length) {
+          return {
+            ok: true,
+            value: existingActions.filter(function (action) { return action && action.type !== "commentCard"; }).slice(0, 25),
+            error: ""
+          };
+        }
+        if (!card.id) {
+          return {
+            ok: false,
+            value: [],
+            error: "Card id was not available for activity lookup."
+          };
+        }
+        if (typeof t.getRestApi !== "function") {
+          return {
+            ok: false,
+            value: [],
+            error: "Activity API was not available in this Power-Up runtime."
+          };
+        }
+
+        try {
+          var rest = await t.getRestApi();
+          if (!rest || typeof rest.getCardActions !== "function") {
+            return {
+              ok: false,
+              value: [],
+              error: "Activity action API was not available in this Power-Up runtime."
+            };
+          }
+          var actions = await rest.getCardActions(card.id, {
+            filter: "all",
+            limit: 25
+          });
+          return {
+            ok: true,
+            value: Array.isArray(actions) ? actions.filter(function (action) { return action && action.type !== "commentCard"; }) : [],
             error: ""
           };
         } catch (error) {
@@ -1455,16 +1510,8 @@
         list.innerHTML = "";
         var allEvidence = Array.isArray(evidence) ? evidence : [];
         var values = allEvidence.slice(0, 10);
-        allEvidence.filter(function (item) {
-          return item && item.type === "custom-field";
-        }).slice(0, 2).forEach(function (item) {
-          var alreadyVisible = values.some(function (visible) {
-            return visible && visible.sourcePath === item.sourcePath;
-          });
-          if (alreadyVisible) return;
-          if (values.length >= 10) values.pop();
-          values.push(item);
-        });
+        preserveEvidenceType(values, allEvidence, "custom-field", 2);
+        preserveEvidenceType(values, allEvidence, "activity", 2);
         if (!values.length) {
           var empty = document.createElement("li");
           empty.textContent = "No evidence references were created.";
@@ -1480,6 +1527,19 @@
           li.appendChild(tag);
           li.appendChild(document.createTextNode(item.excerpt));
           list.appendChild(li);
+        });
+      }
+
+      function preserveEvidenceType(values, allEvidence, type, limit) {
+        allEvidence.filter(function (item) {
+          return item && item.type === type;
+        }).slice(0, limit).forEach(function (item) {
+          var alreadyVisible = values.some(function (visible) {
+            return visible && visible.path === item.path;
+          });
+          if (alreadyVisible) return;
+          if (values.length >= 10) values.pop();
+          values.push(item);
         });
       }
 

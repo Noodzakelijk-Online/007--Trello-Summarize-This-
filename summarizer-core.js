@@ -68,6 +68,43 @@
     });
   }
 
+  function normalizeActions(actions) {
+    return toArray(actions).map(function (action, index) {
+      if (typeof action === "string") {
+        return {
+          id: "activity-" + (index + 1),
+          type: "activity",
+          text: truncate(action, 220),
+          date: "",
+          author: ""
+        };
+      }
+
+      var data = action.data || {};
+      var creator = action.memberCreator || {};
+      var type = cleanText(action.type || data.type || "activity");
+      var text = cleanText(
+        action.text ||
+        data.text ||
+        data.comment ||
+        ((data.card && data.card.name) || "") ||
+        action.summary ||
+        action.name ||
+        type
+      );
+
+      return {
+        id: cleanText(action.id || "activity-" + (index + 1)),
+        type: type,
+        text: truncate(text, 220),
+        date: action.date || action.createdAt || "",
+        author: cleanText(creator.fullName || creator.username || action.author)
+      };
+    }).filter(function (action) {
+      return action.text || action.type;
+    }).slice(0, 25);
+  }
+
   function valueFromCustomField(item) {
     if (!item || typeof item !== "object") return cleanText(item);
     var value = item.value || {};
@@ -214,7 +251,7 @@
       attachments: toArray(base.attachments || base.attachmentDetails),
       checklists: toArray(base.checklists),
       comments: normalizeComments(base.comments),
-      actions: toArray(base.actions),
+      actions: normalizeActions(base.actions || base.activity),
       customFields: normalizeCustomFields(base.customFields || base.customFieldItems),
       badges: base.badges || {},
       boardName: cleanText(base.boardName || getObjectName(base.board)),
@@ -413,6 +450,7 @@
       card.customFields.map(function (field) { return [field.name, field.value].join(" "); }).join(" "),
       card.attachments.map(function (attachment) { return attachment.name || ""; }).join(" "),
       card.comments.slice(0, 12).map(function (comment) { return comment.text || ""; }).join(" "),
+      card.actions.slice(0, 12).map(function (action) { return [action.type, action.text, action.author].join(" "); }).join(" "),
       card.priorFeedback.map(function (item) { return item.correctionText || ""; }).join(" ")
     ].join(" ").toLowerCase();
     var categories = {
@@ -468,7 +506,7 @@
       historyParts.push(card.commentCount + " comment" + (card.commentCount === 1 ? "" : "s") + " " + (card.commentCount === 1 ? "is" : "are") + " available for context.");
     }
     if (card.actions.length) {
-      historyParts.push(card.actions.length + " recent action" + (card.actions.length === 1 ? "" : "s") + " were included.");
+      historyParts.push(card.actions.length + " recent activity item" + (card.actions.length === 1 ? "" : "s") + " were included.");
     }
     if (card.priorFeedback.length) {
       historyParts.push(card.priorFeedback.length + " prior correction" + (card.priorFeedback.length === 1 ? "" : "s") + " from review feedback " + (card.priorFeedback.length === 1 ? "is" : "are") + " available for this run.");
@@ -513,6 +551,11 @@
     }
     if (card.attachmentCount) {
       insights.push(card.attachmentCount + " attachment" + (card.attachmentCount === 1 ? "" : "s") + " may contain supporting detail.");
+    }
+    if (card.actions.length) {
+      insights.push("Recent activity included: " + card.actions.slice(0, 3).map(function (action) {
+        return action.type + (action.author ? " by " + action.author : "");
+      }).join("; ") + ".");
     }
     if (card.listContext && card.listContext.sampledCards) {
       insights.push("List context includes " + card.listContext.sampledCards + " sampled card" + (card.listContext.sampledCards === 1 ? "" : "s") + " from " + (card.listContext.listName || "the current list") + ".");
@@ -599,6 +642,7 @@
     if (card.due) score += 8;
     if (card.checklistStats.total) score += 12;
     if (card.commentCount) score += 7;
+    if (card.actions.length) score += 3;
     if (card.attachmentCount) score += 4;
     if (card.customFields.length) score += 4;
     if (card.boardName || card.listName) score += 5;
@@ -626,6 +670,7 @@
       dueComplete: card.dueComplete,
       listContext: card.listContext,
       customFields: card.customFields,
+      activity: card.actions.slice(0, 12),
       sensitiveSignals: detectSensitiveSignals(input),
       priorFeedback: card.priorFeedback,
       checklistProgress: card.checklistStats,
@@ -638,6 +683,8 @@
         commentCharacters: context.commentCharacters,
         commentsAvailable: card.comments.length,
         commentsIncluded: comments.length,
+        activityItemsAvailable: card.actions.length,
+        activityItemsIncluded: Math.min(card.actions.length, 12),
         listContextCards: card.listContext ? card.listContext.sampledCards : 0,
         customFieldsIncluded: card.customFields.length,
         priorFeedbackItems: card.priorFeedback.length
@@ -854,6 +901,13 @@
         date: new Date().toISOString(),
         memberCreator: { fullName: "Jamie" }
       }],
+      actions: [{
+        id: "activity-1",
+        type: "updateCard",
+        date: new Date().toISOString(),
+        memberCreator: { fullName: "Maya" },
+        data: { card: { name: "Prepare launch checklist" } }
+      }],
       attachments: [{ name: "launch-plan.pdf" }],
       customFields: [
         { name: "Priority", value: { text: "High" } },
@@ -874,6 +928,7 @@
     normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,
+    normalizeActions: normalizeActions,
     normalizeCardData: normalizeCardData,
     sampleCardData: sampleCardData
   };

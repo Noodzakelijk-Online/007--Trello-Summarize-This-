@@ -164,6 +164,17 @@ Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and 
 - Field values are capped to 180 characters and the analyzer keeps at most 25 custom fields per card.
 - Custom field evidence is treated as card context, not as a verified AI conclusion.
 
+### 5g. Activity Evidence Context
+
+Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and the active popup data path.
+
+- Recent Trello card activity is read separately from comments when the Power-Up runtime exposes card actions.
+- Comment actions are filtered out of the activity feed so comments remain their own evidence source.
+- Activity records are normalized into compact id, type, text, date, and author fields.
+- Activity is included in local history, local insights, AI prompt context, source coverage, trust signals, card snapshots, and evidence claims.
+- Runtime collection is capped to 25 activity items, and prompt/evidence usage is capped to 12 activity items.
+- Activity evidence is read-only and never triggers Trello writes.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.

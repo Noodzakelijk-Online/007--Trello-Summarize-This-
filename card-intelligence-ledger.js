@@ -87,6 +87,43 @@
     });
   }
 
+  function normalizeActions(actions) {
+    return toArray(actions).map(function (action, index) {
+      if (typeof action === "string") {
+        return {
+          id: "activity-" + (index + 1),
+          type: "activity",
+          text: cleanText(action).slice(0, 220),
+          date: "",
+          author: ""
+        };
+      }
+
+      var data = action.data || {};
+      var creator = action.memberCreator || {};
+      var type = cleanText(action.type || data.type || "activity");
+      var text = cleanText(
+        action.text ||
+        data.text ||
+        data.comment ||
+        ((data.card && data.card.name) || "") ||
+        action.summary ||
+        action.name ||
+        type
+      );
+
+      return {
+        id: cleanText(action.id || "activity-" + (index + 1)),
+        type: type,
+        text: text.slice(0, 220),
+        date: action.date || action.createdAt || "",
+        author: cleanText(creator.fullName || creator.username || action.author)
+      };
+    }).filter(function (action) {
+      return action.text || action.type;
+    }).slice(0, 25);
+  }
+
   function normalizeChecklists(checklists) {
     return toArray(checklists).map(function (checklist, checklistIndex) {
       return {
@@ -265,6 +302,7 @@
     var checklists = normalizeChecklists(base.checklists);
     var attachments = normalizeAttachments(base.attachments || base.attachmentDetails);
     var comments = normalizeComments(base.comments);
+    var actions = normalizeActions(base.actions || base.activity);
     var badges = base.badges || {};
     var checklistSummary = getChecklistSummary(checklists);
     var listName = normalizeName(base.list) || cleanText(base.listName);
@@ -295,7 +333,7 @@
       checklists: checklists,
       comments: comments,
       attachments: attachments,
-      actions: toArray(base.actions),
+      actions: actions,
       priorFeedback: normalizePriorFeedback(base.priorFeedback || base.feedback || base.previousFeedback),
       checklistSummary: checklistSummary,
       commentCount: comments.length || toNumber(badges.comments),
@@ -317,6 +355,7 @@
       descriptionPresent: Boolean(card.description),
       checklistSummary: card.checklistSummary,
       commentCount: card.commentCount,
+      activityCount: card.actions.length,
       attachmentCount: card.attachmentCount,
       priorFeedbackCount: card.priorFeedback.length,
       customFieldCount: card.customFields.length,
@@ -368,6 +407,13 @@
       card.commentCount,
       "comment",
       "No comments were available, so history may be incomplete."
+    ));
+    addCoverage(items, "activity", "Activity", sourceCollectionCoverage(
+      status.activity,
+      card.actions.length,
+      card.actions.length,
+      "activity item",
+      "No recent activity was available."
     ));
     addCoverage(items, "attachments", "Attachments", attachmentCoverage(card));
     addCoverage(items, "priorFeedback", "Prior feedback", card.priorFeedback.length
@@ -516,6 +562,11 @@
       );
     });
 
+    card.actions.slice(0, 12).forEach(function (action, index) {
+      var detail = action.type + (action.author ? " by " + action.author : "") + (action.text ? ": " + action.text : "");
+      addEvidence(evidence, "activity", "Activity", detail, "card.actions[" + index + "]");
+    });
+
     card.attachments.forEach(function (attachment, index) {
       var detail = attachment.name;
       if (attachment.extractedTextAvailable) detail += " (text extracted)";
@@ -578,7 +629,7 @@
     var claims = [];
     var sections = [
       { key: "about", title: "Card overview", types: ["title", "description", "label"] },
-      { key: "history", title: "History", types: ["comment", "checklist", "attachment"] },
+      { key: "history", title: "History", types: ["comment", "activity", "checklist", "attachment"] },
       { key: "status", title: "Current status", types: ["list", "due", "checklist", "member", "custom-field"] }
     ];
 
@@ -602,7 +653,7 @@
         id: "claim-ai-" + (index + 1),
         section: "ai-evidence",
         claim: claim.length > 260 ? claim.slice(0, 257).trim() + "..." : claim,
-        support: findEvidenceIds(evidence, ["title", "description", "comment", "checklist", "attachment", "due", "label", "member"]),
+        support: findEvidenceIds(evidence, ["title", "description", "comment", "activity", "checklist", "attachment", "due", "label", "member", "custom-field"]),
         confidence: cleanText(item && item.confidence) || "uncertain",
         source: cleanText(item && item.source)
       });
@@ -828,6 +879,7 @@
     if (card.listContext && card.listContext.sampledCards) score += 4;
     if (card.checklistSummary.total) score += 14;
     if (card.commentCount) score += 12;
+    if (card.actions.length) score += 3;
     if (card.attachmentCount) score += 5;
     if (card.customFields.length) score += 4;
     return Math.min(score, 100);
@@ -1671,6 +1723,7 @@
     summarizeExportRecords: summarizeExportRecords,
     summarizeReviewRecords: summarizeReviewRecords,
     normalizePriorFeedback: normalizePriorFeedback,
+    normalizeActions: normalizeActions,
     normalizeCustomFields: normalizeCustomFields,
     createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,
