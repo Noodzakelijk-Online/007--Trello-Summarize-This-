@@ -10,7 +10,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 
 - `CardSnapshot`: compact card state at analysis time, using a description hash instead of storing the full description.
 - `AnalysisRun`: provider/model metadata, input hash, timing, structured result, and audit event.
-- `EvidenceClaim`: summary claims linked to card title, description, list, due date, checklist, comment, attachment, label, or member evidence.
+- `EvidenceClaim`: summary claims linked to card title, description, list, due date, checklist, comment, attachment, label, member, or custom-field evidence.
 - `Blocker`: explicit and implied blockers from card text, missing context, overdue state, low checklist progress, and attachment extraction limitations.
 - `NextAction`: extracted next steps plus open checklist items.
 - `DecisionItem`: Robert-specific approval or Yes/No decision candidates.
@@ -20,6 +20,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `HumanFeedback`: private correction/rating records.
 - `ExportRecord`: private copy/export history.
 - `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, attachments, and custom fields.
+- `CustomField`: compact normalized custom field name/value/type metadata when Trello exposes custom field items.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
 - Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, evidence claims, validation findings, and confidence reasons directly.
 - Ledger export formats: the popup can copy markdown, plain text, status/email text, copy structured JSON, and download compact JSON for Sneup/HAI-style ingestion.
@@ -44,6 +45,7 @@ Local preview mode uses `localStorage` for the same keys. The popup no longer si
 - The review-state UI shows whether the current analysis has been reviewed, accepted, or marked for follow-up.
 - The export history UI shows recent copy/download/postback records filtered to the current card's analysis run ids.
 - The Source coverage UI shows available, partial, missing, and failed source reads so missing comments or metadata-only attachments are explicit.
+- Custom fields are included as compact evidence and AI prompt context when available.
 - Attachment evidence is honest about metadata-only extraction; deeper PDF/Word/image extraction still needs a safer extraction path.
 - JSON export uses the compact ledger run and card snapshot. It does not include full card descriptions, but evidence excerpts may still contain card context selected by the analysis.
 - Human-readable exports now include bounded evidence-backed claims and source coverage, so copied markdown/plain text/status briefs and Trello comment drafts remain traceable outside the popup.

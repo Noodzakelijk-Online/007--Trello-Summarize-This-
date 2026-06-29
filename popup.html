@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Summarize This</title>
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
-  <script src="./summarizer-core.js?v=1.0.0"></script>
-  <script src="./card-intelligence-ledger.js?v=1.0.0"></script>
+  <script src="./summarizer-core.js?v=1.1.0"></script>
+  <script src="./card-intelligence-ledger.js?v=1.1.0"></script>
   <style>
     :root {
       color-scheme: light;
@@ -1453,7 +1453,18 @@
       function renderEvidence(evidence) {
         var list = document.getElementById("evidenceList");
         list.innerHTML = "";
-        var values = Array.isArray(evidence) ? evidence.slice(0, 10) : [];
+        var allEvidence = Array.isArray(evidence) ? evidence : [];
+        var values = allEvidence.slice(0, 10);
+        allEvidence.filter(function (item) {
+          return item && item.type === "custom-field";
+        }).slice(0, 2).forEach(function (item) {
+          var alreadyVisible = values.some(function (visible) {
+            return visible && visible.sourcePath === item.sourcePath;
+          });
+          if (alreadyVisible) return;
+          if (values.length >= 10) values.pop();
+          values.push(item);
+        });
         if (!values.length) {
           var empty = document.createElement("li");
           empty.textContent = "No evidence references were created.";

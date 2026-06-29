@@ -13,6 +13,8 @@ assert.equal(normalized.checklistStats.complete, 1);
 assert.equal(normalized.listContext.sampledCards, 4);
 assert.equal(normalized.listContext.currentPosition, 2);
 assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
+assert.equal(normalized.customFields.length, 2);
+assert.ok(normalized.customFields.some(item => item.name === "Priority" && item.value === "High"));
 const sensitiveSignals = SummarizeThis.detectSensitiveSignals(sample);
 assert.equal(sensitiveSignals.requiresAiApproval, true);
 assert.ok(sensitiveSignals.categories.includes("client"));
@@ -28,6 +30,7 @@ assert.ok(Array.isArray(local.summary.nextSteps));
 assert.ok(local.summary.nextSteps.length >= 1);
 assert.ok(local.qualityScore >= 60);
 assert.ok(local.summary.insights.some(item => item.includes("List context includes")));
+assert.ok(local.summary.insights.some(item => item.includes("Custom fields included")));
 
 const prompt = SummarizeThis.buildAIPrompt(sample);
 assert.ok(prompt.includes("Return only valid JSON"));
@@ -46,6 +49,8 @@ assert.equal(riskPromptPayload.outputMode.key, "risk-review");
 assert.ok(riskPromptPayload.outputMode.instruction.includes("risks"));
 assert.equal(riskPromptPayload.listContext.sampledCards, 4);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
+assert.equal(riskPromptPayload.customFields.length, 2);
+assert.equal(riskPromptPayload.contextIncluded.customFieldsIncluded, 2);
 assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
 
 const cardWithPriorFeedback = Object.assign({}, sample, {
@@ -187,9 +192,11 @@ assert.equal(snapshot.cardId, "card-robert-va");
 assert.equal(snapshot.descriptionPresent, true);
 assert.ok(snapshot.descriptionHash);
 assert.equal(snapshot.description, undefined);
+assert.equal(snapshot.customFieldCount, 2);
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "available"));
 assert.ok(snapshot.listContext);
 assert.ok(snapshot.sourceCoverage.some(item => item.key === "listContext" && item.status === "available"));
+assert.ok(snapshot.sourceCoverage.some(item => item.key === "customFields" && item.status === "available"));
 
 const feedbackSnapshot = CardIntelligenceLedger.createCardSnapshot(cardWithPriorFeedback, {
   now: "2026-06-29T12:00:15.000Z"
@@ -233,8 +240,10 @@ assert.ok(run.result.confidence.overall >= 25);
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "description"));
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "comments"));
 assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "listContext"));
+assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "customFields"));
 assert.ok(run.result.trustSignals.needsReview.some(item => item.key === "missing-members"));
 assert.ok(run.result.trustSignals.whyScore.some(item => item.includes("Data completeness")));
+assert.ok(run.result.evidence.some(item => item.type === "custom-field" && item.excerpt.includes("Priority")));
 
 const sparseTrustSignals = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, sample, {
   desc: "",

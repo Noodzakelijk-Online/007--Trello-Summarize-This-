@@ -118,6 +118,39 @@
     });
   }
 
+  function valueFromCustomField(item) {
+    if (!item || typeof item !== "object") return cleanText(item);
+    var value = item.value || {};
+    if (value.text !== undefined) return cleanText(value.text);
+    if (value.number !== undefined) return cleanText(value.number);
+    if (value.date !== undefined) return cleanText(value.date);
+    if (value.checked !== undefined) return value.checked === "true" || value.checked === true ? "Yes" : "No";
+    if (item.valueText !== undefined) return cleanText(item.valueText);
+    if (item.valueNumber !== undefined) return cleanText(item.valueNumber);
+    if (item.valueDate !== undefined) return cleanText(item.valueDate);
+    if (item.valueChecked !== undefined) return item.valueChecked ? "Yes" : "No";
+    if (item.value !== undefined && typeof item.value !== "object") return cleanText(item.value);
+    if (item.option && item.option.value) return valueFromCustomField(item.option);
+    if (item.idValue) return cleanText(item.idValue);
+    return "";
+  }
+
+  function normalizeCustomFields(fields) {
+    return toArray(fields).map(function (field, index) {
+      var definition = field.customField || field.field || {};
+      var name = cleanText(field.name || field.fieldName || definition.name || field.idCustomField || field.id || "Custom field " + (index + 1));
+      var value = valueFromCustomField(field);
+      return {
+        id: cleanText(field.id || field.idCustomField || "custom-field-" + (index + 1)),
+        name: name,
+        type: cleanText(field.type || definition.type),
+        value: cleanText(value).slice(0, 180)
+      };
+    }).filter(function (field) {
+      return field.name || field.value;
+    }).slice(0, 25);
+  }
+
   function normalizePriorFeedback(records) {
     return toArray(records).map(function (record) {
       return {
@@ -267,7 +300,7 @@
       checklistSummary: checklistSummary,
       commentCount: comments.length || toNumber(badges.comments),
       attachmentCount: attachments.length || toNumber(badges.attachments),
-      customFields: toArray(base.customFields || base.customFieldItems),
+      customFields: normalizeCustomFields(base.customFields || base.customFieldItems),
       listContext: normalizeListContext(base.listContext || base.boardListContext, cleanText(base.id), listName)
     };
   }
@@ -286,6 +319,7 @@
       commentCount: card.commentCount,
       attachmentCount: card.attachmentCount,
       priorFeedbackCount: card.priorFeedback.length,
+      customFieldCount: card.customFields.length,
       due: card.due,
       dueComplete: card.dueComplete,
       labels: card.labels.slice(0, 25),
@@ -491,6 +525,11 @@
       addEvidence(evidence, "attachment", "Attachment", detail, "card.attachments[" + index + "]");
     });
 
+    card.customFields.forEach(function (field, index) {
+      var detail = field.name + (field.value ? ": " + field.value : "");
+      addEvidence(evidence, "custom-field", "Custom field", detail, "card.customFields[" + index + "]");
+    });
+
     return evidence;
   }
 
@@ -540,7 +579,7 @@
     var sections = [
       { key: "about", title: "Card overview", types: ["title", "description", "label"] },
       { key: "history", title: "History", types: ["comment", "checklist", "attachment"] },
-      { key: "status", title: "Current status", types: ["list", "due", "checklist", "member"] }
+      { key: "status", title: "Current status", types: ["list", "due", "checklist", "member", "custom-field"] }
     ];
 
     sections.forEach(function (section) {
@@ -790,6 +829,7 @@
     if (card.checklistSummary.total) score += 14;
     if (card.commentCount) score += 12;
     if (card.attachmentCount) score += 5;
+    if (card.customFields.length) score += 4;
     return Math.min(score, 100);
   }
 
@@ -1631,6 +1671,7 @@
     summarizeExportRecords: summarizeExportRecords,
     summarizeReviewRecords: summarizeReviewRecords,
     normalizePriorFeedback: normalizePriorFeedback,
+    normalizeCustomFields: normalizeCustomFields,
     createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,
     createTrelloCommentDraft: createTrelloCommentDraft,

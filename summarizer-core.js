@@ -68,6 +68,39 @@
     });
   }
 
+  function valueFromCustomField(item) {
+    if (!item || typeof item !== "object") return cleanText(item);
+    var value = item.value || {};
+    if (value.text !== undefined) return cleanText(value.text);
+    if (value.number !== undefined) return cleanText(value.number);
+    if (value.date !== undefined) return cleanText(value.date);
+    if (value.checked !== undefined) return value.checked === "true" || value.checked === true ? "Yes" : "No";
+    if (item.valueText !== undefined) return cleanText(item.valueText);
+    if (item.valueNumber !== undefined) return cleanText(item.valueNumber);
+    if (item.valueDate !== undefined) return cleanText(item.valueDate);
+    if (item.valueChecked !== undefined) return item.valueChecked ? "Yes" : "No";
+    if (item.value !== undefined && typeof item.value !== "object") return cleanText(item.value);
+    if (item.option && item.option.value) return valueFromCustomField(item.option);
+    if (item.idValue) return cleanText(item.idValue);
+    return "";
+  }
+
+  function normalizeCustomFields(fields) {
+    return toArray(fields).map(function (field, index) {
+      var definition = field.customField || field.field || {};
+      var name = cleanText(field.name || field.fieldName || definition.name || field.idCustomField || field.id || "Custom field " + (index + 1));
+      var value = valueFromCustomField(field);
+      return {
+        id: cleanText(field.id || field.idCustomField || "custom-field-" + (index + 1)),
+        name: name,
+        type: cleanText(field.type || definition.type),
+        value: truncate(value, 180)
+      };
+    }).filter(function (field) {
+      return field.name || field.value;
+    }).slice(0, 25);
+  }
+
   var DEFAULT_PROMPT_CONTEXT = {
     descriptionCharacters: 2500,
     commentLimit: 12,
@@ -182,6 +215,7 @@
       checklists: toArray(base.checklists),
       comments: normalizeComments(base.comments),
       actions: toArray(base.actions),
+      customFields: normalizeCustomFields(base.customFields || base.customFieldItems),
       badges: base.badges || {},
       boardName: cleanText(base.boardName || getObjectName(base.board)),
       listName: cleanText(base.listName || getObjectName(base.list)),
@@ -376,6 +410,7 @@
       card.listName,
       card.labels.join(" "),
       card.members.join(" "),
+      card.customFields.map(function (field) { return [field.name, field.value].join(" "); }).join(" "),
       card.attachments.map(function (attachment) { return attachment.name || ""; }).join(" "),
       card.comments.slice(0, 12).map(function (comment) { return comment.text || ""; }).join(" "),
       card.priorFeedback.map(function (item) { return item.correctionText || ""; }).join(" ")
@@ -487,6 +522,11 @@
         }).join(", ") + ".");
       }
     }
+    if (card.customFields.length) {
+      insights.push("Custom fields included: " + card.customFields.slice(0, 5).map(function (field) {
+        return field.name + (field.value ? " = " + field.value : "");
+      }).join("; ") + ".");
+    }
     if (card.priorFeedback.length) {
       insights.push("Prior user feedback is available and should be reviewed before treating this analysis as final.");
     }
@@ -560,6 +600,7 @@
     if (card.checklistStats.total) score += 12;
     if (card.commentCount) score += 7;
     if (card.attachmentCount) score += 4;
+    if (card.customFields.length) score += 4;
     if (card.boardName || card.listName) score += 5;
     return Math.max(35, Math.min(score, 95));
   }
@@ -584,6 +625,7 @@
       due: card.due,
       dueComplete: card.dueComplete,
       listContext: card.listContext,
+      customFields: card.customFields,
       sensitiveSignals: detectSensitiveSignals(input),
       priorFeedback: card.priorFeedback,
       checklistProgress: card.checklistStats,
@@ -597,6 +639,7 @@
         commentsAvailable: card.comments.length,
         commentsIncluded: comments.length,
         listContextCards: card.listContext ? card.listContext.sampledCards : 0,
+        customFieldsIncluded: card.customFields.length,
         priorFeedbackItems: card.priorFeedback.length
       }
     };
@@ -811,7 +854,11 @@
         date: new Date().toISOString(),
         memberCreator: { fullName: "Jamie" }
       }],
-      attachments: [{ name: "launch-plan.pdf" }]
+      attachments: [{ name: "launch-plan.pdf" }],
+      customFields: [
+        { name: "Priority", value: { text: "High" } },
+        { name: "Release window", value: { text: "This week" } }
+      ]
     };
   }
 
@@ -822,6 +869,7 @@
     getOutputModeInstruction: getOutputModeInstruction,
     getOutputModeLabel: getOutputModeLabel,
     normalizeOutputMode: normalizeOutputMode,
+    normalizeCustomFields: normalizeCustomFields,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
     markdownForAnalysis: markdownForAnalysis,

@@ -155,6 +155,15 @@ Status: Implemented in the active popup and `card-intelligence-ledger.js`.
 - Review records are stored in member-private Power-Up storage and filtered to the current card's analysis run ids.
 - The review panel starts from the calculated confidence/review-needed state, but the explicit user review state is stored separately from AI claims.
 
+### 5f. Custom-Field Evidence Context
+
+Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and the active popup data path.
+
+- Trello custom field items are normalized into compact name, value, type, and id records when Trello exposes them.
+- Custom fields are included in local insights, AI prompt context, source coverage, trust signals, card snapshots, and evidence claims.
+- Field values are capped to 180 characters and the analyzer keeps at most 25 custom fields per card.
+- Custom field evidence is treated as card context, not as a verified AI conclusion.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.
