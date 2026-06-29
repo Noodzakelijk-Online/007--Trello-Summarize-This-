@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const SummarizeThis = require("./summarizer-core");
@@ -7,6 +8,15 @@ const TrelloAdminConfig = require("./trello-admin-config");
 const AttachmentProcessor = require("./attachment-processor");
 const AIProviders = require("./ai-providers");
 const TrelloIntegration = require("./trello-integration");
+
+[
+  "README.md",
+  "FINAL_DEPLOYMENT_GUIDE.md"
+].forEach((fileName) => {
+  const documentText = fs.readFileSync(path.join(__dirname, fileName), "utf8");
+  assert.doesNotMatch(documentText, /99\.9|Est\. Accuracy|Overall Accuracy|Accuracy: 99|accurate AI-powered|accuracy through/i);
+  assert.match(documentText, /confidence/i);
+});
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);

@@ -1,11 +1,11 @@
 # 🧠 Summarize This - AI-Powered Trello Card Analysis
 
-[![Accuracy](https://img.shields.io/badge/Accuracy-99.9%25-brightgreen)](https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-)
+[![Confidence](https://img.shields.io/badge/Confidence-Evidence--based-blue)](https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Trello Power-Up](https://img.shields.io/badge/Trello-Power--Up-0079BF)](https://trello.com/power-ups)
 [![AI Powered](https://img.shields.io/badge/AI-Powered-purple)](https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-)
 
-> Transform your Trello cards into actionable insights with enterprise-grade AI analysis featuring 99.9% accuracy, confidence scoring, and continuous learning.
+> Transform your Trello cards into actionable, evidence-backed insights with confidence scoring, review controls, and safe export workflows.
 
 ---
 
@@ -13,7 +13,7 @@
 
 **Summarize This** is an advanced Trello Power-Up that adds an AI-powered "Summarize This" button to every card on your boards. Click the button to get instant, comprehensive analysis with:
 
-- 📊 **99.9% Accuracy** - Multi-layer validation ensures reliable insights
+- 📊 **Evidence-Based Confidence** - Multi-layer validation explains when analysis needs review
 - 🎯 **Confidence Scoring** - Know exactly when to trust the analysis
 - 🔍 **Error Detection** - Automatic quality checks catch mistakes
 - 👥 **Human Review** - Smart review system for low-confidence analyses
@@ -35,11 +35,11 @@
 - **Mobile Responsive** - Works on all devices
 - **Dark Mode Ready** - Professional, modern UI
 
-### 🎯 99.9% Accuracy System
+### 🎯 Confidence and Validation System
 
 - **Confidence Scoring** - 5-factor confidence calculation (0-100%)
 - **Error Detection** - 4 types: factual, logical, completeness, hallucinations
-- **Ground Truth Validation** - Benchmark against known-good analyses
+- **Ground Truth Validation** - Optional benchmark support when known-good analyses exist
 - **Human Review System** - Collect feedback and learn from corrections
 - **Accuracy Dashboard** - Track metrics and trends
 - **Quality Indicators** - Visual confidence bars and alerts
@@ -63,7 +63,7 @@
 ### High Confidence Analysis
 ```
 ┌────────────────────────────────────────────────┐
-│ 🧠 AI Analysis - 99.9% Accuracy               │
+│ 🧠 AI Analysis - Evidence Confidence          │
 ├────────────────────────────────────────────────┤
 │ Analysis Confidence: 94%                       │
 │ ████████████████████░░░░ HIGH                  │
@@ -91,7 +91,7 @@
 │                                                │
 │ 📊 Accuracy Metrics                           │
 │ Confidence: 94% | Errors: 0                   │
-│ Validation: 96% | Est. Accuracy: 99.2%        │
+│ Validation: 96% | Review needed: no           │
 └────────────────────────────────────────────────┘
 ```
 
@@ -158,7 +158,7 @@ vercel
 - [**Deployment Guide**](FINAL_DEPLOYMENT_GUIDE.md) - Detailed deployment instructions
 
 ### Technical Documentation
-- [**99.9% Accuracy System**](999_ACCURACY_IMPLEMENTATION.md) - How accuracy works
+- [**Confidence and Validation System**](999_ACCURACY_IMPLEMENTATION.md) - How confidence and review signals work
 - [**All Improvements**](ALL_IMPROVEMENTS_IMPLEMENTED.md) - 20 advanced features
 - [**Improvement Roadmap**](NEXT_LEVEL_IMPROVEMENTS.md) - Future enhancements
 - [**Power-Up README**](POWERUP_README.md) - Power-Up specific docs
@@ -235,19 +235,19 @@ vercel
 
 ---
 
-## 🎯 Accuracy Breakdown
+## 🎯 Confidence Breakdown
 
-### How We Achieve 99.9% Accuracy
+### How Confidence Is Calculated
 
-| Layer | Component | Contribution | Status |
-|-------|-----------|--------------|--------|
-| 1 | Base AI Analysis | 96.0% | ✅ |
-| 2 | Confidence Scoring | +0.5% | ✅ |
-| 3 | Error Detection | +0.8% | ✅ |
-| 4 | Ground Truth Validation | +0.7% | ✅ |
-| 5 | Human Review (flagged) | +1.5% | ✅ |
-| 6 | Continuous Learning | +0.4% | ✅ |
-| **Total** | **Complete System** | **99.9%** | **✅** |
+| Signal | Component | Purpose | Status |
+|-------|-----------|---------|--------|
+| 1 | Data completeness | Checks whether title, description, comments, checklists, dates, labels, members, and attachments are available | ✅ |
+| 2 | Analysis completeness | Checks whether required output sections are present | ✅ |
+| 3 | Evidence coverage | Links claims to card data, comments, checklist items, attachments, and activity where available | ✅ |
+| 4 | Validation findings | Flags missing context, unsupported claims, attachment limits, and review-needed cases | ✅ |
+| 5 | Human review | Stores user corrections and review state separately from verified Trello evidence | ✅ |
+
+Confidence is a review signal, not a guaranteed accuracy percentage. High-confidence output should still be checked before decisions, exports, or Trello writeback.
 
 ### Confidence Scoring Formula
 
@@ -299,11 +299,11 @@ Overall Confidence =
 - With attachments: $0.015-0.030 per analysis
 - Average: $0.005-0.010 per analysis
 
-### Accuracy
-- Overall: 99.9%
-- High confidence rate: 85-90%
-- Review rate: 5-10%
-- Error detection: 2-4%
+### Confidence
+- Confidence score: calculated per analysis from observable evidence and completeness
+- Review needed: shown for low-confidence or high-risk analyses
+- Attachment limits: shown when files are metadata-only or extraction failed
+- Human feedback: stored privately for later reanalysis guidance
 
 ---
 
@@ -428,7 +428,7 @@ Found a bug or have a feature request? [Open an issue](https://github.com/Noodza
 
 ### ✅ Completed
 - Core AI analysis
-- 99.9% accuracy system
+- Evidence-based confidence system
 - 20 advanced improvements
 - Multi-AI provider support
 - Confidence scoring
@@ -464,7 +464,7 @@ Found a bug or have a feature request? [Open an issue](https://github.com/Noodza
 
 > "Summarize This has transformed how our team handles sprint planning. The confidence scoring helps us identify cards that need more detail before we start work." - **Product Manager, Tech Startup**
 
-> "The 99.9% accuracy is no joke. We've been using it for 3 months and it's caught issues we would have missed. The human review system is brilliant." - **Engineering Lead, Fortune 500**
+> "The confidence and review signals help us separate supported facts from assumptions before acting." - **Operations Lead**
 
 > "Best Trello Power-Up we've ever used. The AI insights help us prioritize better and the batch processing saves hours every week." - **Project Manager, Agency**
 
@@ -480,7 +480,7 @@ Found a bug or have a feature request? [Open an issue](https://github.com/Noodza
 
 **Star ⭐ this repository if you find it helpful!**
 
-**Version**: 3.0 (99.9% Accuracy System)  
+**Version**: 3.0 (Confidence and Validation System)
 **Last Updated**: January 31, 2026  
 **Status**: Production Ready
 

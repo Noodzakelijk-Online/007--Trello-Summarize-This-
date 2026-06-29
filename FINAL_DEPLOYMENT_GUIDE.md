@@ -1,11 +1,11 @@
-# 🚀 Final Deployment Guide - 99.9% Accuracy System
+# 🚀 Final Deployment Guide - Confidence and Validation System
 
 ## ✅ Configuration Complete
 
-Your Trello Power-Up is now configured to use the **99.9% Accuracy System** (Option 1).
+Your Trello Power-Up is configured to use evidence-backed confidence scoring, validation findings, review controls, and safe export/postback approval.
 
 **What's Active**:
-- ✅ popup-999-accuracy.html (99.9% accuracy with confidence scoring)
+- ✅ popup-999-accuracy.html (analysis UI with confidence scoring)
 - ✅ accuracy-system.js (all 5 accuracy modules)
 - ✅ All 20 advanced improvements
 - ✅ Human review system
@@ -20,7 +20,7 @@ Your Trello Power-Up is now configured to use the **99.9% Accuracy System** (Opt
 **File**: `SummarizeThis-READY-TO-DEPLOY.zip` (66KB)
 
 **Contents**:
-- connector.js (updated to use 99.9% accuracy system)
+- connector.js (updated to use the active confidence and validation flow)
 - popup-999-accuracy.html (main analysis interface)
 - accuracy-system.js (accuracy modules)
 - advanced-modules.js (Phase 2 features)
@@ -70,7 +70,7 @@ Your Trello Power-Up is now configured to use the **99.9% Accuracy System** (Opt
 
 **Basic Information**:
 - **Name**: Summarize This
-- **Description**: AI-powered card analysis with 99.9% accuracy
+- **Description**: AI-powered card analysis with evidence-backed confidence scoring
 - **Author**: Your name
 - **Support Email**: Your email
 - **Workspace**: Select your Trello workspace
@@ -137,7 +137,7 @@ Your Trello Power-Up is now configured to use the **99.9% Accuracy System** (Opt
 ### **High Confidence Analysis** (Most Common)
 ```
 ┌─────────────────────────────────────┐
-│ AI Analysis - 99.9% Accuracy       │
+│ AI Analysis - Evidence Confidence  │
 ├─────────────────────────────────────┤
 │ Analysis Confidence: 94%           │
 │ ████████████████████░░░░ HIGH      │
@@ -149,14 +149,14 @@ Your Trello Power-Up is now configured to use the **99.9% Accuracy System** (Opt
 │                                     │
 │ Metrics:                           │
 │ Confidence: 94% | Errors: 0        │
-│ Validation: 96% | Accuracy: 99.2%  │
+│ Validation: 96% | Review: not needed │
 └─────────────────────────────────────┘
 ```
 
 ### **Low Confidence Analysis** (Rare)
 ```
 ┌─────────────────────────────────────┐
-│ AI Analysis - 99.9% Accuracy       │
+│ AI Analysis - Evidence Confidence  │
 ├─────────────────────────────────────┤
 │ Analysis Confidence: 58%           │
 │ ████████░░░░░░░░░░░░ LOW           │
@@ -259,12 +259,12 @@ Your Trello Power-Up is now configured to use the **99.9% Accuracy System** (Opt
 
 ## 📈 Expected Performance
 
-### **Accuracy Metrics**:
-- Overall Accuracy: **99.9%**
-- High Confidence Rate: **85-90%**
-- Review Rate: **5-10%**
-- Error Detection: **2-4%**
-- User Satisfaction: **4.8/5 stars**
+### **Confidence Metrics**:
+- Confidence score: calculated per analysis from observable evidence and completeness
+- Review-needed state: shown when confidence is low or validation findings are high risk
+- Source coverage: shows which card fields, comments, checklists, activity, and attachments were included
+- Attachment honesty: flags metadata-only files and extraction failures
+- User feedback: review and correction records can guide later reanalysis
 
 ### **Response Times**:
 - Simple cards: 10-15 seconds
@@ -300,7 +300,7 @@ Edit `accuracy-system.js` → `AccuracyDashboard`
 
 **Repository**: `Noodzakelijk-Online/007--Trello-Summarize-This-`
 
-**Latest Commit**: "Update connector to use 99.9% accuracy system (Option 1)"
+**Latest Commit**: Use the current branch commit that contains the confidence, ledger, setup, and installer changes.
 
 **All files are committed and ready to deploy!**
 
@@ -308,7 +308,7 @@ Edit `accuracy-system.js` → `AccuracyDashboard`
 
 ## 🎉 You're Ready!
 
-Your Trello Power-Up with **99.9% accuracy** is:
+Your Trello Power-Up with evidence-backed confidence controls is:
 - ✅ Fully configured
 - ✅ Ready to deploy
 - ✅ Tested and validated
@@ -348,7 +348,7 @@ Your Trello Power-Up with **99.9% accuracy** is:
 ## 🏆 What You've Built
 
 **A production-ready, enterprise-grade Trello Power-Up with**:
-- 99.9% accuracy through multi-layer validation
+- Evidence-backed confidence scoring through multi-layer validation
 - Confidence scoring for every analysis
 - Automatic error detection
 - Human review system for quality assurance
@@ -375,4 +375,4 @@ Your Power-Up is successful when:
 
 **Ready to transform how your team works with Trello!** 🚀
 
-Deploy now and start experiencing 99.9% accurate AI-powered card analysis!
+Deploy now and review AI-powered card analysis with visible evidence, confidence, and approval controls.
