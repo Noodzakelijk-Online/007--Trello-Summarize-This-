@@ -153,8 +153,8 @@ class AttachmentProcessor {
         };
     }
 
-    // Main processing method
-    async processAttachments(attachments) {
+    // Main processing method. Defaults to bounded text extraction and metadata-only binary handling.
+    async processAttachments(attachments, options = {}) {
         if (!attachments || attachments.length === 0) {
             return [];
         }
@@ -162,7 +162,7 @@ class AttachmentProcessor {
         const processed = [];
         for (const attachment of attachments) {
             try {
-                const result = await this.processAttachment(attachment);
+                const result = await this.processAttachment(attachment, options);
                 processed.push(result);
             } catch (error) {
                 if (typeof console !== 'undefined' && console.warn) {
@@ -182,9 +182,30 @@ class AttachmentProcessor {
     }
 
     // Process individual attachment
-    async processAttachment(attachment) {
+    async processAttachment(attachment, options = {}) {
         const type = this.detectType(attachment);
-        
+
+        if (this.isTextLikeAttachment(attachment)) {
+            try {
+                return await this.processSafeTextAttachment(attachment, this.normalizeExtractionLimits(options));
+            } catch (error) {
+                const safeError = this.sanitizeErrorMessage(error);
+                return {
+                    ...attachment,
+                    processed: false,
+                    type: type,
+                    extractionStatus: 'failed',
+                    error: safeError,
+                    extractedText: '',
+                    content: `Text extraction failed: ${safeError}`
+                };
+            }
+        }
+
+        if (options.allowBinaryFetch !== true && ['pdf', 'word', 'excel', 'image'].indexOf(type) !== -1) {
+            return this.metadataOnlyAttachment(attachment, 'metadata-only-binary');
+        }
+
         switch (type) {
             case 'pdf':
                 return await this.processPDF(attachment);
@@ -256,6 +277,15 @@ class AttachmentProcessor {
         const number = Number(value);
         if (!Number.isFinite(number)) return fallback;
         return Math.max(min, Math.min(max, Math.round(number)));
+    }
+
+    normalizeExtractionLimits(options = {}) {
+        return {
+            maxAttachments: this.clampNumber(options.maxAttachments, 5, 1, 12),
+            maxBytes: this.clampNumber(options.maxBytes, 200000, 10000, 500000),
+            maxExtractedCharacters: this.clampNumber(options.maxExtractedCharacters, 3000, 500, 10000),
+            timeoutMs: this.clampNumber(options.timeoutMs, 10000, 1000, 30000)
+        };
     }
 
     // Process PDF files using PDF.js
@@ -537,22 +567,43 @@ class AttachmentProcessor {
             throw new Error('Only HTTPS attachment URLs can be fetched');
         }
 
-        if (
-            hostname === 'localhost' ||
-            hostname.endsWith('.localhost') ||
-            hostname.endsWith('.local') ||
-            hostname === '127.0.0.1' ||
-            hostname === '0.0.0.0' ||
-            hostname === '::1' ||
-            /^10\./.test(hostname) ||
-            /^192\.168\./.test(hostname) ||
-            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
-            /^169\.254\./.test(hostname)
-        ) {
+        if (this.isPrivateOrLocalHostname(hostname)) {
             throw new Error('Private or local attachment URLs are not fetched');
         }
 
         return parsed;
+    }
+
+    isPrivateOrLocalHostname(hostname) {
+        const value = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+        if (
+            value === 'localhost' ||
+            value.endsWith('.localhost') ||
+            value.endsWith('.local') ||
+            value === '::1' ||
+            value === '0:0:0:0:0:0:0:1' ||
+            value.indexOf('fc') === 0 ||
+            value.indexOf('fd') === 0 ||
+            value.indexOf('fe80:') === 0
+        ) {
+            return true;
+        }
+
+        const parts = value.split('.').map((part) => Number(part));
+        if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+            return false;
+        }
+
+        const first = parts[0];
+        const second = parts[1];
+        return first === 0 ||
+            first === 10 ||
+            first === 127 ||
+            (first === 100 && second >= 64 && second <= 127) ||
+            (first === 169 && second === 254) ||
+            (first === 172 && second >= 16 && second <= 31) ||
+            (first === 192 && second === 168) ||
+            first >= 224;
     }
 
     // Format bytes to human-readable size

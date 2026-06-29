@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 312.1 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 468.0 KB.
+- Active popup initial local files: about 314.2 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 470.0 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.68 MB.
-- Generated Windows installer executable: 287,744 bytes.
+- Generated Windows installer executable: 288,768 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -40,6 +40,7 @@ Current results:
    - List context is bounded to at most 25 current-list card titles, labels, and due states, and can be disabled in settings.
    - Custom fields are capped to 25 compact name/value/type records, with values capped to 180 characters each.
    - Optional text/CSV attachment previews are capped before they enter the prompt, and the feature is off by default.
+   - Legacy attachment processing now defaults to metadata-only handling for binary files and uses the same bounded safe text extraction path for text-like files.
 
 2. Bounded AI response size and time:
    - OpenAI and Google outputs are capped at 900 output tokens.
@@ -92,6 +93,7 @@ Current results:
    - Attachment intelligence is metadata-first, capped to 25 normalized records and 12 AI prompt/evidence records. The Attachment facts panel renders from the same existing normalized records and caps visible facts to 8 rows.
    - Optional text/CSV extraction is off by default and only fetches small HTTPS text-like files, up to 5 attachments, 200 KB each, 3,000 extracted characters each, and a 10-second fetch timeout. Sensitive cards stay metadata-only until approval.
    - PDF, Word, image, audio, video, and arbitrary link attachments remain metadata-only in the active popup.
+   - Legacy attachment processing also keeps PDF, Word, spreadsheet, and image attachments metadata-only by default unless a caller explicitly opts into binary fetching.
    - Custom prompt guidance is capped to 600 characters, saved prompt templates are capped to 10 member-private records, and ledger exports store only prompt/language metadata, not the full guidance text.
    - Cost budget tracking stores only compact provider, model, token, cost, card id/title, run id, and timestamp records in member-private storage, capped to 200 records.
    - Runtime timing metrics store only compact stage durations, provider/source, card id, run id, and timestamp in member-private storage, capped to 100 records.
@@ -108,11 +110,11 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 468.0 KB, and the generated `SummarizeThisSetup.exe` is 287,744 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 470.0 KB, and the generated `SummarizeThisSetup.exe` is 288,768 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Legacy attachment processing blocks private/local URLs, including normalized IPv4 forms and local/private IPv6 ranges, and no longer fetches binary attachment bodies by default. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
 
 Local preview does not persist provider API keys, so AI-only mode requires either the Trello Power-Up runtime where member-private storage is available or a valid backend proxy endpoint. Proxy endpoints are saved only after normalization: HTTPS is required for Trello use, localhost/127.0.0.1 are allowed for development, and query strings, fragments, and embedded credentials are stripped or rejected.
 

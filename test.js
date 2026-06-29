@@ -1384,6 +1384,49 @@ async function runAsyncTests() {
   } finally {
     global.fetch = originalFetch;
   }
+
+  assert.throws(() => processor.validateAttachmentUrl("https://2130706433/private.txt"), /Private or local/);
+  assert.throws(() => processor.validateAttachmentUrl("https://[fc00::1]/private.txt"), /Private or local/);
+
+  let legacyFetchCount = 0;
+  global.fetch = async function (url, options) {
+    legacyFetchCount += 1;
+    assert.equal(url, "https://attachments.example.com/notes.txt");
+    assert.equal(options.credentials, "omit");
+    return {
+      ok: true,
+      blob: async function () {
+        return new Blob(["Safe legacy text"], { type: "text/plain" });
+      }
+    };
+  };
+
+  try {
+    const legacyProcessed = await processor.processAttachments([
+      {
+        id: "legacy-pdf",
+        name: "contract.pdf",
+        mimeType: "application/pdf",
+        url: "https://attachments.example.com/contract.pdf",
+        bytes: 4000000
+      },
+      {
+        id: "legacy-text",
+        name: "notes.txt",
+        mimeType: "text/plain",
+        url: "https://attachments.example.com/notes.txt",
+        bytes: 16
+      }
+    ]);
+
+    assert.equal(legacyFetchCount, 1);
+    assert.equal(legacyProcessed[0].extractionStatus, "metadata-only-binary");
+    assert.equal(legacyProcessed[0].processed, false);
+    assert.equal(legacyProcessed[1].extractionStatus, "text-extracted");
+    assert.equal(legacyProcessed[1].extractedText, "Safe legacy text");
+  } finally {
+    global.fetch = originalFetch;
+  }
 }
 
 runAsyncTests()
