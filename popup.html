@@ -479,6 +479,16 @@
       <p id="warningText" class="section-body"></p>
     </section>
 
+    <section id="aiApprovalPanel" class="panel notice hidden">
+      <h2 class="section-title">Review before AI provider</h2>
+      <p id="aiApprovalText" class="section-body"></p>
+      <ul id="aiApprovalList" class="compact-list"></ul>
+      <div class="actions">
+        <button class="primary" type="button" id="approveAiButton">Run AI with this card</button>
+        <button class="secondary" type="button" id="keepLocalButton">Keep local result</button>
+      </div>
+    </section>
+
     <section id="errorPanel" class="panel error hidden">
       <h2 class="section-title">Analysis failed</h2>
       <p id="errorText" class="section-body"></p>
@@ -669,6 +679,8 @@
       var lastAnalysis = null;
       var lastLedgerRun = null;
       var lastHistoryRuns = [];
+      var lastSettings = null;
+      var lastSensitiveSignals = null;
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -685,6 +697,9 @@
         statusDetail: document.getElementById("statusDetail"),
         warningPanel: document.getElementById("warningPanel"),
         warningText: document.getElementById("warningText"),
+        aiApprovalPanel: document.getElementById("aiApprovalPanel"),
+        aiApprovalText: document.getElementById("aiApprovalText"),
+        aiApprovalList: document.getElementById("aiApprovalList"),
         errorPanel: document.getElementById("errorPanel"),
         errorText: document.getElementById("errorText"),
         results: document.getElementById("results")
@@ -693,6 +708,13 @@
       document.getElementById("copyButton").addEventListener("click", copySummary);
       document.getElementById("reanalyzeButton").addEventListener("click", runAnalysis);
       document.getElementById("retryButton").addEventListener("click", runAnalysis);
+      document.getElementById("approveAiButton").addEventListener("click", function () {
+        runAnalysis({ approveSensitiveAi: true });
+      });
+      document.getElementById("keepLocalButton").addEventListener("click", function () {
+        elements.aiApprovalPanel.classList.add("hidden");
+        elements.confidencePill.textContent = "Local only";
+      });
       document.getElementById("settingsButton").addEventListener("click", openSettings);
       document.getElementById("settingsButtonError").addEventListener("click", openSettings);
       document.getElementById("usefulButton").addEventListener("click", function () {
@@ -721,15 +743,19 @@
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
-      async function runAnalysis() {
+      async function runAnalysis(options) {
+        var allowSensitiveAi = Boolean(options && options.approveSensitiveAi);
         resetView();
         setStatus("Reading card", "Collecting card title, description, due date, labels, members, and progress.");
 
         try {
           t = inTrello ? TrelloPowerUp.iframe() : null;
           var settings = await loadSettings();
+          lastSettings = settings;
           var cardData = await gatherCardData(settings);
           lastCardData = cardData;
+          var sensitiveSignals = SummarizeThis.detectSensitiveSignals(cardData);
+          lastSensitiveSignals = sensitiveSignals;
 
           var normalized = SummarizeThis.normalizeCardData(cardData);
           elements.cardTitle.textContent = normalized.name;
@@ -742,15 +768,19 @@
 
           if (settings.analysisMode !== "local") {
             if (hasAnyConfiguredKey(settings)) {
-              setStatus("Calling AI provider", "Asking the configured provider for a structured project summary.");
-              try {
-                analysis = await runConfiguredAI(cardData, settings, localAnalysis);
-              } catch (error) {
-                if (settings.analysisMode === "ai-only") {
-                  throw error;
+              if (shouldRequireSensitiveAiApproval(settings, sensitiveSignals, allowSensitiveAi)) {
+                warning = "Sensitive-card signals were detected. The local result is shown first; AI provider handoff requires explicit approval.";
+              } else {
+                setStatus("Calling AI provider", "Asking the configured provider for a structured project summary.");
+                try {
+                  analysis = await runConfiguredAI(cardData, settings, localAnalysis);
+                } catch (error) {
+                  if (settings.analysisMode === "ai-only") {
+                    throw error;
+                  }
+                  warning = "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + error.message;
+                  analysis = localAnalysis;
                 }
-                warning = "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + error.message;
-                analysis = localAnalysis;
               }
             } else if (settings.analysisMode === "ai-only") {
               throw new Error("AI-only mode is selected, but no provider API key is configured.");
@@ -765,6 +795,7 @@
             promptTemplateId: "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode)
           });
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
+          renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analysis.source === "local");
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
           renderHistory(lastHistoryRuns);
@@ -776,10 +807,13 @@
       function resetView() {
         elements.errorPanel.classList.add("hidden");
         elements.warningPanel.classList.add("hidden");
+        elements.aiApprovalPanel.classList.add("hidden");
         elements.results.classList.add("hidden");
         elements.statusPanel.classList.remove("hidden");
         elements.statusSpinner.classList.remove("hidden");
         elements.confidencePill.textContent = "Starting";
+        elements.aiApprovalText.textContent = "";
+        elements.aiApprovalList.innerHTML = "";
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
         document.getElementById("exportStatus").textContent = "";
@@ -820,6 +854,7 @@
           strategy: "cost-effective",
           outputMode: "operational-ledger",
           includeListContext: true,
+          requireSensitiveAiApproval: true,
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -1049,6 +1084,37 @@
       function hasAnyConfiguredKey(settings) {
         var keys = settings.apiKeys || {};
         return Boolean(keys.openai || keys.anthropic || keys.google);
+      }
+
+      function shouldRequireSensitiveAiApproval(settings, signals, approved) {
+        if (approved) return false;
+        if (!settings || settings.requireSensitiveAiApproval === false) return false;
+        if (!signals || !signals.requiresAiApproval) return false;
+        if (settings.analysisMode === "local") return false;
+        return hasAnyConfiguredKey(settings);
+      }
+
+      function renderAiApproval(settings, signals, approved, showingLocalResult) {
+        var needsApproval = shouldRequireSensitiveAiApproval(settings, signals, approved);
+        elements.aiApprovalPanel.classList.toggle("hidden", !needsApproval);
+        if (!needsApproval) return;
+
+        elements.aiApprovalText.textContent = "This card appears to contain sensitive context. The current result stayed local. Approve only if this card may be sent to the configured AI provider.";
+        elements.aiApprovalList.innerHTML = "";
+
+        var items = [];
+        if (signals && signals.categories && signals.categories.length) {
+          items.push("Detected signal categories: " + signals.categories.join(", ") + ".");
+        }
+        if (signals && signals.matches && signals.matches.length) {
+          items.push("Matched terms: " + signals.matches.join(", ") + ".");
+        }
+        items.push("Local analysis is " + (showingLocalResult ? "available below." : "not currently available."));
+        items.forEach(function (item) {
+          var li = document.createElement("li");
+          li.textContent = item;
+          elements.aiApprovalList.appendChild(li);
+        });
       }
 
       function promptContextOptions(settings) {

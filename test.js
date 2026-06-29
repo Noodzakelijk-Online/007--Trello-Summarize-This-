@@ -13,6 +13,10 @@ assert.equal(normalized.checklistStats.complete, 1);
 assert.equal(normalized.listContext.sampledCards, 4);
 assert.equal(normalized.listContext.currentPosition, 2);
 assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
+const sensitiveSignals = SummarizeThis.detectSensitiveSignals(sample);
+assert.equal(sensitiveSignals.requiresAiApproval, true);
+assert.ok(sensitiveSignals.categories.includes("client"));
+assert.ok(sensitiveSignals.categories.includes("financial"));
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()
@@ -42,6 +46,7 @@ assert.equal(riskPromptPayload.outputMode.key, "risk-review");
 assert.ok(riskPromptPayload.outputMode.instruction.includes("risks"));
 assert.equal(riskPromptPayload.listContext.sampledCards, 4);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
+assert.equal(riskPromptPayload.sensitiveSignals.requiresAiApproval, true);
 
 function parsePromptPayload(promptText) {
   return JSON.parse(promptText.slice(promptText.lastIndexOf("\n{") + 1));

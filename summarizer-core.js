@@ -352,6 +352,45 @@
     }).slice(0, 6);
   }
 
+  function detectSensitiveSignals(input) {
+    var card = normalizeCardData(input);
+    var source = [
+      card.name,
+      card.desc,
+      card.boardName,
+      card.listName,
+      card.labels.join(" "),
+      card.members.join(" "),
+      card.attachments.map(function (attachment) { return attachment.name || ""; }).join(" "),
+      card.comments.slice(0, 12).map(function (comment) { return comment.text || ""; }).join(" ")
+    ].join(" ").toLowerCase();
+    var categories = {
+      client: ["client", "customer", "account", "proposal", "stakeholder"],
+      financial: ["invoice", "payment", "billing", "budget", "amount", "bank", "tax", "credit", "debit", "subscription"],
+      legal: ["legal", "contract", "gdpr", "privacy", "compliance", "terms", "lawsuit", "liability"],
+      personal: ["personal", "password", "passport", "address", "phone", "email", "medical", "health", "hr", "salary"]
+    };
+    var matchedCategories = [];
+    var matches = [];
+
+    Object.keys(categories).forEach(function (category) {
+      categories[category].forEach(function (word) {
+        if (source.indexOf(word) === -1) return;
+        if (matchedCategories.indexOf(category) === -1) matchedCategories.push(category);
+        if (matches.indexOf(word) === -1) matches.push(word);
+      });
+    });
+
+    return {
+      requiresAiApproval: matchedCategories.length > 0,
+      categories: matchedCategories,
+      matches: matches.slice(0, 12),
+      reason: matchedCategories.length
+        ? "Card text or metadata contains " + matchedCategories.join(", ") + " signal(s)."
+        : "No sensitive AI handoff signal detected."
+    };
+  }
+
   function buildRuleBasedAnalysis(input, options) {
     var card = normalizeCardData(input);
     var due = getDueInfo(card, options && options.now);
@@ -520,6 +559,7 @@
       due: card.due,
       dueComplete: card.dueComplete,
       listContext: card.listContext,
+      sensitiveSignals: detectSensitiveSignals(input),
       checklistProgress: card.checklistStats,
       comments: comments,
       attachmentCount: card.attachmentCount,
@@ -560,6 +600,7 @@
       "Be concrete. Prefer short operational sentences. Do not invent dates, people, amounts, attachment contents, or history.",
       "If attachments are present but text is not provided, say attachment contents were not verified.",
       "Use listContext only as lightweight board/list signal; do not infer hidden card details from neighboring card titles.",
+      "If sensitiveSignals are present, keep the response operational and avoid exposing unnecessary private details.",
       "If Robert is mentioned or approval/client/financial/legal risk appears, create a Robert Yes/No decision.",
       "If an action can be delegated without Robert, include it in vaReadyActions.",
       "",
@@ -749,6 +790,7 @@
   return {
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
+    detectSensitiveSignals: detectSensitiveSignals,
     getOutputModeInstruction: getOutputModeInstruction,
     getOutputModeLabel: getOutputModeLabel,
     normalizeOutputMode: normalizeOutputMode,

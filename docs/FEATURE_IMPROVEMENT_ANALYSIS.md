@@ -119,6 +119,15 @@ Status: Implemented in `settings-powerup.html` and active AI provider calls.
 - Description context can be set to 1,500, 2,500, 4,000, or 5,000 characters.
 - The settings panel warns that larger context sends more Trello content to the configured AI provider.
 
+### 5b. Sensitive AI Handoff Approval
+
+Status: Implemented in `settings-powerup.html` and the active popup.
+
+- Client, financial, legal, and personal signals are detected before AI provider calls.
+- When sensitive signals are present, the popup shows the local result first and requires explicit approval before sending card context to a configured AI provider.
+- The setting is enabled by default and can be disabled by the user.
+- Approved AI prompts include compact sensitive-signal metadata so the provider response can stay operational and avoid unnecessary private detail.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.

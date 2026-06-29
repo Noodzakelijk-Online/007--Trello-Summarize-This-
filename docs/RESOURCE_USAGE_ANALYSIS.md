@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 147.3 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 257.0 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.39 MB.
-- Large-card AI prompt after caps: 15,748 characters.
+- Active popup initial local files: about 152.6 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 263.1 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.40 MB.
+- Large-card AI prompt after caps: 16,066 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -40,6 +40,7 @@ Current results:
    - OpenAI and Google outputs are capped at 900 output tokens.
    - Anthropic output is capped at 900 tokens.
    - AI provider requests time out after 30 seconds and fall back cleanly in auto mode.
+   - Sensitive-card detection runs before provider calls and keeps analysis local until the user explicitly approves AI handoff.
    - Provider key validation is user-triggered only, uses a 10-second timeout, and sends the smallest practical validation request.
 
 3. Reduced background polling:
@@ -77,11 +78,11 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 257 KB, and the generated `SummarizeThisSetup.exe` is 176,128 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 263 KB, and the generated `SummarizeThisSetup.exe` is 179,712 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled. The app sends Trello card context to the selected AI provider. The new prompt caps reduce token use, latency, and provider cost for large cards. In local-only mode no AI provider network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The prompt caps reduce token use, latency, and provider cost for large cards. In local-only mode no AI provider network request is made.
 
 ### Trello Runtime
 

@@ -278,6 +278,14 @@
         </label>
         <p class="help">Reads a small sample of current-list card titles, labels, and due states for sprint/neighbor context. Full descriptions and comments are not included.</p>
       </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="requireSensitiveAiApproval">
+          <input id="requireSensitiveAiApproval" type="checkbox">
+          <span>Require approval before sensitive AI handoff</span>
+        </label>
+        <p class="help">When client, financial, legal, or personal signals are detected, the popup shows a local result first and waits for explicit approval before sending card context to an AI provider.</p>
+      </div>
     </section>
 
     <section class="panel">
@@ -352,6 +360,7 @@
         promptCommentCharacters: document.getElementById("promptCommentCharacters"),
         promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
         includeListContext: document.getElementById("includeListContext"),
+        requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
         openaiKey: document.getElementById("openaiKey"),
         openaiModel: document.getElementById("openaiModel"),
         googleKey: document.getElementById("googleKey"),
@@ -393,6 +402,7 @@
         fields.promptCommentCharacters.value = String(promptContext.commentCharacters);
         fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
         fields.includeListContext.checked = settings.includeListContext !== false;
+        fields.requireSensitiveAiApproval.checked = settings.requireSensitiveAiApproval !== false;
       }
 
       async function readSettings() {
@@ -402,6 +412,7 @@
           strategy: "cost-effective",
           outputMode: "operational-ledger",
           includeListContext: true,
+          requireSensitiveAiApproval: true,
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -441,6 +452,7 @@
           strategy: fields.strategy.value,
           outputMode: normalizeOutputMode(fields.outputMode.value),
           includeListContext: fields.includeListContext.checked,
+          requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
           promptContext: normalizePromptContext({
             descriptionCharacters: fields.promptDescriptionCharacters.value,
             commentLimit: fields.promptCommentLimit.value,
