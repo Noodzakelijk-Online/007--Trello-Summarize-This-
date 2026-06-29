@@ -175,7 +175,15 @@ Status: Implemented in the active popup and ledger export records.
 - Export records store whether sensitive review was required and approved, including compact signal categories and matched terms.
 - The flow keeps non-sensitive exports fast while making sensitive client, financial, legal, or personal handoffs explicit.
 
-### 5f. Feedback-Guided Reanalysis
+### 5f. Runtime Diagnostic Redaction
+
+Status: Implemented across active and legacy client-side modules.
+
+- Provider, Trello, attachment, batch, prompt, export, scheduled-analysis, and integration error paths now log bounded sanitized summaries instead of raw Error objects.
+- Key-like strings, bearer tokens, Trello tokens, and URLs are redacted from diagnostic messages.
+- Placeholder email/Slack report hooks no longer print full generated reports to the browser console.
+
+### 5g. Feedback-Guided Reanalysis
 
 Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
@@ -185,7 +193,7 @@ Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelli
 - Prior corrections are shown as guidance, not as verified Trello facts, to avoid turning user feedback into unsupported claims.
 - Sensitive detection also sees correction text before provider handoff, so sensitive feedback does not silently travel to AI providers.
 
-### 5g. Analysis Review State
+### 5h. Analysis Review State
 
 Status: Implemented in the active popup and `card-intelligence-ledger.js`.
 

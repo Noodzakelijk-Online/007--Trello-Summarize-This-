@@ -3,6 +3,8 @@ const SummarizeThis = require("./summarizer-core");
 const CardIntelligenceLedger = require("./card-intelligence-ledger");
 const TrelloAdminConfig = require("./trello-admin-config");
 const AttachmentProcessor = require("./attachment-processor");
+const AIProviders = require("./ai-providers");
+const TrelloIntegration = require("./trello-integration");
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -52,6 +54,20 @@ assert.equal(SummarizeThis.shouldSkipSensitiveAttachmentTextExtraction({
   extractTextAttachments: true,
   requireSensitiveAiApproval: true
 }, false), false);
+
+const unsafeError = new Error("Authorization: Bearer sk-test-secret-token api_key=secret123 token=trello-token https://attachments.example.com/private.txt");
+const providerSanitizer = new AIProviders();
+const providerSafeError = providerSanitizer.sanitizeErrorMessage(unsafeError);
+assert.doesNotMatch(providerSafeError, /sk-test-secret-token|secret123|trello-token/);
+assert.match(providerSafeError, /redacted/);
+const trelloSanitizer = new TrelloIntegration();
+const trelloSafeError = trelloSanitizer.sanitizeErrorMessage(unsafeError);
+assert.doesNotMatch(trelloSafeError, /secret123|trello-token|attachments\.example\.com/);
+assert.match(trelloSafeError, /redacted|url redacted/);
+const attachmentSanitizer = new AttachmentProcessor();
+const attachmentSafeError = attachmentSanitizer.sanitizeErrorMessage(unsafeError);
+assert.doesNotMatch(attachmentSafeError, /secret123|trello-token|attachments\.example\.com/);
+assert.match(attachmentSafeError, /redacted|url redacted/);
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()

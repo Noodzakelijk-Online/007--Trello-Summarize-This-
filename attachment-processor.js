@@ -13,6 +13,16 @@ class AttachmentProcessor {
         };
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Attachment processing failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .replace(/sk-[A-Za-z0-9_-]{12,}/g, 'sk-[redacted]')
+            .replace(/(api[_-]?key|token)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
     // Bounded active-popup path: only fetch small HTTPS text-like attachments after the user enables it.
     async processSafeTextAttachments(attachments, options = {}) {
         const source = Array.isArray(attachments) ? attachments : [];
@@ -155,12 +165,15 @@ class AttachmentProcessor {
                 const result = await this.processAttachment(attachment);
                 processed.push(result);
             } catch (error) {
-                console.warn(`Failed to process attachment ${attachment.name}:`, error);
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn(`Failed to process attachment: ${this.sanitizeErrorMessage(error)}`);
+                }
+                const safeError = this.sanitizeErrorMessage(error);
                 processed.push({
                     ...attachment,
                     processed: false,
-                    error: error.message,
-                    content: `Failed to process: ${error.message}`
+                    error: safeError,
+                    content: `Failed to process: ${safeError}`
                 });
             }
         }

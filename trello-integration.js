@@ -9,16 +9,31 @@ class TrelloIntegration {
         this.token = null;
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Trello request failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .replace(/sk-[A-Za-z0-9_-]{12,}/g, 'sk-[redacted]')
+            .replace(/token\s+[A-Za-z0-9._~+/=-]+/gi, 'token [redacted]')
+            .replace(/(api[_-]?key|token)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
+    logSafeWarning(message, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${message}: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
+
     // Initialize Trello Power-Up
     async initialize() {
         // Check if we're running inside Trello
         if (typeof window.TrelloPowerUp !== 'undefined') {
             this.isInTrello = true;
             this.t = window.TrelloPowerUp.iframe();
-            console.log('Trello Power-Up initialized');
             return true;
         }
-        console.log('Not running in Trello environment');
         return false;
     }
 
@@ -75,7 +90,7 @@ class TrelloIntegration {
 
             return cardData;
         } catch (error) {
-            console.error('Error fetching Trello card data:', error);
+            this.logSafeWarning('Error fetching Trello card data', error);
             throw error;
         }
     }
@@ -119,7 +134,7 @@ class TrelloIntegration {
                 memberCreator: action.memberCreator?.fullName || 'Unknown'
             }));
         } catch (error) {
-            console.warn('Could not fetch comments:', error);
+            this.logSafeWarning('Could not fetch comments', error);
             return [];
         }
     }
@@ -133,11 +148,11 @@ class TrelloIntegration {
                 const processed = await this.processAttachment(attachment);
                 processedAttachments.push(processed);
             } catch (error) {
-                console.warn(`Failed to process attachment ${attachment.name}:`, error);
+                this.logSafeWarning('Failed to process attachment metadata', error);
                 processedAttachments.push({
                     ...attachment,
                     processed: false,
-                    error: error.message
+                    error: this.sanitizeErrorMessage(error)
                 });
             }
         }

@@ -7,6 +7,14 @@ class AttachmentAnalyzer {
         this.apiKey = trelloApiKey;
         this.token = trelloToken;
     }
+
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Attachment analysis failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
     
     async analyzeAttachments(card) {
         if (!card.attachments || card.attachments.length === 0) {
@@ -20,11 +28,13 @@ class AttachmentAnalyzer {
                 const result = await this.analyzeAttachment(attachment);
                 analysis.push(result);
             } catch (error) {
-                console.error(`Error analyzing attachment ${attachment.name}:`, error);
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn(`Error analyzing attachment: ${this.sanitizeErrorMessage(error)}`);
+                }
                 analysis.push({
                     name: attachment.name,
                     type: this.detectFileType(attachment.name),
-                    error: error.message,
+                    error: this.sanitizeErrorMessage(error),
                     analyzed: false
                 });
             }

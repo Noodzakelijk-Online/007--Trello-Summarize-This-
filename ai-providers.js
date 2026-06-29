@@ -40,6 +40,22 @@ class AIProviders {
         return this.apiKeys[provider];
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Provider request failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .replace(/(x-api-key|x-goog-api-key|api[_-]?key|token)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .replace(/sk-[A-Za-z0-9_-]{12,}/g, 'sk-[redacted]')
+            .slice(0, 240);
+    }
+
+    logProviderFailure(provider, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${provider} API call failed: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
+
     // OpenAI API Integration
     async callOpenAI(model, prompt, cardData) {
         const apiKey = this.apiKeys.openai;
@@ -110,7 +126,7 @@ Provide your analysis in this JSON format:
                 provider: 'OpenAI'
             };
         } catch (error) {
-            console.error('OpenAI API call failed:', error);
+            this.logProviderFailure('OpenAI', error);
             throw error;
         }
     }
@@ -170,7 +186,7 @@ Provide analysis in JSON format with: about, history, status, nextSteps, and ins
                 provider: 'Anthropic'
             };
         } catch (error) {
-            console.error('Anthropic API call failed:', error);
+            this.logProviderFailure('Anthropic', error);
             throw error;
         }
     }
@@ -230,7 +246,7 @@ Respond with valid JSON only.`;
                 provider: 'Google'
             };
         } catch (error) {
-            console.error('Google AI API call failed:', error);
+            this.logProviderFailure('Google AI', error);
             throw error;
         }
     }
@@ -282,7 +298,7 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                 provider: 'Cohere'
             };
         } catch (error) {
-            console.error('Cohere API call failed:', error);
+            this.logProviderFailure('Cohere', error);
             throw error;
         }
     }
@@ -329,7 +345,7 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                 provider: 'Perplexity'
             };
         } catch (error) {
-            console.error('Perplexity API call failed:', error);
+            this.logProviderFailure('Perplexity', error);
             throw error;
         }
     }
@@ -403,7 +419,7 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                     return { valid: true, error: null }; // Assume valid for other providers
             }
         } catch (error) {
-            return { valid: false, error: error.message };
+            return { valid: false, error: this.sanitizeErrorMessage(error) };
         }
     }
 }

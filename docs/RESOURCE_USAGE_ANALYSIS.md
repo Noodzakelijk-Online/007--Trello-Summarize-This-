@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 291.7 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 435.2 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.61 MB.
-- Generated Windows installer executable: 268,288 bytes.
+- Active popup initial local files: about 292.3 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 435.8 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.62 MB.
+- Generated Windows installer executable: 268,800 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -75,6 +75,7 @@ Current results:
    - Plain text, status update, Robert decision, VA/team handoff, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
    - Unresolved questions are compact derived records capped to 10 items and reuse existing evidence/source ids instead of storing full card text.
+   - Runtime diagnostic logs are bounded and redact key-like strings, tokens, and URLs instead of printing raw Error objects or generated report payloads.
    - Waiting-on items are compact derived records capped to 6 items and reuse existing evidence/source ids instead of storing full card text.
    - Unclear or conflicting points are compact derived records capped to 6 items and reuse existing evidence/source ids instead of storing full card text.
    - Trello comment drafts cap individual list sections before the 4,000-character draft cap, preserving the source coverage and review footer on larger cards.
@@ -104,11 +105,11 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 435.2 KB, and the generated `SummarizeThisSetup.exe` is 268,288 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 435.8 KB, and the generated `SummarizeThisSetup.exe` is 268,800 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. In local-only mode no AI provider network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider network request is made.
 
 ### Trello Runtime
 

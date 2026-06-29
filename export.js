@@ -6,6 +6,13 @@ class ExportManager {
         this.supportedFormats = ['markdown', 'pdf', 'json', 'text'];
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Export operation failed');
+        return message
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
     // Export analysis results
     async exportResults(analysisData, format = 'markdown') {
         if (!this.supportedFormats.includes(format)) {
@@ -368,7 +375,9 @@ class ExportManager {
             await navigator.clipboard.writeText(content);
             return true;
         } catch (error) {
-            console.error('Failed to copy to clipboard:', error);
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`Failed to copy to clipboard: ${this.sanitizeErrorMessage(error)}`);
+            }
             return false;
         }
     }

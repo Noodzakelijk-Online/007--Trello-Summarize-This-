@@ -8,13 +8,26 @@ class CustomPromptManager {
         this.defaultPrompts = this.getDefaultPrompts();
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Prompt operation failed');
+        return message
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
+    logSafeWarning(message, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${message}: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
+
     // Load prompts from storage
     loadPrompts() {
         try {
             const stored = localStorage.getItem(this.storageKey);
             return stored ? JSON.parse(stored) : [];
         } catch (error) {
-            console.error('Failed to load custom prompts:', error);
+            this.logSafeWarning('Failed to load custom prompts', error);
             return [];
         }
     }
@@ -24,7 +37,7 @@ class CustomPromptManager {
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this.prompts));
         } catch (error) {
-            console.error('Failed to save custom prompts:', error);
+            this.logSafeWarning('Failed to save custom prompts', error);
         }
     }
 
@@ -422,7 +435,7 @@ Provide creative analysis in JSON format:
             }
             throw new Error('Invalid format');
         } catch (error) {
-            console.error('Failed to import prompts:', error);
+            this.logSafeWarning('Failed to import prompts', error);
             throw error;
         }
     }
