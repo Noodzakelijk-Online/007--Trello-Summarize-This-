@@ -1892,7 +1892,27 @@
   function firstItemText(items, fallback) {
     var values = toArray(items);
     if (!values.length) return fallback;
-    return cleanText(values[0].text || values[0].claim || values[0]);
+    return formatOperationalItem(values[0]);
+  }
+
+  function operationalItemMeta(item) {
+    var meta = [];
+    if (!item || typeof item !== "object") return meta;
+    if (item.owner) meta.push("owner: " + cleanText(item.owner));
+    if (item.priority) meta.push("priority: " + cleanText(item.priority));
+    if (item.severity) meta.push("severity: " + cleanText(item.severity));
+    if (item.riskLevel) meta.push("risk: " + cleanText(item.riskLevel));
+    if (item.category) meta.push("category: " + cleanText(item.category));
+    if (item.requiredBy) meta.push("required by: " + cleanText(item.requiredBy));
+    if (item.needsRobert === false) meta.push("Robert approval: no");
+    return meta.filter(Boolean).slice(0, 4);
+  }
+
+  function formatOperationalItem(item) {
+    var text = cleanText(item && (item.text || item.claim) || item);
+    if (!text) return "";
+    var meta = operationalItemMeta(item);
+    return meta.length ? text + " (" + meta.join("; ") + ")" : text;
   }
 
   function appendItems(lines, items, fallback) {
@@ -1902,7 +1922,8 @@
       return;
     }
     values.forEach(function (item) {
-      lines.push("- " + cleanText(item.text || item.claim || item));
+      var text = formatOperationalItem(item);
+      if (text) lines.push("- " + text);
     });
   }
 
@@ -1913,7 +1934,7 @@
       return;
     }
     values.forEach(function (item) {
-      var text = cleanText(item.text || item.claim || item);
+      var text = formatOperationalItem(item);
       if (text) lines.push("- [ ] " + text);
     });
   }

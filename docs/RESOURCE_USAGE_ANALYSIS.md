@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 251.1 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 392.9 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.57 MB.
-- Generated Windows installer executable: 244,736 bytes.
+- Active popup initial local files: about 252.8 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 394.6 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.58 MB.
+- Generated Windows installer executable: 245,760 bytes.
 - Large-card AI prompt after caps: 19,105 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.

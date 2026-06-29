@@ -27,6 +27,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `CustomField`: compact normalized custom field name/value/type metadata when Trello exposes custom field items.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, decision, VA action, and confidence changes between runs.
 - Operational AI schema: providers are prompted to return blockers, next actions, Robert decisions, VA-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
+- Operational item display: popup lists and human-readable exports preserve compact owner, priority, severity, risk, category, Robert-required, and delegation metadata where available.
 - Ledger export formats: the popup can copy markdown, plain text, status/email text, copy structured JSON, and download compact JSON for Sneup/HAI-style ingestion.
 - Trello comment approval: the popup generates an exact comment draft, supports copy-only use, and only attempts Trello posting after the user checks an approval box and confirms the action.
 - Export/postback history: the popup shows recent private export, copy, download, and Trello comment records for the current card's analysis runs.

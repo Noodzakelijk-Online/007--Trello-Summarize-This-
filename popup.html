@@ -1665,9 +1665,24 @@
         if (!values.length) values = [{ text: emptyText }];
         values.forEach(function (item) {
           var li = document.createElement("li");
-          li.textContent = item.text || item.claim || String(item);
+          var text = item.text || item.claim || String(item);
+          var meta = operationalItemMeta(item);
+          li.textContent = meta.length ? text + " (" + meta.join("; ") + ")" : text;
           list.appendChild(li);
         });
+      }
+
+      function operationalItemMeta(item) {
+        var meta = [];
+        if (!item || typeof item !== "object") return meta;
+        if (item.owner) meta.push("owner: " + item.owner);
+        if (item.priority) meta.push("priority: " + item.priority);
+        if (item.severity) meta.push("severity: " + item.severity);
+        if (item.riskLevel) meta.push("risk: " + item.riskLevel);
+        if (item.category) meta.push("category: " + item.category);
+        if (item.requiredBy) meta.push("required by: " + item.requiredBy);
+        if (item.needsRobert === false) meta.push("Robert approval: no");
+        return meta.filter(Boolean).slice(0, 4);
       }
 
       function renderEvidence(evidence) {
