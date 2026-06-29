@@ -1,6 +1,6 @@
 # Resource Usage Analysis
 
-Date: 2026-06-29
+Date: 2026-06-30
 
 ## Summary
 
@@ -19,7 +19,7 @@ Current results:
 - Active popup initial local files: about 312.1 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
 - Windows installer runtime payload: about 462.0 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.67 MB.
-- Generated Windows installer executable: 275,968 bytes.
+- Generated Windows installer executable: 281,088 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -108,7 +108,7 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 450.5 KB, and the generated `SummarizeThisSetup.exe` is 275,968 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 462.0 KB, and the generated `SummarizeThisSetup.exe` is 281,088 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

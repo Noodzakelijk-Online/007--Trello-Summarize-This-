@@ -19,6 +19,29 @@ const TrelloIntegration = require("./trello-integration");
   assert.match(documentText, /confidence/i);
 });
 
+function readPowerShellStringArray(fileName, variableName) {
+  const scriptText = fs.readFileSync(path.join(__dirname, fileName), "utf8");
+  const pattern = new RegExp("\\$" + variableName + "\\s*=\\s*@\\(([\\s\\S]*?)\\)", "m");
+  const match = scriptText.match(pattern);
+  assert.ok(match, `${variableName} array exists in ${fileName}`);
+  return Array.from(match[1].matchAll(/"([^"]+)"/g)).map((item) => item[1]);
+}
+
+const installerBuildRuntimeFiles = readPowerShellStringArray("installer/windows/build-installer.ps1", "RuntimeFiles");
+const installerInstallRuntimeFiles = readPowerShellStringArray("installer/windows/install.ps1", "RuntimeFiles");
+installerBuildRuntimeFiles.forEach((fileName) => {
+  assert.ok(
+    installerInstallRuntimeFiles.includes(fileName),
+    `Windows installer install.ps1 copies runtime file ${fileName}`
+  );
+});
+["Start-SummarizeThis.ps1", "uninstall.ps1"].forEach((fileName) => {
+  assert.ok(
+    installerInstallRuntimeFiles.includes(fileName),
+    `Windows installer install.ps1 copies helper script ${fileName}`
+  );
+});
+
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
 
