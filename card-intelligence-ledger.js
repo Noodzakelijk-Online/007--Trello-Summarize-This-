@@ -39,6 +39,11 @@
     return String(value).replace(/\s+/g, " ").trim();
   }
 
+  function limitText(value, max) {
+    var text = cleanText(value);
+    return text.length > max ? text.slice(0, max - 1).trim() + "..." : text;
+  }
+
   function toArray(value) {
     return Array.isArray(value) ? value : [];
   }
@@ -155,9 +160,11 @@
         attachment = { name: attachment };
       }
       var error = cleanText(attachment.error);
-      var extractedTextAvailable = Boolean(cleanText(attachment.extractedText || attachment.text));
+      var extractedText = cleanText(attachment.extractedText || attachment.text);
+      var extractedTextAvailable = Boolean(extractedText);
       var processed = attachment.processed === true;
-      var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : processed ? "metadata-only" : "not-extracted";
+      var extractionStatus = cleanText(attachment.extractionStatus);
+      var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : extractionStatus || (processed ? "metadata-only" : "not-extracted");
       return {
         id: cleanText(attachment.id || "attachment-" + (index + 1)),
         name: cleanText(attachment.name || "Attachment"),
@@ -167,6 +174,7 @@
         bytes: toNumber(attachment.bytes || attachment.size),
         processed: processed,
         extractedTextAvailable: extractedTextAvailable,
+        extractedTextPreview: limitText(extractedText, 700),
         status: status,
         error: error,
         url: cleanText(attachment.url)
@@ -631,6 +639,7 @@
       else if (attachment.error) detail += " (failed: " + attachment.error + ")";
       else if (attachment.processed) detail += " (metadata only)";
       else detail += " (not extracted)";
+      if (attachment.extractedTextPreview) detail += ": " + attachment.extractedTextPreview;
       addEvidence(evidence, "attachment", "Attachment", detail, "card.attachments[" + index + "]");
     });
 

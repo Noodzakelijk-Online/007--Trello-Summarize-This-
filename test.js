@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const SummarizeThis = require("./summarizer-core");
 const CardIntelligenceLedger = require("./card-intelligence-ledger");
 const TrelloAdminConfig = require("./trello-admin-config");
+const AttachmentProcessor = require("./attachment-processor");
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -969,4 +970,72 @@ assert.equal(localhostValidation.isLocal, true);
 const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/SummarizeThis/connector.js");
 assert.equal(fileValidation.isReadyForTrello, false);
 
-console.log("All summarizer tests passed.");
+async function runAsyncTests() {
+  const processor = new AttachmentProcessor();
+  assert.equal(processor.isTextLikeAttachment({ name: "notes.txt", mimeType: "text/plain" }), true);
+  assert.equal(processor.isTextLikeAttachment({ name: "invoice.pdf", mimeType: "application/pdf" }), false);
+
+  const originalFetch = global.fetch;
+  global.fetch = async function (url, options) {
+    assert.equal(url, "https://attachments.example.com/notes.txt");
+    assert.equal(options.credentials, "omit");
+    assert.equal(options.referrerPolicy, "no-referrer");
+    return {
+      ok: true,
+      blob: async function () {
+        return new Blob(["Line one\n" + "detail ".repeat(120)], { type: "text/plain" });
+      }
+    };
+  };
+
+  try {
+    const processed = await processor.processSafeTextAttachments([
+      {
+        id: "att-text",
+        name: "notes.txt",
+        mimeType: "text/plain",
+        url: "https://attachments.example.com/notes.txt",
+        bytes: 32
+      },
+      {
+        id: "att-pdf",
+        name: "invoice.pdf",
+        mimeType: "application/pdf",
+        url: "https://attachments.example.com/invoice.pdf",
+        bytes: 1200
+      }
+    ], {
+      maxAttachments: 2,
+      maxBytes: 1000,
+      maxExtractedCharacters: 500,
+      timeoutMs: 1000
+    });
+
+    assert.equal(processed.status.extracted, 1);
+    assert.equal(processed.status.failed, 0);
+    assert.equal(processed.attachments[0].processed, true);
+    assert.equal(processed.attachments[0].extractionStatus, "text-extracted");
+    assert.equal(processed.attachments[0].extractedText.length, 500);
+    assert.equal(processed.attachments[0].metadata.truncated, true);
+    assert.equal(processed.attachments[1].extractionStatus, "not-text-like");
+
+    const extractedCard = Object.assign({}, sample, {
+      attachments: processed.attachments
+    });
+    const promptWithAttachmentText = JSON.parse(SummarizeThis.buildAIPrompt(extractedCard).slice(SummarizeThis.buildAIPrompt(extractedCard).lastIndexOf("\n{") + 1));
+    assert.ok(promptWithAttachmentText.attachments.some(item => item.name === "notes.txt" && item.textPreview.includes("Line one")));
+    const extractedRun = CardIntelligenceLedger.createAnalysisRun(extractedCard, local);
+    assert.ok(extractedRun.result.evidence.some(item => item.type === "attachment" && item.excerpt.includes("Line one")));
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+runAsyncTests()
+  .then(() => {
+    console.log("All summarizer tests passed.");
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

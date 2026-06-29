@@ -318,6 +318,14 @@
       </div>
 
       <div class="group">
+        <label class="checkbox-row" for="extractTextAttachments">
+          <input id="extractTextAttachments" type="checkbox">
+          <span>Extract small text/CSV attachment contents</span>
+        </label>
+        <p class="warning">Off by default. When enabled, the popup fetches only HTTPS text-like attachments with strict size caps and may send bounded excerpts to the configured AI provider.</p>
+      </div>
+
+      <div class="group">
         <label class="checkbox-row" for="requireSensitiveAiApproval">
           <input id="requireSensitiveAiApproval" type="checkbox">
           <span>Require approval before sensitive AI handoff</span>
@@ -434,6 +442,7 @@
         promptCommentCharacters: document.getElementById("promptCommentCharacters"),
         promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
         includeListContext: document.getElementById("includeListContext"),
+        extractTextAttachments: document.getElementById("extractTextAttachments"),
         requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
         budgetWarningPercent: document.getElementById("budgetWarningPercent"),
         openaiMonthlyLimit: document.getElementById("openaiMonthlyLimit"),
@@ -489,6 +498,7 @@
         fields.promptCommentCharacters.value = String(promptContext.commentCharacters);
         fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
         fields.includeListContext.checked = settings.includeListContext !== false;
+        fields.extractTextAttachments.checked = settings.extractTextAttachments === true;
         fields.requireSensitiveAiApproval.checked = settings.requireSensitiveAiApproval !== false;
         var budget = SummarizeThis.normalizeBudgetSettings(settings.budget);
         fields.budgetWarningPercent.value = String(budget.warningPercent);
@@ -508,6 +518,7 @@
           selectedPromptTemplateId: "",
           promptTemplates: [],
           includeListContext: true,
+          extractTextAttachments: false,
           requireSensitiveAiApproval: true,
           promptContext: {
             descriptionCharacters: 2500,
@@ -559,6 +570,7 @@
           selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
           promptTemplates: promptProfile.promptTemplates,
           includeListContext: fields.includeListContext.checked,
+          extractTextAttachments: fields.extractTextAttachments.checked,
           requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
           promptContext: normalizePromptContext({
             descriptionCharacters: fields.promptDescriptionCharacters.value,

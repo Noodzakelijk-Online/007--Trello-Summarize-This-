@@ -26,6 +26,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `SourceCoverage`: compact visible status for card fields, board/list context, members, labels, due date, checklists, comments, activity, attachments, and custom fields.
 - `Activity`: compact recent non-comment Trello action metadata when available.
 - `AttachmentMetadata`: compact attachment name/type/category/status records for documents, transcripts, recordings, spreadsheets, presentations, images, links, and generic files.
+- `AttachmentTextPreview`: optional bounded text excerpt from small HTTPS text-like attachments when the member enables text/CSV extraction in settings.
 - `CustomField`: compact normalized custom field name/value/type metadata when Trello exposes custom field items.
 - History comparison: source-data, description, checklist, comment, attachment, blocker, waiting-state, unclear-point, decision, VA action, and confidence changes between runs.
 - Operational AI schema: providers are prompted to return blockers, waiting-on items, next actions, Robert decisions, VA-ready actions, missing information, unclear points, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
@@ -57,7 +58,9 @@ Feedback records remain compact. Correction text is capped, and `incorrectSectio
 - Custom prompt guidance is stored member-private in settings. Ledger runs and JSON exports record only a presence flag, character count, and short hash, not the full guidance text.
 - Custom fields are included as compact evidence and AI prompt context when available.
 - Recent activity is included as compact non-comment action evidence when available, capped to 25 stored items and 12 prompt/evidence items.
-- Attachment evidence is honest about metadata-only extraction and now classifies linked documents, transcripts, and recordings from metadata. Deeper PDF/Word/image/audio/video extraction still needs a safer extraction path.
+- Attachment evidence is honest about metadata-only extraction and now classifies linked documents, transcripts, and recordings from metadata.
+- Optional text/CSV extraction is off by default. When enabled, the popup fetches only small HTTPS text-like attachments, stores bounded excerpts, and includes compact previews in evidence and AI prompt context.
+- Deeper PDF/Word/image/audio/video extraction still needs a safer extraction path.
 - JSON export uses the compact ledger run and card snapshot. It does not include full card descriptions, but evidence excerpts may still contain card context selected by the analysis.
 - Human-readable exports now include bounded evidence-backed claims and source coverage, so copied markdown/plain text/status briefs and Trello comment drafts remain traceable outside the popup.
 - Trello comment writeback is capability-dependent. If the Trello Power-Up runtime does not expose a supported comment API, the popup remains copy-only.

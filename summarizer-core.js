@@ -135,9 +135,11 @@
       var name = cleanText(attachment.name || "Attachment");
       var mimeType = cleanText(attachment.mimeType || attachment.type);
       var error = cleanText(attachment.error);
-      var extractedTextAvailable = Boolean(cleanText(attachment.extractedText || attachment.text));
+      var extractedText = cleanText(attachment.extractedText || attachment.text);
+      var extractedTextAvailable = Boolean(extractedText);
       var processed = attachment.processed === true;
-      var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : processed ? "metadata-only" : "not-extracted";
+      var extractionStatus = cleanText(attachment.extractionStatus);
+      var status = error ? "failed" : extractedTextAvailable ? "text-extracted" : extractionStatus || (processed ? "metadata-only" : "not-extracted");
       return {
         id: cleanText(attachment.id || "attachment-" + (index + 1)),
         name: truncate(name, 160),
@@ -147,6 +149,7 @@
         bytes: toNumber(attachment.bytes || attachment.size),
         processed: processed,
         extractedTextAvailable: extractedTextAvailable,
+        extractedTextPreview: truncate(extractedText, 700),
         status: status,
         error: error
       };
@@ -176,6 +179,7 @@
         mimeType: attachment.mimeType,
         status: attachment.status,
         extractedTextAvailable: attachment.extractedTextAvailable,
+        textPreview: attachment.extractedTextPreview,
         error: attachment.error
       };
     });

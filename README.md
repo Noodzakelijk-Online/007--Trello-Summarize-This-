@@ -54,7 +54,7 @@
 - **Multi-Model Consensus** - Combine multiple AI models for robustness
 - **Batch Processing** - Analyze multiple cards at once
 - **Custom Prompts** - Create your own analysis templates
-- **Attachment Processing** - Extract text from PDFs, Word, Excel, images
+- **Attachment Processing** - Honest attachment metadata plus optional bounded text/CSV extraction
 
 ---
 
@@ -278,9 +278,8 @@ Overall Confidence =
 - Perplexity
 
 ### Libraries & Tools
-- PDF.js - PDF text extraction
-- Mammoth.js - Word document parsing
-- XLSX.js - Excel file parsing
+- Optional bounded text/CSV extraction for small HTTPS attachments
+- Binary document and image attachments stay metadata-only in the active Power-Up
 - Tesseract.js - Image OCR
 
 ---

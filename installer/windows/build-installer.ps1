@@ -15,6 +15,7 @@ $RuntimeFiles = @(
   "settings-powerup.html",
   "trello-setup.html",
   "trello-admin-config.js",
+  "attachment-processor.js",
   "summarizer-core.js",
   "card-intelligence-ledger.js",
   "icon.svg",

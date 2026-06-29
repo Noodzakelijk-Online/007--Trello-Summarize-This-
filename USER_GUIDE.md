@@ -204,37 +204,33 @@ The Review / correction panel stores feedback privately for the same card. When 
 
 ### Supported File Types
 
-**Documents:**
-- PDF (with PDF.js)
-- Word (.docx, .doc) (with mammoth.js)
-- Excel (.xlsx, .xls) (with xlsx.js)
-- CSV files
-- Text files (.txt, .md)
+The active Power-Up always reads attachment metadata such as name, type, size, and category when Trello exposes it.
 
-**Images:**
-- JPEG, PNG, GIF, WebP
-- OCR text extraction (with Tesseract.js)
+Optional content extraction is available for small HTTPS text-like attachments only:
 
-**Web Links:**
-- External URLs
-- Web page content extraction
+- Text files: `.txt`, `.md`
+- Spreadsheet text: `.csv`, `.tsv`
+
+Other files remain metadata-only in the active popup:
+
+- PDF, Word, Excel, PowerPoint, and similar binary documents.
+- Images and recordings.
+- External web links.
 
 ### How It Works
 
-1. **Automatic Detection**: Files are automatically detected
-2. **Content Extraction**: Text is extracted from each file
-3. **AI Integration**: Extracted content is included in analysis
-4. **Preview Available**: See extracted content in results
+1. **Metadata detection**: Attachment names, MIME types, extensions, and categories are included as evidence.
+2. **Optional text extraction**: Enable **Extract small text/CSV attachment contents** in settings to fetch only small HTTPS text-like files.
+3. **Bounded previews**: Extracted text is capped before it appears in evidence, JSON exports, or AI prompt context.
+4. **Honest fallback**: Unsupported or disabled extraction is shown as metadata-only, not as verified attachment content.
 
 ### Library Status
 
-Check which libraries are loaded:
-- ✓ PDF.js: Full PDF text extraction
-- ✓ mammoth.js: Word document parsing
-- ✓ xlsx.js: Excel file parsing
-- ✓ Tesseract.js: Image OCR
+The active popup does not perform browser-side PDF, Word, Excel, image OCR, audio, or video extraction. Those files stay metadata-only until a safer extraction path is added.
 
-If a library is missing, you'll see metadata-only processing.
+### Attachment Privacy
+
+Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs are fetched, private/local URLs are refused, large files are skipped, and excerpts are capped before AI handoff. Sensitive-card approval rules still apply before sending extracted excerpts to a configured AI provider.
 
 ---
 

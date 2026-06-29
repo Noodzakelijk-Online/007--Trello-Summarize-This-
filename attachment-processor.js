@@ -7,9 +7,139 @@ class AttachmentProcessor {
             pdf: ['application/pdf', '.pdf'],
             word: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.docx', '.doc'],
             excel: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx', '.xls'],
-            text: ['text/plain', '.txt', '.md', '.csv'],
+            text: ['text/plain', 'text/markdown', 'text/csv', 'text/tab-separated-values', '.txt', '.md', '.csv', '.tsv'],
             image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', '.jpg', '.jpeg', '.png', '.gif', '.webp'],
             link: ['http://', 'https://']
+        };
+    }
+
+    // Bounded active-popup path: only fetch small HTTPS text-like attachments after the user enables it.
+    async processSafeTextAttachments(attachments, options = {}) {
+        const source = Array.isArray(attachments) ? attachments : [];
+        const limits = {
+            maxAttachments: this.clampNumber(options.maxAttachments, 5, 1, 12),
+            maxBytes: this.clampNumber(options.maxBytes, 200000, 10000, 500000),
+            maxExtractedCharacters: this.clampNumber(options.maxExtractedCharacters, 3000, 500, 10000),
+            timeoutMs: this.clampNumber(options.timeoutMs, 10000, 1000, 30000)
+        };
+        let attempted = 0;
+        let extracted = 0;
+        let failed = 0;
+
+        const processed = [];
+        for (const attachment of source.slice(0, 25)) {
+            if (!this.isTextLikeAttachment(attachment)) {
+                processed.push(this.metadataOnlyAttachment(attachment, 'not-text-like'));
+                continue;
+            }
+
+            if (attempted >= limits.maxAttachments) {
+                processed.push(this.metadataOnlyAttachment(attachment, 'text-extraction-limit'));
+                continue;
+            }
+
+            attempted += 1;
+            try {
+                const result = await this.processSafeTextAttachment(attachment, limits);
+                extracted += result.extractedText ? 1 : 0;
+                processed.push(result);
+            } catch (error) {
+                failed += 1;
+                processed.push({
+                    ...attachment,
+                    processed: false,
+                    type: this.detectType(attachment),
+                    extractionStatus: 'failed',
+                    error: error.message,
+                    extractedText: '',
+                    content: `Text extraction failed: ${error.message}`
+                });
+            }
+        }
+
+        return {
+            attachments: processed,
+            status: {
+                ok: failed === 0,
+                attempted: attempted,
+                extracted: extracted,
+                failed: failed,
+                skipped: Math.max(source.length - attempted, 0),
+                detail: extracted
+                    ? `${extracted} text attachment(s) extracted with bounded HTTPS reads.`
+                    : attempted
+                        ? 'Text attachment extraction ran, but no text was extracted.'
+                        : 'No text-like attachments were eligible for extraction.'
+            }
+        };
+    }
+
+    isTextLikeAttachment(attachment) {
+        const mimeType = String((attachment && (attachment.mimeType || attachment.type)) || '').toLowerCase();
+        const name = String((attachment && attachment.name) || '').toLowerCase();
+        const extension = this.getExtension(name);
+        return /^text\//.test(mimeType) ||
+            mimeType === 'application/csv' ||
+            ['txt', 'md', 'csv', 'tsv'].indexOf(extension) !== -1;
+    }
+
+    async processSafeTextAttachment(attachment, limits) {
+        if (!attachment || !attachment.url) {
+            throw new Error('Attachment has no fetchable URL');
+        }
+
+        const knownBytes = Number(attachment.bytes || attachment.size || 0);
+        if (knownBytes > limits.maxBytes) {
+            throw new Error(`Attachment is larger than the ${this.formatBytes(limits.maxBytes)} text extraction cap`);
+        }
+
+        const response = await this.safeFetchAttachment(attachment.url, {
+            timeoutMs: limits.timeoutMs,
+            headers: { Accept: 'text/plain,text/csv,text/markdown,*/*;q=0.2' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch text attachment: ${response.statusText || response.status}`);
+        }
+
+        const blob = await response.blob();
+        if (blob.size > limits.maxBytes) {
+            throw new Error(`Attachment response is larger than the ${this.formatBytes(limits.maxBytes)} text extraction cap`);
+        }
+
+        const text = await blob.text();
+        const normalizedText = String(text || '').replace(/\r\n/g, '\n').replace(/\s+$/g, '');
+        const extractedText = normalizedText.slice(0, limits.maxExtractedCharacters);
+        const truncated = normalizedText.length > extractedText.length;
+        const lines = extractedText.split('\n');
+
+        return {
+            ...attachment,
+            processed: true,
+            type: this.detectType(attachment),
+            extractionStatus: 'text-extracted',
+            extractedText: extractedText,
+            content: `Text attachment: ${attachment.name || 'Attachment'}\n\n${extractedText}${truncated ? '\n\n[Content truncated before analysis]' : ''}`,
+            metadata: {
+                size: blob.size,
+                formattedSize: this.formatBytes(blob.size),
+                type: blob.type || attachment.mimeType || 'text/plain',
+                originalCharacters: normalizedText.length,
+                extractedCharacters: extractedText.length,
+                lines: lines.length,
+                truncated: truncated
+            }
+        };
+    }
+
+    metadataOnlyAttachment(attachment, reason) {
+        return {
+            ...attachment,
+            processed: false,
+            type: this.detectType(attachment),
+            extractionStatus: reason || 'metadata-only',
+            extractedText: attachment && attachment.extractedText ? attachment.extractedText : '',
+            content: attachment && attachment.content ? attachment.content : `Attachment metadata only: ${(attachment && attachment.name) || 'Attachment'}`
         };
     }
 
@@ -101,6 +231,18 @@ class AttachmentProcessor {
         }
 
         return 'unknown';
+    }
+
+    getExtension(nameOrUrl) {
+        const value = String(nameOrUrl || '').split('?')[0].split('#')[0].toLowerCase();
+        const match = value.match(/\.([a-z0-9]+)$/);
+        return match ? match[1] : '';
+    }
+
+    clampNumber(value, fallback, min, max) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return fallback;
+        return Math.max(min, Math.min(max, Math.round(number)));
     }
 
     // Process PDF files using PDF.js
@@ -348,8 +490,27 @@ class AttachmentProcessor {
     // Fetch attachment content only after basic URL safety checks.
     async safeFetchAttachment(url, options = {}) {
         const parsed = this.validateAttachmentUrl(url);
+        const fetchOptions = { ...options };
+        const timeoutMs = fetchOptions.timeoutMs;
+        delete fetchOptions.timeoutMs;
+
+        if (timeoutMs && typeof AbortController !== 'undefined') {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                return await fetch(parsed.href, {
+                    ...fetchOptions,
+                    credentials: 'omit',
+                    referrerPolicy: 'no-referrer',
+                    signal: controller.signal
+                });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
         return fetch(parsed.href, {
-            ...options,
+            ...fetchOptions,
             credentials: 'omit',
             referrerPolicy: 'no-referrer'
         });
@@ -430,4 +591,8 @@ class AttachmentProcessor {
 // Export for use in main application
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AttachmentProcessor;
+}
+
+if (typeof window !== 'undefined') {
+    window.AttachmentProcessor = AttachmentProcessor;
 }

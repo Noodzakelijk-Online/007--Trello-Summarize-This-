@@ -247,7 +247,7 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.
 
-Status: Metadata intelligence implemented in `summarizer-core.js` and `card-intelligence-ledger.js`; deep content extraction remains deferred.
+Status: Metadata intelligence and optional bounded text/CSV extraction are implemented in `attachment-processor.js`, `popup.html`, `settings-powerup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`; deep binary/document extraction remains deferred.
 
 Implemented:
 
@@ -256,11 +256,12 @@ Implemented:
 - Compact attachment metadata is included in local insights, AI prompt context, source coverage, evidence, snapshots, and validation findings.
 - Transcript-like and recording-like attachments are explicitly flagged when their content was not verified as extracted.
 - Prompt/evidence usage is capped to 12 attachment records; normalized runtime metadata is capped to 25 attachment records.
-- Attachment URLs and extracted content are not sent in the AI prompt by this metadata-only slice.
+- Settings now include an off-by-default option to extract small HTTPS text-like attachments (`.txt`, `.md`, `.csv`, `.tsv`) with strict attachment count, byte, timeout, and character caps.
+- Extracted text previews are bounded before they enter source coverage, evidence, ledger JSON, or AI prompt context.
+- PDFs, Word files, spreadsheets other than CSV/TSV, images, audio, video, and arbitrary links remain metadata-only in the active popup.
 
 Recommendation:
 
-- Add optional attachment text extraction only for trusted HTTPS Trello attachment files.
 - Prefer backend extraction for PDFs/docs to avoid browser-side arbitrary fetch risks.
 - Show attachment-derived facts separately so users know where claims came from.
 

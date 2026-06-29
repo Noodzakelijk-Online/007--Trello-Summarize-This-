@@ -10,6 +10,7 @@ const runtimeFiles = [
   "settings-powerup.html",
   "trello-setup.html",
   "trello-admin-config.js",
+  "attachment-processor.js",
   "summarizer-core.js",
   "card-intelligence-ledger.js",
   "icon.svg",
@@ -48,7 +49,7 @@ function walk(dir, files = []) {
 const runtimeTotal = runtimeFiles.reduce((sum, file) => sum + fileSize(file), 0);
 const sourceFiles = walk(repoRoot);
 const sourceTotal = sourceFiles.reduce((sum, file) => sum + fs.statSync(file).size, 0);
-const activeLoad = ["popup.html", "summarizer-core.js", "card-intelligence-ledger.js", "icon.svg"].reduce((sum, file) => sum + fileSize(file), 0);
+const activeLoad = ["popup.html", "attachment-processor.js", "summarizer-core.js", "card-intelligence-ledger.js", "icon.svg"].reduce((sum, file) => sum + fileSize(file), 0);
 
 const largeCard = Object.assign({}, SummarizeThis.sampleCardData(), {
   desc: "Long description ".repeat(400),
