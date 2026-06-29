@@ -706,6 +706,84 @@
     return parts.join(" ");
   }
 
+  function createTrustSignals(input, operational) {
+    var coverageItems = createSourceCoverage(input);
+    var confidence = operational && operational.confidence ? operational.confidence : null;
+    var factors = confidence && confidence.factors ? confidence.factors : {};
+    var basedOn = [];
+    var needsReview = [];
+
+    coverageItems.forEach(function (item) {
+      if (item.status === "available" || item.status === "partial") {
+        basedOn.push(signal(
+          item.key,
+          item.status === "partial" ? item.label + " metadata" : item.label,
+          item.detail,
+          item.status
+        ));
+      }
+
+      if (item.status === "failed") {
+        needsReview.push(signal(item.key + "-failed", item.label + " unavailable", item.detail, "high"));
+      } else if (item.status === "partial") {
+        needsReview.push(signal(item.key + "-partial", item.label + " incomplete", item.detail, "medium"));
+      }
+    });
+
+    addMissingContext(needsReview, coverageItems, "description", "No description", "Summary may miss the card purpose.", "medium");
+    addMissingContext(needsReview, coverageItems, "members", "No owner", "No assigned member was available.", "medium");
+    addMissingContext(needsReview, coverageItems, "comments", "No comments", "Card history may be incomplete.", "medium");
+    addMissingContext(needsReview, coverageItems, "due", "No due date", "Deadline risk cannot be assessed from a due date.", "low");
+    addMissingContext(needsReview, coverageItems, "checklists", "No checklist detail", "Completion state may be incomplete.", "low");
+
+    var whyScore = [];
+    if (confidence) {
+      whyScore.push("Confidence: " + confidence.overall + "% " + confidence.level + ".");
+      whyScore.push("Data completeness: " + toNumber(factors.dataCompleteness) + "%.");
+      whyScore.push("Evidence coverage: " + toNumber(factors.evidenceCoverage) + "%.");
+      whyScore.push("Action specificity: " + toNumber(factors.actionSpecificity) + "%.");
+      if (factors.validationPenalty) {
+        whyScore.push("Validation penalty: -" + toNumber(factors.validationPenalty) + " point(s).");
+      }
+      if (confidence.reviewNeeded) {
+        whyScore.push("Review needed before relying on this output.");
+      }
+    } else {
+      whyScore.push("Confidence was not calculated for this run.");
+    }
+
+    return {
+      basedOn: dedupeSignals(basedOn).slice(0, 12),
+      needsReview: dedupeSignals(needsReview).slice(0, 12),
+      whyScore: whyScore
+    };
+  }
+
+  function addMissingContext(items, coverageItems, key, label, detail, severity) {
+    var coverageItem = coverageItems.find(function (item) { return item.key === key; });
+    if (!coverageItem || coverageItem.status !== "missing") return;
+    items.push(signal("missing-" + key, label, detail, severity));
+  }
+
+  function signal(key, label, detail, status) {
+    return {
+      key: key,
+      label: cleanText(label),
+      detail: cleanText(detail),
+      status: cleanText(status)
+    };
+  }
+
+  function dedupeSignals(items) {
+    var seen = {};
+    return items.filter(function (item) {
+      var key = item.key || item.label;
+      if (seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+  }
+
   function dedupeItems(items) {
     var seen = {};
     return items.filter(function (item) {
@@ -741,10 +819,11 @@
   function createAnalysisRun(input, analysis, options) {
     var card = normalizeCard(input);
     var summary = (analysis && analysis.summary) || analysis || {};
-    var operational = createOperationalAnalysis(card, summary);
+    var operational = createOperationalAnalysis(input, summary);
     var timestamp = nowIso(options);
     var runId = "run-" + shortHash(card.id + timestamp + JSON.stringify(summary));
     var outputMode = normalizeOutputMode(options && options.outputMode);
+    var cardSnapshot = createCardSnapshot(input, options);
 
     return {
       id: runId,
@@ -760,8 +839,8 @@
       errorMessage: (options && options.errorMessage) || "",
       tokenEstimate: analysis && analysis.metadata ? toNumber(analysis.metadata.tokens) : 0,
       costEstimate: analysis && analysis.metadata ? toNumber(analysis.metadata.cost) : 0,
-      inputHash: shortHash(JSON.stringify(createCardSnapshot(card, options))),
-      cardSnapshot: createCardSnapshot(card, options),
+      inputHash: shortHash(JSON.stringify(cardSnapshot)),
+      cardSnapshot: cardSnapshot,
       result: {
         about: cleanText(summary.about),
         history: cleanText(summary.history),
@@ -781,6 +860,7 @@
         })),
         confidence: operational.confidence,
         confidenceReason: cleanText(summary.confidenceReason),
+        trustSignals: createTrustSignals(input, operational),
         evidenceClaims: operational.evidenceClaims,
         validationFindings: operational.validationFindings,
         evidence: operational.evidence
@@ -1187,6 +1267,7 @@
     createTrelloCommentDraft: createTrelloCommentDraft,
     createLedgerEntry: createLedgerEntry,
     createOperationalAnalysis: createOperationalAnalysis,
+    createTrustSignals: createTrustSignals,
     jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,

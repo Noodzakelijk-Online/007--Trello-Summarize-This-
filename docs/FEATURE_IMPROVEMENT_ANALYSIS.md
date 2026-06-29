@@ -133,7 +133,7 @@ Impact: Medium-high, but should be implemented carefully for security and resour
 
 Problem: Users need to know why the summary is confident or uncertain.
 
-Status: Partially implemented. The active popup now shows Source coverage with available, partial, missing, and failed source reads for card fields, board/list context, comments, checklists, attachments, members, labels, due date, and custom fields.
+Status: Implemented for the active popup. It now shows Source coverage plus a Trust signals panel with Based on chips, missing-context warnings, and a compact Why this score rationale from confidence factors.
 
 Recommendation:
 

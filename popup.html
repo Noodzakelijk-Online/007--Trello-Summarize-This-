@@ -269,6 +269,63 @@
       color: var(--red);
     }
 
+    .trust-group {
+      margin-top: 12px;
+    }
+
+    .trust-heading {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .trust-chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .trust-chip {
+      display: inline-flex;
+      max-width: 100%;
+      border: 1px solid #9cc2ff;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #e9f2ff;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .trust-chip.partial {
+      border-color: #f5cd47;
+      background: #fff7d6;
+      color: #7f5f01;
+    }
+
+    .trust-chip.warning {
+      border-color: #f5cd47;
+      background: #fff7d6;
+      color: #7f5f01;
+    }
+
+    .trust-chip.high {
+      border-color: #ff9c8f;
+      background: #ffebe6;
+      color: var(--red);
+    }
+
+    .trust-score-list {
+      margin-top: 6px;
+    }
+
     .evidence-list {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -526,6 +583,23 @@
       </section>
 
       <section class="panel">
+        <h2 class="section-title">Trust signals</h2>
+        <p id="trustSignalsSummary" class="section-body">Trust signals will appear after analysis.</p>
+        <div class="trust-group">
+          <h3 class="trust-heading">Based on</h3>
+          <ul id="basedOnList" class="trust-chip-list"></ul>
+        </div>
+        <div class="trust-group">
+          <h3 class="trust-heading">Needs review</h3>
+          <ul id="needsReviewList" class="trust-chip-list"></ul>
+        </div>
+        <div class="trust-group">
+          <h3 class="trust-heading">Why this score</h3>
+          <ul id="whyScoreList" class="trust-score-list compact-list"></ul>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2 class="section-title">History</h2>
         <p id="historyChangeText" class="section-body">No previous analyses yet.</p>
         <ul id="historyChangeList" class="compact-list"></ul>
@@ -705,6 +779,10 @@
         document.getElementById("exportStatus").textContent = "";
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
         document.getElementById("sourceCoverageList").innerHTML = "";
+        document.getElementById("trustSignalsSummary").textContent = "Trust signals will appear after analysis.";
+        document.getElementById("basedOnList").innerHTML = "";
+        document.getElementById("needsReviewList").innerHTML = "";
+        document.getElementById("whyScoreList").innerHTML = "";
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
         document.getElementById("historyChangeList").innerHTML = "";
         document.getElementById("historyList").innerHTML = "";
@@ -1116,6 +1194,7 @@
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
         renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
+        renderTrustSignals(result && result.trustSignals ? result.trustSignals : CardIntelligenceLedger.createTrustSignals(cardData));
         renderOutputMode(ledgerRun);
         renderPostbackDraft(ledgerRun);
       }
@@ -1202,6 +1281,46 @@
           li.appendChild(label);
           li.appendChild(document.createTextNode(item.detail || ""));
           list.appendChild(li);
+        });
+      }
+
+      function renderTrustSignals(signals) {
+        var values = signals || {};
+        var basedOn = Array.isArray(values.basedOn) ? values.basedOn : [];
+        var needsReview = Array.isArray(values.needsReview) ? values.needsReview : [];
+        var whyScore = Array.isArray(values.whyScore) ? values.whyScore : [];
+        var summary = document.getElementById("trustSignalsSummary");
+
+        summary.textContent = basedOn.length + " source signal(s) used; " + needsReview.length + " review signal(s).";
+        renderTrustChips("basedOnList", basedOn, "No source signals available.", false);
+        renderTrustChips("needsReviewList", needsReview, "No review warnings.", true);
+        renderList("whyScoreList", whyScore, "No confidence rationale available.");
+      }
+
+      function renderTrustChips(id, items, emptyText, warning) {
+        var list = document.getElementById(id);
+        var values = Array.isArray(items) ? items : [];
+        list.innerHTML = "";
+
+        if (!values.length) {
+          var empty = document.createElement("li");
+          empty.className = "trust-chip";
+          if (warning) empty.className += " warning";
+          empty.textContent = emptyText;
+          list.appendChild(empty);
+          return;
+        }
+
+        values.forEach(function (item) {
+          var chip = document.createElement("li");
+          var status = item.status || "";
+          chip.className = "trust-chip";
+          if (warning) chip.className += " warning";
+          if (status === "partial" || status === "medium" || status === "low") chip.className += " partial";
+          if (status === "high") chip.className += " high";
+          chip.textContent = item.label || item.key || String(item);
+          if (item.detail) chip.title = item.detail;
+          list.appendChild(chip);
         });
       }
 

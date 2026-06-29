@@ -194,6 +194,39 @@ assert.ok(run.result.vaReadyActions.length >= 1);
 assert.ok(run.result.evidenceClaims.every(claim => Array.isArray(claim.support)));
 assert.ok(run.result.validationFindings.some(finding => finding.id === "decision-review"));
 assert.ok(run.result.confidence.overall >= 25);
+assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "description"));
+assert.ok(run.result.trustSignals.basedOn.some(item => item.key === "comments"));
+assert.ok(run.result.trustSignals.needsReview.some(item => item.key === "missing-members"));
+assert.ok(run.result.trustSignals.whyScore.some(item => item.includes("Data completeness")));
+
+const sparseTrustSignals = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, sample, {
+  desc: "",
+  comments: [],
+  members: [],
+  checklists: [],
+  due: null,
+  badges: {
+    comments: 0,
+    checkItems: 0,
+    checkItemsChecked: 0,
+    attachments: 0
+  }
+}), operationalAnalysis, {
+  now: "2026-06-29T12:00:30.000Z"
+}).result.trustSignals;
+assert.ok(sparseTrustSignals.needsReview.some(item => item.label === "No description"));
+assert.ok(sparseTrustSignals.needsReview.some(item => item.label === "No owner"));
+assert.ok(sparseTrustSignals.needsReview.some(item => item.label === "No comments"));
+
+const failedReadRun = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, sample, {
+  __sourceStatus: {
+    comments: { ok: false, error: "Comment API was not available." }
+  }
+}), operationalAnalysis, {
+  now: "2026-06-29T12:00:45.000Z"
+});
+assert.ok(failedReadRun.cardSnapshot.sourceCoverage.some(item => item.key === "comments" && item.status === "failed"));
+assert.ok(failedReadRun.result.trustSignals.needsReview.some(item => item.key === "comments-failed"));
 
 const aiStructuredRun = CardIntelligenceLedger.createAnalysisRun(operationalCard, {
   summary: aiSummary,
