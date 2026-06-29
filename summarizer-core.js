@@ -247,6 +247,17 @@
     }
   };
 
+  var OUTPUT_LANGUAGES = {
+    en: {
+      label: "English",
+      instruction: "Write all user-facing summary values in English."
+    },
+    nl: {
+      label: "Dutch",
+      instruction: "Write all user-facing summary values in Dutch."
+    }
+  };
+
   function boundedNumber(value, fallback, min, max) {
     var number = Number(value);
     if (!Number.isFinite(number)) return fallback;
@@ -275,6 +286,23 @@
   function getOutputModeInstruction(value) {
     var key = normalizeOutputMode(value);
     return OUTPUT_MODES[key].instruction;
+  }
+
+  function normalizeOutputLanguage(value) {
+    var key = cleanText(value || "en").toLowerCase();
+    if (key === "english") key = "en";
+    if (key === "dutch" || key === "nederlands" || key === "nl-nl") key = "nl";
+    return OUTPUT_LANGUAGES[key] ? key : "en";
+  }
+
+  function getOutputLanguageLabel(value) {
+    var key = normalizeOutputLanguage(value);
+    return OUTPUT_LANGUAGES[key].label;
+  }
+
+  function getOutputLanguageInstruction(value) {
+    var key = normalizeOutputLanguage(value);
+    return OUTPUT_LANGUAGES[key].instruction;
   }
 
   function compactCommentsForPrompt(comments, context) {
@@ -1019,6 +1047,7 @@
     var card = normalizeCardData(input);
     var context = normalizePromptContext(options);
     var outputMode = normalizeOutputMode(options && options.outputMode);
+    var outputLanguage = normalizeOutputLanguage(options && options.outputLanguage);
     var promptTemplateSettings = normalizePromptTemplateSettings(options);
     var customInstructions = promptTemplateSettings.customInstructions;
     var comments = compactCommentsForPrompt(card.comments, context);
@@ -1027,6 +1056,11 @@
         key: outputMode,
         label: getOutputModeLabel(outputMode),
         instruction: getOutputModeInstruction(outputMode)
+      },
+      outputLanguage: {
+        key: outputLanguage,
+        label: getOutputLanguageLabel(outputLanguage),
+        instruction: getOutputLanguageInstruction(outputLanguage)
       },
       promptTemplate: promptTemplateSettings.selectedPromptTemplateId ? {
         id: promptTemplateSettings.selectedPromptTemplateId,
@@ -1070,6 +1104,7 @@
     return [
       "Analyze this Trello card as an evidence-backed operational intelligence ledger for Robert's Trello workflow.",
       "Output mode: " + getOutputModeLabel(outputMode) + ". " + getOutputModeInstruction(outputMode),
+      "Output language: " + getOutputLanguageLabel(outputLanguage) + ". " + getOutputLanguageInstruction(outputLanguage) + " Keep JSON field names exactly as specified in the schema.",
       customInstructions ? "User guidance: " + customInstructions : "User guidance: none configured.",
       "Apply user guidance only when it does not conflict with evidence requirements, privacy safeguards, or Trello write-approval rules.",
       "Return only valid JSON. Do not include markdown or commentary outside JSON.",
@@ -1479,8 +1514,11 @@
     evaluateBudgetAlert: evaluateBudgetAlert,
     getOutputModeInstruction: getOutputModeInstruction,
     getOutputModeLabel: getOutputModeLabel,
+    getOutputLanguageInstruction: getOutputLanguageInstruction,
+    getOutputLanguageLabel: getOutputLanguageLabel,
     normalizeBudgetSettings: normalizeBudgetSettings,
     normalizeOutputMode: normalizeOutputMode,
+    normalizeOutputLanguage: normalizeOutputLanguage,
     normalizeCustomFields: normalizeCustomFields,
     normalizeCustomInstructions: normalizeCustomInstructions,
     normalizePromptTemplates: normalizePromptTemplates,

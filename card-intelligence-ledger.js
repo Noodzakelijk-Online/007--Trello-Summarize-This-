@@ -1097,6 +1097,7 @@
     var timestamp = nowIso(options);
     var runId = "run-" + shortHash(card.id + timestamp + JSON.stringify(summary));
     var outputMode = normalizeOutputMode(options && options.outputMode);
+    var outputLanguage = normalizeOutputLanguage(options && options.outputLanguage);
     var cardSnapshot = createCardSnapshot(input, options);
 
     return {
@@ -1108,6 +1109,7 @@
       promptTemplateId: (options && options.promptTemplateId) || "operational-ledger-v1",
       promptProfile: createPromptProfile(options),
       outputMode: outputMode,
+      outputLanguage: outputLanguage,
       startedAt: timestamp,
       completedAt: timestamp,
       status: (options && options.status) || "completed",
@@ -1612,6 +1614,7 @@
         promptTemplateId: run && run.promptTemplateId,
         promptProfile: run && run.promptProfile,
         outputMode: run && run.outputMode,
+        outputLanguage: run && run.outputLanguage,
         completedAt: run && run.completedAt,
         inputHash: run && run.inputHash
       },
@@ -1774,13 +1777,22 @@
     return allowed[mode] ? mode : "operational-ledger";
   }
 
+  function normalizeOutputLanguage(value) {
+    var language = cleanText(value || "en").toLowerCase();
+    if (language === "english") language = "en";
+    if (language === "dutch" || language === "nederlands" || language === "nl-nl") language = "nl";
+    return language === "nl" ? "nl" : "en";
+  }
+
   function createPromptProfile(options) {
     var customInstructions = cleanText(options && options.customInstructions);
     var promptTemplateId = cleanText(options && options.promptTemplateId);
     var promptTemplateName = cleanText(options && options.promptTemplateName).slice(0, 80);
+    var outputLanguage = normalizeOutputLanguage(options && options.outputLanguage);
     return {
       promptTemplateId: promptTemplateId,
       promptTemplateName: promptTemplateName,
+      outputLanguage: outputLanguage,
       customInstructionsPresent: Boolean(customInstructions),
       customInstructionsHash: customInstructions ? shortHash(customInstructions) : "",
       customInstructionsCharacters: customInstructions.length

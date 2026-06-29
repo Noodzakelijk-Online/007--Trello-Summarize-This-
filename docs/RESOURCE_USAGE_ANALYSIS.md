@@ -16,11 +16,11 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 236.6 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 377.7 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.55 MB.
-- Generated Windows installer executable: 238,592 bytes.
-- Large-card AI prompt after caps: 18,672 characters.
+- Active popup initial local files: about 239.0 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 380.9 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.56 MB.
+- Generated Windows installer executable: 240,128 bytes.
+- Large-card AI prompt after caps: 18,943 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
 - Included card description: 2,499 characters.
@@ -35,6 +35,7 @@ Current results:
    - The prompt now asks for a structured operational schema so fewer downstream repair steps are needed.
    - Larger context settings are user-selected and warn that more Trello content is sent to the configured AI provider.
    - Output modes add a short prompt focus instruction without changing default comment or description caps.
+   - Output language adds a short prompt instruction and compact ledger metadata without changing default comment or description caps.
    - List context is bounded to at most 25 current-list card titles, labels, and due states, and can be disabled in settings.
    - Custom fields are capped to 25 compact name/value/type records, with values capped to 180 characters each.
 
@@ -77,7 +78,7 @@ Current results:
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
    - Attachment intelligence is metadata-only, capped to 25 normalized records and 12 AI prompt/evidence records, and does not fetch or parse attachment files.
-   - Custom prompt guidance is capped to 600 characters, saved prompt templates are capped to 10 member-private records, and ledger exports store only prompt metadata, not the full guidance text.
+   - Custom prompt guidance is capped to 600 characters, saved prompt templates are capped to 10 member-private records, and ledger exports store only prompt/language metadata, not the full guidance text.
    - Cost budget tracking stores only compact provider, model, token, cost, card id/title, run id, and timestamp records in member-private storage, capped to 200 records.
    - Runtime timing metrics store only compact stage durations, provider/source, card id, run id, and timestamp in member-private storage, capped to 100 records.
 
@@ -93,7 +94,7 @@ Low. The active popup loads a small static HTML page and two shared JS helpers. 
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 377.7 KB, and the generated `SummarizeThisSetup.exe` is 238,592 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 380.9 KB, and the generated `SummarizeThisSetup.exe` is 240,128 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

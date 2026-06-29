@@ -245,6 +245,15 @@
       </div>
 
       <div class="group">
+        <label for="outputLanguage">Output language</label>
+        <select id="outputLanguage">
+          <option value="en">English</option>
+          <option value="nl">Dutch</option>
+        </select>
+        <p class="help">AI mode uses this for user-facing summary text. Structured JSON field names stay stable for exports and integrations.</p>
+      </div>
+
+      <div class="group">
         <label for="promptTemplateSelect">Saved guidance template</label>
         <select id="promptTemplateSelect"></select>
         <p class="help">Templates are member-private and reusable across cards. Selecting one loads its guidance into the active prompt field below.</p>
@@ -416,6 +425,7 @@
         provider: document.getElementById("provider"),
         strategy: document.getElementById("strategy"),
         outputMode: document.getElementById("outputMode"),
+        outputLanguage: document.getElementById("outputLanguage"),
         promptTemplateSelect: document.getElementById("promptTemplateSelect"),
         promptTemplateName: document.getElementById("promptTemplateName"),
         customInstructions: document.getElementById("customInstructions"),
@@ -461,6 +471,7 @@
         fields.provider.value = settings.provider || "openai";
         fields.strategy.value = settings.strategy || "cost-effective";
         fields.outputMode.value = normalizeOutputMode(settings.outputMode);
+        fields.outputLanguage.value = normalizeOutputLanguage(settings.outputLanguage);
         var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
         promptTemplates = promptProfile.promptTemplates;
         renderPromptTemplateOptions(promptProfile.selectedPromptTemplateId);
@@ -491,6 +502,7 @@
           provider: "openai",
           strategy: "cost-effective",
           outputMode: "operational-ledger",
+          outputLanguage: "en",
           customInstructions: "",
           selectedPromptTemplateId: "",
           promptTemplates: [],
@@ -541,6 +553,7 @@
           provider: fields.provider.value,
           strategy: fields.strategy.value,
           outputMode: normalizeOutputMode(fields.outputMode.value),
+          outputLanguage: normalizeOutputLanguage(fields.outputLanguage.value),
           customInstructions: promptProfile.customInstructions,
           selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
           promptTemplates: promptProfile.promptTemplates,
@@ -730,6 +743,10 @@
 
       function normalizeOutputMode(value) {
         return SummarizeThis.normalizeOutputMode(value);
+      }
+
+      function normalizeOutputLanguage(value) {
+        return SummarizeThis.normalizeOutputLanguage(value);
       }
 
       function normalizeCustomInstructions(value) {

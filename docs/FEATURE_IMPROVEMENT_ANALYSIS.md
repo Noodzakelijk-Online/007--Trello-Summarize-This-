@@ -232,6 +232,15 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 - Ledger runs and JSON exports preserve selected template id/name plus the existing guidance hash and character count, not the full guidance text.
 - Legacy single-field custom guidance still works when no saved template is selected.
 
+### 5l. Output Language Preference
+
+Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`.
+
+- Settings now support English or Dutch as the member-private output language preference.
+- AI prompts include the selected language as an explicit instruction while keeping JSON schema field names stable for exports, Sneup, and HAI.
+- The active popup shows the selected output language in the export panel.
+- Ledger runs and structured JSON exports preserve the requested language without storing full prompt text.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.

@@ -887,6 +887,7 @@
           var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
           lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
             outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
+            outputLanguage: SummarizeThis.normalizeOutputLanguage(settings.outputLanguage),
             promptTemplateId: promptProfile.selectedPromptTemplateId || "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
             promptTemplateName: promptProfile.selectedPromptTemplateName,
             customInstructions: promptProfile.customInstructions
@@ -987,6 +988,7 @@
           analysisMode: "auto",
           strategy: "cost-effective",
           outputMode: "operational-ledger",
+          outputLanguage: "en",
           customInstructions: "",
           selectedPromptTemplateId: "",
           promptTemplates: [],
@@ -1345,6 +1347,7 @@
         return {
           promptContext: context,
           outputMode: SummarizeThis.normalizeOutputMode(settings && settings.outputMode),
+          outputLanguage: SummarizeThis.normalizeOutputLanguage(settings && settings.outputLanguage),
           customInstructions: promptProfile.customInstructions,
           selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
           selectedPromptTemplateName: promptProfile.selectedPromptTemplateName
@@ -1572,8 +1575,10 @@
 
       function renderOutputMode(ledgerRun) {
         var mode = ledgerRun && ledgerRun.outputMode ? ledgerRun.outputMode : "operational-ledger";
+        var language = ledgerRun && ledgerRun.outputLanguage ? ledgerRun.outputLanguage : "en";
         var label = SummarizeThis.getOutputModeLabel ? SummarizeThis.getOutputModeLabel(mode) : mode;
-        document.getElementById("outputModeText").textContent = "Selected output mode: " + label + ". Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.";
+        var languageLabel = SummarizeThis.getOutputLanguageLabel ? SummarizeThis.getOutputLanguageLabel(language) : language;
+        document.getElementById("outputModeText").textContent = "Selected output mode: " + label + ". Output language: " + languageLabel + ". Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.";
         updateSensitiveExportControls();
       }
 

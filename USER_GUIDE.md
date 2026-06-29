@@ -377,6 +377,15 @@ Tailor AI analysis by saving reusable Robert workflow guidance templates. Guidan
 4. Save settings.
 5. Run analysis from a Trello card.
 
+### Output Language
+
+1. Open Power-Up settings.
+2. Choose **English** or **Dutch** in Output language.
+3. Save settings.
+4. Run AI analysis from a Trello card.
+
+The selected language is sent as an AI prompt instruction for user-facing summary text. JSON field names remain stable so exports can still be consumed by Sneup, HAI, or other tools.
+
 ### Managing Prompts
 
 - **Save template**: Creates a new member-private template or updates the selected one.

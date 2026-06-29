@@ -53,6 +53,9 @@ assert.ok(prompt.includes("Prepare launch checklist"));
 assert.equal(SummarizeThis.normalizeOutputMode("risk-review"), "risk-review");
 assert.equal(SummarizeThis.normalizeOutputMode("unknown-mode"), "operational-ledger");
 assert.equal(SummarizeThis.getOutputModeLabel("meeting-brief"), "Meeting brief");
+assert.equal(SummarizeThis.normalizeOutputLanguage("dutch"), "nl");
+assert.equal(SummarizeThis.normalizeOutputLanguage("unknown-language"), "en");
+assert.equal(SummarizeThis.getOutputLanguageLabel("nl"), "Dutch");
 
 const listPlanningCard = Object.assign({}, sample, {
   listContext: Object.assign({}, sample.listContext, {
@@ -99,10 +102,14 @@ assert.equal(batchPlanMarkdown.includes("Finalize the launch checklist"), false)
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",
+  outputLanguage: "nl",
   customInstructions: "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
 }));
 assert.equal(riskPromptPayload.outputMode.key, "risk-review");
 assert.ok(riskPromptPayload.outputMode.instruction.includes("risks"));
+assert.equal(riskPromptPayload.outputLanguage.key, "nl");
+assert.equal(riskPromptPayload.outputLanguage.label, "Dutch");
+assert.ok(riskPromptPayload.outputLanguage.instruction.includes("Dutch"));
 assert.equal(riskPromptPayload.customInstructions, "Prefer Yes/No decisions for Robert and keep VA-ready work separate.");
 assert.equal(riskPromptPayload.listContext.sampledCards, 4);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
@@ -455,14 +462,17 @@ assert.ok(attachmentRun.result.evidence.some(item => item.type === "attachment" 
 const run = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
   now: "2026-06-29T12:00:00.000Z",
   outputMode: "meeting-brief",
+  outputLanguage: "nl",
   promptTemplateId: "robert-approval",
   promptTemplateName: "Robert approval review",
   customInstructions: "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
 });
 assert.equal(run.status, "completed");
 assert.equal(run.outputMode, "meeting-brief");
+assert.equal(run.outputLanguage, "nl");
 assert.equal(run.promptTemplateId, "robert-approval");
 assert.equal(run.promptProfile.promptTemplateName, "Robert approval review");
+assert.equal(run.promptProfile.outputLanguage, "nl");
 assert.equal(run.promptProfile.customInstructionsPresent, true);
 assert.equal(run.promptProfile.customInstructionsCharacters, 67);
 assert.ok(run.result.blockers.length >= 2);
@@ -698,8 +708,10 @@ assert.equal(ledgerJson.schemaVersion, "summarize-this-card-intelligence-export-
 assert.equal(ledgerJson.exportedAt, "2026-06-29T12:07:00.000Z");
 assert.equal(ledgerJson.analysisRun.id, run.id);
 assert.equal(ledgerJson.analysisRun.outputMode, "meeting-brief");
+assert.equal(ledgerJson.analysisRun.outputLanguage, "nl");
 assert.equal(ledgerJson.analysisRun.promptProfile.promptTemplateId, "robert-approval");
 assert.equal(ledgerJson.analysisRun.promptProfile.promptTemplateName, "Robert approval review");
+assert.equal(ledgerJson.analysisRun.promptProfile.outputLanguage, "nl");
 assert.equal(ledgerJson.analysisRun.promptProfile.customInstructionsPresent, true);
 assert.ok(ledgerJson.analysisRun.promptProfile.customInstructionsHash);
 assert.equal(JSON.stringify(ledgerJson).includes("Prefer Yes/No decisions"), false);
