@@ -609,6 +609,17 @@
         <p id="listPlanningStatus" class="feedback-status"></p>
       </section>
 
+      <section id="batchPlanPanel" class="panel hidden">
+        <h2 class="section-title">Batch analysis plan</h2>
+        <p id="batchPlanSummary" class="section-body">Batch planning will appear when list context is available.</p>
+        <ul id="batchPlanList" class="compact-list"></ul>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyBatchPlanButton">Copy batch plan</button>
+          <button class="secondary" type="button" id="copyBatchPlanJsonButton">Copy batch JSON</button>
+        </div>
+        <p id="batchPlanStatus" class="feedback-status"></p>
+      </section>
+
       <section class="panel">
         <h2 class="section-title">Source coverage</h2>
         <p id="sourceCoverageSummary" class="section-body">Source coverage will appear after analysis.</p>
@@ -811,6 +822,12 @@
       document.getElementById("copyListJsonButton").addEventListener("click", function () {
         copyListPlanningBrief("json");
       });
+      document.getElementById("copyBatchPlanButton").addEventListener("click", function () {
+        copyBatchAnalysisPlan("markdown");
+      });
+      document.getElementById("copyBatchPlanJsonButton").addEventListener("click", function () {
+        copyBatchAnalysisPlan("json");
+      });
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
@@ -916,6 +933,10 @@
         document.getElementById("listPlanningSummary").textContent = "List planning will appear when list context is available.";
         document.getElementById("listPlanningList").innerHTML = "";
         document.getElementById("listPlanningStatus").textContent = "";
+        document.getElementById("batchPlanPanel").classList.add("hidden");
+        document.getElementById("batchPlanSummary").textContent = "Batch planning will appear when list context is available.";
+        document.getElementById("batchPlanList").innerHTML = "";
+        document.getElementById("batchPlanStatus").textContent = "";
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
         document.getElementById("sourceCoverageList").innerHTML = "";
         document.getElementById("trustSignalsSummary").textContent = "Trust signals will appear after analysis.";
@@ -1541,6 +1562,7 @@
         renderEvidence(result ? result.evidence : []);
         renderListContext(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.listContext : null);
         renderListPlanningBrief(cardData);
+        renderBatchAnalysisPlan(cardData);
         renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
         renderTrustSignals(result && result.trustSignals ? result.trustSignals : CardIntelligenceLedger.createTrustSignals(cardData));
         renderPriorFeedback(cardData.priorFeedback);
@@ -1690,6 +1712,31 @@
           }).join("; "));
         }
         renderList("listPlanningList", items, "No list planning signals were available.");
+      }
+
+      function renderBatchAnalysisPlan(cardData) {
+        var panel = document.getElementById("batchPlanPanel");
+        var summary = document.getElementById("batchPlanSummary");
+        var list = document.getElementById("batchPlanList");
+        var plan = SummarizeThis.createBatchAnalysisPlan(cardData);
+        var visible = plan && plan.queueSize > 0;
+        panel.classList.toggle("hidden", !visible);
+        list.innerHTML = "";
+
+        if (!visible) {
+          summary.textContent = "Batch planning will appear when list context is available.";
+          return;
+        }
+
+        summary.textContent = (plan.listName || "Current list") + ": " + plan.queueSize + " review queue item(s). AI handoff is off by default.";
+        var items = [
+          "Requires explicit review before full-card AI analysis.",
+          "Recommended concurrency: " + plan.recommendedConcurrency + "; delay: " + plan.recommendedDelaySeconds + " seconds.",
+          "First queue items: " + plan.queue.slice(0, 4).map(function (item) {
+            return item.name + (item.signals.length ? " (" + item.signals.join(", ") + ")" : "");
+          }).join("; ")
+        ];
+        renderList("batchPlanList", items, "No batch queue signals were available.");
       }
 
       function renderSourceCoverage(coverage) {
@@ -2067,6 +2114,53 @@
         elements.confidencePill.textContent = label + " copied";
         document.getElementById("listPlanningStatus").textContent = label + " copied.";
         recordExport("list-planning-" + format, "clipboard", null, true);
+      }
+
+      function copyBatchAnalysisPlan(format) {
+        if (!lastCardData) {
+          document.getElementById("batchPlanStatus").textContent = "Analyze the card first to build a batch plan.";
+          return;
+        }
+
+        var plan = SummarizeThis.createBatchAnalysisPlan(lastCardData);
+        if (!plan.queueSize) {
+          document.getElementById("batchPlanStatus").textContent = "No list context is available for a batch plan.";
+          return;
+        }
+
+        var label = format === "json" ? "Batch JSON" : "Batch plan";
+        var text = format === "json"
+          ? JSON.stringify(plan, null, 2)
+          : SummarizeThis.markdownForBatchAnalysisPlan(plan);
+
+        if (requireSensitiveExportApproval("batch-plan-" + format, "batchPlanStatus", label)) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            elements.confidencePill.textContent = label + " copied";
+            document.getElementById("batchPlanStatus").textContent = label + " copied. No batch analysis was run.";
+            recordExport("batch-plan-" + format, "clipboard", null, true);
+          }).catch(function () {
+            fallbackBatchPlanCopy(text, format, label);
+          });
+        } else {
+          fallbackBatchPlanCopy(text, format, label);
+        }
+      }
+
+      function fallbackBatchPlanCopy(text, format, label) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        elements.confidencePill.textContent = label + " copied";
+        document.getElementById("batchPlanStatus").textContent = label + " copied. No batch analysis was run.";
+        recordExport("batch-plan-" + format, "clipboard", null, true);
       }
 
       function downloadLedgerJson() {

@@ -430,6 +430,7 @@
       sampledCards: compactCards.length,
       sampledCardPreview: compactCards.slice(0, 12).map(function (card) {
         return {
+          id: card.id,
           name: card.name,
           labels: card.labels.slice(0, 4),
           due: card.due,
@@ -570,6 +571,129 @@
         lines.push("- " + item.name + ": " + item.due + (item.overdue ? " (overdue)" : ""));
       });
     }
+
+    lines.push("", "Privacy: " + source.privacyNote);
+    return lines.join("\n");
+  }
+
+  function createBatchAnalysisPlan(input, options) {
+    var card = normalizeCardData(input);
+    var context = card.listContext || {};
+    var now = options && options.now ? new Date(options.now) : new Date();
+    if (Number.isNaN(now.getTime())) now = new Date();
+    var dueSoonDays = toNumber(options && options.dueSoonDays) || 7;
+    var dueSoonMs = dueSoonDays * 86400000;
+    var previewCards = toArray(context.sampledCardPreview).slice(0, 12);
+    var commonLabels = toArray(context.labelPatterns).slice(0, 6);
+    var commonLabelNames = commonLabels.map(function (item) { return item.label; });
+    var queue = previewCards.map(function (item, index) {
+      var labels = toArray(item.labels).slice(0, 4);
+      var dueDate = item.due ? new Date(item.due) : null;
+      var dueTime = dueDate && !Number.isNaN(dueDate.getTime()) ? dueDate.getTime() : null;
+      var signals = [];
+
+      if (card.name && item.name === card.name) signals.push("current-card");
+      if (item.due && !item.dueComplete) {
+        if (dueTime && dueTime < now.getTime()) {
+          signals.push("overdue");
+        } else if (dueTime && dueTime - now.getTime() <= dueSoonMs) {
+          signals.push("due-soon");
+        } else {
+          signals.push("due-open");
+        }
+      }
+      labels.forEach(function (label) {
+        if (commonLabelNames.indexOf(label) !== -1) {
+          signals.push("common-label:" + label);
+        }
+      });
+
+      return {
+        queuePosition: index + 1,
+        cardId: cleanText(item.id),
+        name: cleanText(item.name),
+        labels: labels,
+        due: item.due || null,
+        dueComplete: Boolean(item.dueComplete),
+        signals: signals.slice(0, 6),
+        requiredApproval: "Review this queue item before any full-card AI analysis or Trello write.",
+        recommendedMode: signals.indexOf("overdue") !== -1 || signals.indexOf("due-soon") !== -1
+          ? "risk-review"
+          : "operational-ledger"
+      };
+    }).filter(function (item) {
+      return item.name;
+    });
+
+    var approvalChecklist = [
+      "Review selected cards before running batch analysis.",
+      "Approve AI handoff explicitly before sending card bodies, comments, or attachments to a provider.",
+      "Keep concurrency at 1 until Trello/API rate limits are visible.",
+      "Do not post summaries back to Trello without exact draft review and approval."
+    ];
+
+    return {
+      schemaVersion: "summarize-this-batch-analysis-plan-v1",
+      listName: context.listName || card.listName || "",
+      currentCard: card.name,
+      totalCards: context.totalCards || context.sampledCards || queue.length,
+      sampledCards: context.sampledCards || queue.length,
+      queueSize: queue.length,
+      queue: queue,
+      commonLabels: commonLabels,
+      approvalRequired: true,
+      aiHandoffDefault: "off",
+      recommendedConcurrency: 1,
+      recommendedDelaySeconds: 2,
+      nextSteps: queue.length ? [
+        "Use this as the reviewed queue seed for a future full-card batch run.",
+        "Start with overdue or due-soon cards, then process common-label groups.",
+        "Open each card for full evidence-backed analysis before exporting or posting results."
+      ] : [
+        "Enable list context in settings before building a batch analysis plan."
+      ],
+      approvalChecklist: approvalChecklist,
+      privacyNote: "This batch plan uses bounded list metadata only: card names, optional ids, labels, due states, and current position. It does not include card descriptions, comments, attachments, or AI output."
+    };
+  }
+
+  function markdownForBatchAnalysisPlan(plan) {
+    var source = plan || {};
+    var lines = [
+      "# Batch analysis plan",
+      "",
+      "List: " + (source.listName || "current list"),
+      "Current card: " + (source.currentCard || "unknown"),
+      "Queue size: " + (source.queueSize || 0) + " of " + (source.totalCards || source.sampledCards || 0),
+      "AI handoff default: " + (source.aiHandoffDefault || "off"),
+      "Recommended concurrency: " + (source.recommendedConcurrency || 1),
+      "Recommended delay: " + (source.recommendedDelaySeconds || 2) + " seconds",
+      "",
+      "## Queue"
+    ];
+
+    if (toArray(source.queue).length) {
+      toArray(source.queue).forEach(function (item) {
+        var labels = toArray(item.labels).map(function (label) { return cleanText(label); }).filter(Boolean);
+        var signals = toArray(item.signals).map(function (signal) { return cleanText(signal); }).filter(Boolean);
+        lines.push("- " + item.queuePosition + ". " + item.name
+          + (labels.length ? " [" + labels.join(", ") + "]" : "")
+          + (item.due ? " due " + item.due : "")
+          + (signals.length ? " (" + signals.join(", ") + ")" : ""));
+      });
+    } else {
+      lines.push("- No queue items were available in the bounded list sample.");
+    }
+
+    lines.push("", "## Approval checklist");
+    toArray(source.approvalChecklist).forEach(function (item) {
+      lines.push("- " + item);
+    });
+
+    lines.push("", "## Next steps");
+    toArray(source.nextSteps).forEach(function (item) {
+      lines.push("- " + item);
+    });
 
     lines.push("", "Privacy: " + source.privacyNote);
     return lines.join("\n");
@@ -1347,6 +1471,7 @@
   return {
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
+    createBatchAnalysisPlan: createBatchAnalysisPlan,
     createCostRecord: createCostRecord,
     createListPlanningBrief: createListPlanningBrief,
     createRuntimeTimingRecord: createRuntimeTimingRecord,
@@ -1363,6 +1488,7 @@
     normalizeProviderKey: normalizeProviderKey,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
+    markdownForBatchAnalysisPlan: markdownForBatchAnalysisPlan,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,
     normalizeActions: normalizeActions,

@@ -128,7 +128,23 @@ Safety/resource notes:
 
 Impact: Medium. This gives a practical multi-card planning view now while keeping full batch AI analysis as a separate approval-gated future feature.
 
-### 5b. Large-Card AI Context Controls
+### 5b. Batch Analysis Plan
+
+Problem: The repository advertised batch processing, but the older batch processor is disconnected from the active popup and assumes broad card processing before the newer privacy and approval rules.
+
+Status: Implemented in `summarizer-core.js` and the active popup as a bounded review queue. When list context is available, the popup can copy a Markdown batch plan or structured JSON queue seed.
+
+Safety/resource notes:
+
+- Uses the same bounded list metadata as list planning: card names, optional ids, labels, due state, and current position.
+- Does not fetch neighboring descriptions, comments, attachments, or full card bodies.
+- Does not call AI or run batch processing automatically.
+- Sets AI handoff to off by default, recommends concurrency 1 and a short delay, and includes an approval checklist for any later full-card batch run.
+- Uses the existing sensitive-export approval flow before copying detailed batch plan exports.
+
+Impact: Medium. This makes batch work actionable without reviving unsafe full-list AI execution.
+
+### 5c. Large-Card AI Context Controls
 
 Status: Implemented in `settings-powerup.html` and active AI provider calls.
 
@@ -137,7 +153,7 @@ Status: Implemented in `settings-powerup.html` and active AI provider calls.
 - Description context can be set to 1,500, 2,500, 4,000, or 5,000 characters.
 - The settings panel warns that larger context sends more Trello content to the configured AI provider.
 
-### 5c. Sensitive AI Handoff Approval
+### 5d. Sensitive AI Handoff Approval
 
 Status: Implemented in `settings-powerup.html` and the active popup.
 
@@ -146,7 +162,7 @@ Status: Implemented in `settings-powerup.html` and the active popup.
 - The setting is enabled by default and can be disabled by the user.
 - Approved AI prompts include compact sensitive-signal metadata so the provider response can stay operational and avoid unnecessary private detail.
 
-### 5d. Sensitive Export Approval
+### 5e. Sensitive Export Approval
 
 Status: Implemented in the active popup and ledger export records.
 
@@ -155,7 +171,7 @@ Status: Implemented in the active popup and ledger export records.
 - Export records store whether sensitive review was required and approved, including compact signal categories and matched terms.
 - The flow keeps non-sensitive exports fast while making sensitive client, financial, legal, or personal handoffs explicit.
 
-### 5e. Feedback-Guided Reanalysis
+### 5f. Feedback-Guided Reanalysis
 
 Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
@@ -164,7 +180,7 @@ Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelli
 - Prior corrections are shown as guidance, not as verified Trello facts, to avoid turning user feedback into unsupported claims.
 - Sensitive detection also sees correction text before provider handoff, so sensitive feedback does not silently travel to AI providers.
 
-### 5f. Analysis Review State
+### 5g. Analysis Review State
 
 Status: Implemented in the active popup and `card-intelligence-ledger.js`.
 
@@ -172,7 +188,7 @@ Status: Implemented in the active popup and `card-intelligence-ledger.js`.
 - Review records are stored in member-private Power-Up storage and filtered to the current card's analysis run ids.
 - The review panel starts from the calculated confidence/review-needed state, but the explicit user review state is stored separately from AI claims.
 
-### 5g. Custom-Field Evidence Context
+### 5h. Custom-Field Evidence Context
 
 Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and the active popup data path.
 
@@ -181,7 +197,7 @@ Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and 
 - Field values are capped to 180 characters and the analyzer keeps at most 25 custom fields per card.
 - Custom field evidence is treated as card context, not as a verified AI conclusion.
 
-### 5h. Activity Evidence Context
+### 5i. Activity Evidence Context
 
 Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and the active popup data path.
 
@@ -192,7 +208,7 @@ Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and 
 - Runtime collection is capped to 25 activity items, and prompt/evidence usage is capped to 12 activity items.
 - Activity evidence is read-only and never triggers Trello writes.
 
-### 5i. Custom Prompt Guidance
+### 5j. Custom Prompt Guidance
 
 Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
@@ -202,7 +218,7 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 - Ledger runs store only whether custom guidance was present, its character count, and a short hash.
 - Structured JSON exports do not include the full custom guidance text.
 
-### 5j. Saved Prompt Templates
+### 5k. Saved Prompt Templates
 
 Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
@@ -301,7 +317,7 @@ Impact: Medium. This gives future regression checks a user-visible baseline with
 
 ## Lower-Priority Improvements
 
-- Full batch summarize selected cards, a full list, or a board with approval-gated AI handoff and visible rate-limit controls.
+- Execute the reviewed batch queue for selected cards, a full list, or a board with approval-gated AI handoff and visible rate-limit controls.
 - Dark mode.
 - Localization for Dutch and English.
 - Optional update checker for the Windows installer.
@@ -318,7 +334,8 @@ Impact: Medium. This gives future regression checks a user-visible baseline with
 8. Runtime timing metrics.
 9. Saved prompt templates.
 10. Current-list planning brief.
-11. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
-12. Attachment extraction through a safer backend path.
+11. Batch analysis plan.
+12. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
+13. Attachment extraction through a safer backend path.
 
 This order improves the existing user experience first, then expands capability where it needs more security and product design care.

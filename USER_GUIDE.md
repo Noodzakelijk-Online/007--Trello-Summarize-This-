@@ -13,7 +13,7 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 7. [Analysis History](#analysis-history)
 8. [Budget Management](#budget-management)
 9. [Runtime Timing](#runtime-timing)
-10. [Batch Processing](#batch-processing)
+10. [Batch and List Planning](#batch-and-list-planning)
 11. [Custom Prompts](#custom-prompts)
 12. [Export Options](#export-options)
 13. [Troubleshooting](#troubleshooting)
@@ -290,7 +290,7 @@ The popup records compact member-private cost records for completed AI runs and 
 2. Reserve "Best Quality" for important cards
 3. Set realistic monthly budgets
 4. Review history to identify patterns
-5. Use batch processing for efficiency
+5. Use batch planning before any future multi-card AI run
 
 ---
 
@@ -302,7 +302,7 @@ The timing panel helps diagnose whether time is spent reading Trello context, bu
 
 ---
 
-## List Planning
+## Batch and List Planning
 
 ### What is List Planning?
 
@@ -329,9 +329,22 @@ It does not include neighboring card descriptions, comments, attachments, or AI 
 
 Detailed list exports require the same sensitive-export approval flow used by the other evidence-backed exports. Copying a list brief never posts to Trello and never changes card data.
 
+### Using the Batch Analysis Plan
+
+The batch analysis plan creates a review queue from the same bounded list metadata. It is designed as a safe first step before future full-card batch processing.
+
+1. Open a Trello card.
+2. Click **Summarize This**.
+3. Make sure list context is enabled in settings.
+4. Run the analysis.
+5. Use **Copy batch plan** for a Markdown queue review.
+6. Use **Copy batch JSON** for a structured queue seed.
+
+The batch plan does not run AI, does not fetch neighboring card descriptions or comments, and does not write to Trello. It sets AI handoff to off by default, recommends concurrency `1`, and includes an approval checklist for any later full-card batch run.
+
 ### What Remains Future Work
 
-Full batch analysis of selected cards, an entire list, or an entire board is still future work. That future version should use an approval-gated queue, visible rate-limit controls, and explicit AI handoff consent before processing many cards.
+Full batch execution for selected cards, an entire list, or an entire board is still future work. That future version should build on the reviewed queue, add visible rate-limit controls, and require explicit AI handoff consent before processing many full card bodies.
 
 ---
 
@@ -433,7 +446,7 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 
 **Issue: "Rate Limit Exceeded"**
 - **Solution**: Wait 1 minute and try again
-- Use batch processing with delays
+- Use batch planning with delays before any future full-card batch run
 - Upgrade API plan if frequent
 
 **Issue: "Analysis Failed"**
@@ -500,7 +513,7 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 
 ### For Large Projects
 
-1. **Batch Processing**: Analyze multiple cards
+1. **Batch Planning**: Build a reviewed queue before analyzing multiple cards
 2. **Comprehensive Strategy**: Use for critical cards
 3. **History Tracking**: Review trends
 4. **Export Reports**: Generate summaries

@@ -14,6 +14,7 @@ assert.equal(normalized.listContext.sampledCards, 4);
 assert.equal(normalized.listContext.currentPosition, 2);
 assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
 assert.equal(normalized.listContext.sampledCardPreview.length, 4);
+assert.equal(normalized.listContext.sampledCardPreview[1].id, "sample-card");
 assert.equal(normalized.customFields.length, 2);
 assert.ok(normalized.customFields.some(item => item.name === "Priority" && item.value === "High"));
 assert.equal(normalized.actions.length, 1);
@@ -76,6 +77,25 @@ assert.ok(listPlanningMarkdown.includes("List planning brief"));
 assert.ok(listPlanningMarkdown.includes("Nearby cards"));
 assert.ok(listPlanningMarkdown.includes("Privacy:"));
 assert.equal(listPlanningMarkdown.includes("Finalize the launch checklist"), false);
+
+const batchAnalysisPlan = SummarizeThis.createBatchAnalysisPlan(listPlanningCard, {
+  now: new Date(Date.now() + 4 * 86400000).toISOString()
+});
+assert.equal(batchAnalysisPlan.schemaVersion, "summarize-this-batch-analysis-plan-v1");
+assert.equal(batchAnalysisPlan.queueSize, 4);
+assert.equal(batchAnalysisPlan.approvalRequired, true);
+assert.equal(batchAnalysisPlan.aiHandoffDefault, "off");
+assert.equal(batchAnalysisPlan.recommendedConcurrency, 1);
+assert.ok(batchAnalysisPlan.queue.some(item => item.cardId === "sample-card" && item.signals.includes("current-card")));
+assert.ok(batchAnalysisPlan.queue.some(item => item.name === "Prepare launch checklist" && item.signals.includes("overdue")));
+assert.ok(batchAnalysisPlan.approvalChecklist.some(item => item.includes("Approve AI handoff")));
+assert.ok(batchAnalysisPlan.privacyNote.includes("bounded list metadata"));
+
+const batchPlanMarkdown = SummarizeThis.markdownForBatchAnalysisPlan(batchAnalysisPlan);
+assert.ok(batchPlanMarkdown.includes("Batch analysis plan"));
+assert.ok(batchPlanMarkdown.includes("AI handoff default: off"));
+assert.ok(batchPlanMarkdown.includes("Approval checklist"));
+assert.equal(batchPlanMarkdown.includes("Finalize the launch checklist"), false);
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",
@@ -612,6 +632,10 @@ assert.equal(sensitiveExportRecord.cardId, run.cardId);
 
 const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
   sensitiveExportRecord,
+  CardIntelligenceLedger.createExportRecord(run.id, "batch-plan-json", "clipboard", {
+    now: "2026-06-29T12:07:00.000Z",
+    cardId: run.cardId
+  }),
   CardIntelligenceLedger.createExportRecord(run.id, "list-planning-json", "clipboard", {
     now: "2026-06-29T12:06:50.000Z",
     cardId: run.cardId
@@ -624,12 +648,13 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     cardId: run.cardId
   })
 ], [run.id], 5);
-assert.equal(summarizedExports.length, 3);
+assert.equal(summarizedExports.length, 4);
 assert.equal(summarizedExports[0].exportLabel, "Trello comment");
 assert.equal(summarizedExports[0].destinationLabel, "posted to Trello");
-assert.equal(summarizedExports[1].exportLabel, "Ledger JSON");
-assert.equal(summarizedExports[1].sensitiveReviewApproved, true);
-assert.equal(summarizedExports[2].exportLabel, "List planning JSON");
+assert.equal(summarizedExports[1].exportLabel, "Batch analysis JSON");
+assert.equal(summarizedExports[2].exportLabel, "Ledger JSON");
+assert.equal(summarizedExports[2].sensitiveReviewApproved, true);
+assert.equal(summarizedExports[3].exportLabel, "List planning JSON");
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));

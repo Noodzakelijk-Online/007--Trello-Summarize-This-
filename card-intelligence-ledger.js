@@ -1398,6 +1398,8 @@
       "ledger-json": "Ledger JSON",
       "list-planning-markdown": "List planning brief",
       "list-planning-json": "List planning JSON",
+      "batch-plan-markdown": "Batch analysis plan",
+      "batch-plan-json": "Batch analysis JSON",
       "trello-comment-draft": "Trello comment draft",
       "trello-comment": "Trello comment"
     };
