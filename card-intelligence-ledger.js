@@ -1783,6 +1783,53 @@
     return lines.join("\n");
   }
 
+  function createOperationalDigest(run) {
+    var result = run && run.result ? run.result : {};
+    var confidence = result.confidence
+      ? result.confidence.overall + "% " + result.confidence.level
+      : "Unknown";
+    var hasBlocker = toArray(result.blockers).length || toArray(result.waitingOn).length;
+    var hasRobertDecision = toArray(result.robertDecisions).length;
+    return [
+      {
+        key: "current-status",
+        label: "Current status",
+        value: truncateForExport(result.currentStatus || result.about || "No current status available.", 220),
+        tone: "neutral"
+      },
+      {
+        key: "main-blocker",
+        label: "Main blocker",
+        value: firstItemText(result.blockers, firstItemText(result.waitingOn, "No blocker or waiting state detected.")),
+        tone: hasBlocker ? "warning" : "neutral"
+      },
+      {
+        key: "top-next-action",
+        label: "Top next action",
+        value: firstItemText(result.nextActions, "No next action detected."),
+        tone: "action"
+      },
+      {
+        key: "robert-decision",
+        label: "Robert decision",
+        value: firstItemText(result.robertDecisions, "No Robert-specific decision detected."),
+        tone: hasRobertDecision ? "high" : "neutral"
+      },
+      {
+        key: "va-handoff",
+        label: "VA/team handoff",
+        value: firstItemText(result.vaReadyActions, "No VA/team-ready action detected."),
+        tone: "delegate"
+      },
+      {
+        key: "confidence",
+        label: "Confidence",
+        value: confidence + (result.confidenceReason ? ". " + truncateForExport(result.confidenceReason, 160) : ""),
+        tone: result.confidence && result.confidence.reviewNeeded ? "warning" : "neutral"
+      }
+    ];
+  }
+
   function robertDecisionBriefForLedgerRun(run) {
     var result = run && run.result ? run.result : {};
     var title = run && run.cardSnapshot && run.cardSnapshot.title ? run.cardSnapshot.title : "Trello card";
@@ -2242,6 +2289,7 @@
     createTrelloCommentDraft: createTrelloCommentDraft,
     createLedgerEntry: createLedgerEntry,
     createOperationalAnalysis: createOperationalAnalysis,
+    createOperationalDigest: createOperationalDigest,
     createTrustSignals: createTrustSignals,
     jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,

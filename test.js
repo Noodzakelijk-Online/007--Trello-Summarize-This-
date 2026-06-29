@@ -643,6 +643,23 @@ assert.ok(run.result.trustSignals.whyScore.some(item => item.includes("Data comp
 assert.ok(run.result.evidence.some(item => item.type === "custom-field" && item.excerpt.includes("Priority")));
 assert.ok(run.result.evidence.some(item => item.type === "activity" && item.excerpt.includes("Waiting on Robert")));
 
+const operationalDigest = CardIntelligenceLedger.createOperationalDigest(run);
+assert.equal(operationalDigest.length, 6);
+assert.deepEqual(operationalDigest.map(item => item.key), [
+  "current-status",
+  "main-blocker",
+  "top-next-action",
+  "robert-decision",
+  "va-handoff",
+  "confidence"
+]);
+assert.equal(operationalDigest.find(item => item.key === "main-blocker").tone, "warning");
+assert.ok(operationalDigest.find(item => item.key === "main-blocker").value.length > 20);
+assert.ok(operationalDigest.find(item => item.key === "top-next-action").value.includes("owner: Robert"));
+assert.ok(operationalDigest.find(item => item.key === "robert-decision").value.includes("Approve: Yes/No"));
+assert.ok(operationalDigest.find(item => item.key === "va-handoff").value.includes("Robert approval: no"));
+assert.ok(operationalDigest.find(item => item.key === "confidence").value.includes("%"));
+
 const sparseTrustSignals = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, sample, {
   desc: "",
   comments: [],

@@ -155,7 +155,7 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
       gap: 8px;
       margin-bottom: 12px;
     }
@@ -181,6 +181,60 @@
       margin-top: 2px;
       color: var(--muted);
       font-size: 12px;
+    }
+
+    .digest-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .digest-item {
+      min-height: 92px;
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--blue);
+      border-radius: 8px;
+      padding: 10px;
+      background: #ffffff;
+      overflow-wrap: anywhere;
+    }
+
+    .digest-item.warning {
+      border-left-color: #f5cd47;
+      background: #fffbeb;
+    }
+
+    .digest-item.high {
+      border-left-color: var(--red);
+      background: #fff3f0;
+    }
+
+    .digest-item.action {
+      border-left-color: #0c66e4;
+    }
+
+    .digest-item.delegate {
+      border-left-color: #216e4e;
+      background: #f0fdf4;
+    }
+
+    .digest-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .digest-value {
+      color: #172b4d;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 700;
     }
 
     .actions {
@@ -461,6 +515,7 @@
 
       .grid,
       .metrics,
+      .digest-list,
       .source-list,
       .evidence-list {
         grid-template-columns: 1fr;
@@ -542,6 +597,11 @@
         <h2 class="section-title">Budget alert</h2>
         <p id="budgetText" class="section-body"></p>
         <ul id="budgetList" class="compact-list"></ul>
+      </section>
+
+      <section id="operationalDigestPanel" class="panel">
+        <h2 class="section-title">Operational digest</h2>
+        <ul id="operationalDigestList" class="digest-list"></ul>
       </section>
 
       <section class="grid">
@@ -1022,6 +1082,7 @@
         document.getElementById("exportSensitivityText").classList.add("hidden");
         document.getElementById("exportSensitiveApprovalRow").classList.add("hidden");
         document.getElementById("exportSensitiveApproval").checked = false;
+        document.getElementById("operationalDigestList").innerHTML = "";
         document.getElementById("attachmentFactsSummary").textContent = "Attachment facts will appear after analysis.";
         document.getElementById("attachmentFactsList").innerHTML = "";
         document.getElementById("listContextSummary").textContent = "List context will appear after analysis.";
@@ -1806,6 +1867,7 @@
         document.getElementById("tokensMetric").textContent = String(analysis.metadata.tokens || 0);
         document.getElementById("costMetric").textContent = "$" + Number(analysis.metadata.cost || 0).toFixed(4);
 
+        renderOperationalDigest(ledgerRun);
         document.getElementById("aboutText").textContent = summary.about;
         document.getElementById("historyText").textContent = summary.history;
         document.getElementById("statusText").textContent = summary.status;
@@ -1839,6 +1901,44 @@
         var languageLabel = SummarizeThis.getOutputLanguageLabel ? SummarizeThis.getOutputLanguageLabel(language) : language;
         document.getElementById("outputModeText").textContent = "Selected output mode: " + label + ". Output language: " + languageLabel + ". Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.";
         updateSensitiveExportControls();
+      }
+
+      function renderOperationalDigest(ledgerRun) {
+        var list = document.getElementById("operationalDigestList");
+        var digest = CardIntelligenceLedger.createOperationalDigest
+          ? CardIntelligenceLedger.createOperationalDigest(ledgerRun)
+          : [];
+        var allowedTones = {
+          neutral: true,
+          warning: true,
+          high: true,
+          action: true,
+          delegate: true
+        };
+        list.innerHTML = "";
+
+        if (!digest.length) {
+          var empty = document.createElement("li");
+          empty.className = "digest-item neutral";
+          empty.textContent = "No operational digest is available for this analysis.";
+          list.appendChild(empty);
+          return;
+        }
+
+        digest.forEach(function (item) {
+          var tone = allowedTones[item.tone] ? item.tone : "neutral";
+          var li = document.createElement("li");
+          var label = document.createElement("span");
+          var value = document.createElement("span");
+          li.className = "digest-item " + tone;
+          label.className = "digest-label";
+          value.className = "digest-value";
+          label.textContent = item.label || "Digest";
+          value.textContent = item.value || "No value available.";
+          li.appendChild(label);
+          li.appendChild(value);
+          list.appendChild(li);
+        });
       }
 
       function renderList(id, items, emptyText) {

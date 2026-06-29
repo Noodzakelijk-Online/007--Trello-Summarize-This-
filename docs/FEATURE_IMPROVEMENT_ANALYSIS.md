@@ -19,6 +19,7 @@ Implemented:
 - Creates a private analysis run per card with a card snapshot, input hash, provider/model metadata, structured result, evidence claims, validation findings, and audit event.
 - Extracts blockers, waiting-on items, unclear/conflicting points, next actions, Robert decision items, VA/team-ready actions, and unresolved questions from the existing summary and card data.
 - Shows compact operational metadata such as owner, priority, severity, risk, category, Robert-required status, and delegation safety in popup lists and copied briefs.
+- Adds a top-level Operational digest panel that immediately surfaces current status, main blocker, top next action, Robert decision, VA/team handoff, and confidence before the detailed panels.
 - Stores history, review state, feedback/corrections, and copy/export records in member-private Power-Up storage by default.
 - Reads matching prior corrections back into the next analysis run as guidance, while keeping them distinct from verified Trello evidence.
 - Avoids silently writing analysis results to shared card storage.
