@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 207.9 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 328.7 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.49 MB.
-- Generated Windows installer executable: 214,016 bytes.
+- Active popup initial local files: about 214.0 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 334.7 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.50 MB.
+- Generated Windows installer executable: 217,088 bytes.
 - Large-card AI prompt after caps: 17,790 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -77,20 +77,21 @@ Current results:
    - Attachment intelligence is metadata-only, capped to 25 normalized records and 12 AI prompt/evidence records, and does not fetch or parse attachment files.
    - Custom prompt guidance is capped to 600 characters and ledger exports store only prompt metadata, not the full guidance text.
    - Cost budget tracking stores only compact provider, model, token, cost, card id/title, run id, and timestamp records in member-private storage, capped to 200 records.
+   - Runtime timing metrics store only compact stage durations, provider/source, card id, run id, and timestamp in member-private storage, capped to 100 records.
 
 ## Resource Risk Review
 
 ### CPU
 
-Low. The local summarizer and ledger use simple string processing, checklist counting, and keyword extraction. There are no animation loops, polling loops, workers, or recurring CPU tasks in the popup. AI work runs on provider APIs, not locally.
+Low. The local summarizer and ledger use simple string processing, checklist counting, and keyword extraction. Runtime timing uses `performance.now()` marks during the existing analysis flow and does not add polling, animation loops, workers, or recurring CPU tasks. AI work runs on provider APIs, not locally.
 
 ### Memory
 
-Low. The active popup loads a small static HTML page and two shared JS helpers. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
+Low. The active popup loads a small static HTML page and two shared JS helpers. Runtime timing keeps only the latest compact timing records and renders the latest run's stage list. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 328.7 KB, and the generated `SummarizeThisSetup.exe` is 214,016 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 334.7 KB, and the generated `SummarizeThisSetup.exe` is 217,088 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
@@ -109,4 +110,3 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 
 - Move AI calls behind an optional backend proxy to reduce browser-held key risk and enable better request caching.
 - Split the standalone `index.html` demo from the production install if the installer should become even smaller.
-- Add browser performance timing metrics in the popup for future regression checks.

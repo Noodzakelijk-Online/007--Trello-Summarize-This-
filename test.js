@@ -154,6 +154,35 @@ const budgetDisabled = SummarizeThis.evaluateBudgetAlert([], {
 });
 assert.equal(budgetDisabled.status, "disabled");
 
+const timingRecord = SummarizeThis.createRuntimeTimingRecord([
+  { key: "context", label: "Card context read", durationMs: 12.4 },
+  { key: "local-summary", label: "Local summary", durationMs: 3.2 },
+  { key: "negative", label: "Negative timing is clamped", durationMs: -5 }
+], {
+  analysisRunId: "run-timing-1",
+  cardId: "card-timing",
+  provider: "Local rules",
+  source: "local",
+  totalMs: 20.8,
+  now: "2026-06-29T12:40:00.000Z"
+});
+assert.equal(timingRecord.analysisRunId, "run-timing-1");
+assert.equal(timingRecord.totalMs, 21);
+assert.equal(timingRecord.stages.length, 3);
+assert.equal(timingRecord.stages[0].durationMs, 12);
+assert.equal(timingRecord.stages[2].durationMs, 0);
+assert.equal(timingRecord.createdAt, "2026-06-29T12:40:00.000Z");
+
+const timingSummary = SummarizeThis.summarizeRuntimeTimingRecords([
+  timingRecord,
+  { totalMs: 100 },
+  { totalMs: 0 }
+]);
+assert.equal(timingSummary.count, 2);
+assert.equal(timingSummary.latestMs, 21);
+assert.equal(timingSummary.averageMs, 61);
+assert.equal(timingSummary.maxMs, 100);
+
 function parsePromptPayload(promptText) {
   return JSON.parse(promptText.slice(promptText.lastIndexOf("\n{") + 1));
 }

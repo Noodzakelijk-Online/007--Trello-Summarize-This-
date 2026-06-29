@@ -258,6 +258,21 @@ Implemented:
 
 Impact: Medium. This reduces surprise API spend without blocking analysis or adding a backend.
 
+### 10. Runtime Timing Metrics
+
+Problem: The tool had static footprint checks, but no lightweight in-popup way to spot slower analysis runs over time.
+
+Status: Implemented in `popup.html` and `summarizer-core.js`.
+
+Implemented:
+
+- Each completed analysis records compact stage timings for card context read, local summary, AI provider call when used, ledger build, and history/review UI work.
+- Timing records are stored in member-private Power-Up storage and capped to 100 records.
+- Records include only run id, card id, provider/source, duration values, and timestamp; they do not include card content, prompt text, API keys, or attachment text.
+- The popup shows the latest total duration, recent average, slowest stored run, and the latest stage breakdown.
+
+Impact: Medium. This gives future regression checks a user-visible baseline without adding polling, background services, or network calls.
+
 ## Lower-Priority Improvements
 
 - Bulk summarize selected cards or a full list.
@@ -275,7 +290,8 @@ Impact: Medium. This reduces surprise API spend without blocking analysis or add
 5. Trust signals.
 6. Export formats.
 7. Cost budget alerts.
-8. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
-9. Attachment extraction through a safer backend path.
+8. Runtime timing metrics.
+9. Optional deeper board/list context, such as list-level trends across more than the bounded sample.
+10. Attachment extraction through a safer backend path.
 
 This order improves the existing user experience first, then expands capability where it needs more security and product design care.

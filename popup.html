@@ -621,6 +621,12 @@
         </div>
       </section>
 
+      <section id="runtimeTimingPanel" class="panel hidden">
+        <h2 class="section-title">Runtime timing</h2>
+        <p id="runtimeTimingSummary" class="section-body">Timing will appear after analysis.</p>
+        <ul id="runtimeTimingList" class="compact-list"></ul>
+      </section>
+
       <section class="panel">
         <h2 class="section-title">Analysis review state</h2>
         <p id="reviewStateSummary" class="section-body">Review state will appear after analysis.</p>
@@ -793,6 +799,7 @@
 
       async function runAnalysis(options) {
         var allowSensitiveAi = Boolean(options && options.approveSensitiveAi);
+        var timingTracker = createTimingTracker();
         resetView();
         setStatus("Reading card", "Collecting card title, description, due date, labels, members, and progress.");
 
@@ -802,6 +809,7 @@
           lastSettings = settings;
           var cardData = await gatherCardData(settings);
           cardData = await attachPriorFeedback(cardData);
+          timingTracker.mark("context", "Card context read");
           lastCardData = cardData;
           var sensitiveSignals = SummarizeThis.detectSensitiveSignals(cardData);
           lastSensitiveSignals = sensitiveSignals;
@@ -812,6 +820,7 @@
 
           setStatus("Building summary", "Creating a reliable local summary first.");
           var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData);
+          timingTracker.mark("local-summary", "Local summary");
           var analysis = localAnalysis;
           var warning = "";
 
@@ -823,7 +832,9 @@
                 setStatus("Calling AI provider", "Asking the configured provider for a structured project summary.");
                 try {
                   analysis = await runConfiguredAI(cardData, settings, localAnalysis);
+                  timingTracker.mark("ai-provider", "AI provider");
                 } catch (error) {
+                  timingTracker.mark("ai-provider", "AI provider");
                   if (settings.analysisMode === "ai-only") {
                     throw error;
                   }
@@ -844,6 +855,7 @@
             promptTemplateId: "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
             customInstructions: settings.customInstructions
           });
+          timingTracker.mark("ledger", "Ledger build");
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
           renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analysis.source === "local");
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
@@ -853,6 +865,9 @@
           renderBudgetAlert(costUsage.alert);
           await loadAndRenderReviewState();
           await loadAndRenderExportHistory();
+          timingTracker.mark("history-ui", "History and review panels");
+          var timingRecord = await recordRuntimeTiming(cardData, lastLedgerRun, analysis, timingTracker);
+          renderRuntimeTiming(timingRecord.record, timingRecord.summary);
         } catch (error) {
           showError(error.message || String(error));
         }
@@ -889,6 +904,9 @@
         document.getElementById("budgetPanel").classList.add("hidden");
         document.getElementById("budgetText").textContent = "";
         document.getElementById("budgetList").innerHTML = "";
+        document.getElementById("runtimeTimingPanel").classList.add("hidden");
+        document.getElementById("runtimeTimingSummary").textContent = "Timing will appear after analysis.";
+        document.getElementById("runtimeTimingList").innerHTML = "";
         document.getElementById("reviewNote").value = "";
         document.getElementById("reviewStateStatus").textContent = "";
         document.getElementById("historyChangeText").textContent = "No previous analyses yet.";
@@ -2021,6 +2039,91 @@
           li.textContent = item;
           list.appendChild(li);
         });
+      }
+
+      function createTimingTracker() {
+        var startedAt = nowMs();
+        var lastMark = startedAt;
+        var stages = [];
+
+        return {
+          mark: function (key, label) {
+            var current = nowMs();
+            stages.push({
+              key: key,
+              label: label,
+              durationMs: current - lastMark
+            });
+            lastMark = current;
+          },
+          stages: function () {
+            return stages.slice();
+          },
+          totalMs: function () {
+            return nowMs() - startedAt;
+          }
+        };
+      }
+
+      function nowMs() {
+        return window.performance && typeof window.performance.now === "function"
+          ? window.performance.now()
+          : Date.now();
+      }
+
+      async function recordRuntimeTiming(cardData, ledgerRun, analysis, timingTracker) {
+        var key = "summarizeThisPerformanceRecords";
+        var records = await readPrivateObject(key, []);
+        if (!Array.isArray(records)) records = [];
+        var metadata = analysis && analysis.metadata ? analysis.metadata : {};
+        var record = SummarizeThis.createRuntimeTimingRecord(timingTracker.stages(), {
+          analysisRunId: ledgerRun && ledgerRun.id,
+          cardId: cardData && cardData.id,
+          provider: metadata.provider || "",
+          source: analysis && analysis.source,
+          totalMs: timingTracker.totalMs(),
+          now: ledgerRun && ledgerRun.completedAt
+        });
+
+        records.unshift(record);
+        records = records.slice(0, 100);
+        await writePrivateObject(key, records);
+
+        return {
+          record: record,
+          summary: SummarizeThis.summarizeRuntimeTimingRecords(records)
+        };
+      }
+
+      function renderRuntimeTiming(record, summary) {
+        var panel = document.getElementById("runtimeTimingPanel");
+        var text = document.getElementById("runtimeTimingSummary");
+        var list = document.getElementById("runtimeTimingList");
+        panel.classList.toggle("hidden", !record);
+        list.innerHTML = "";
+
+        if (!record) {
+          text.textContent = "Timing will appear after analysis.";
+          return;
+        }
+
+        text.textContent = "This analysis completed in " + formatDuration(record.totalMs)
+          + ". Recent average: " + formatDuration(summary && summary.averageMs)
+          + ". Slowest stored run: " + formatDuration(summary && summary.maxMs) + ".";
+
+        (record.stages || []).forEach(function (stage) {
+          var li = document.createElement("li");
+          li.textContent = stage.label + ": " + formatDuration(stage.durationMs);
+          list.appendChild(li);
+        });
+      }
+
+      function formatDuration(ms) {
+        var value = Math.max(0, Number(ms) || 0);
+        if (value >= 1000) {
+          return (value / 1000).toFixed(value >= 10000 ? 0 : 1) + "s";
+        }
+        return Math.round(value) + "ms";
       }
 
       async function saveLegacyPrivateHistory(cardData, ledgerRun) {

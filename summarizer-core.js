@@ -989,7 +989,7 @@
       model: source.model || "",
       cost: Number(cost.toFixed(6)),
       tokens: Math.max(0, Number(source.tokens) || 0),
-      createdAt: options && options.now ? new Date(options.now).toISOString() : new Date().toISOString()
+      createdAt: isoTimestamp(options && options.now)
     };
   }
 
@@ -1077,6 +1077,56 @@
     return date.toISOString().slice(0, 7);
   }
 
+  function createRuntimeTimingRecord(stages, options) {
+    var values = (Array.isArray(stages) ? stages : []).map(function (stage) {
+      return {
+        key: truncate(String(stage && stage.key ? stage.key : "stage"), 40),
+        label: truncate(String(stage && stage.label ? stage.label : "Stage"), 80),
+        durationMs: roundDuration(stage && stage.durationMs)
+      };
+    }).filter(function (stage) {
+      return stage.durationMs >= 0;
+    });
+    var total = options && options.totalMs != null
+      ? roundDuration(options.totalMs)
+      : values.reduce(function (sum, stage) { return sum + stage.durationMs; }, 0);
+
+    return {
+      analysisRunId: options && options.analysisRunId ? String(options.analysisRunId) : "",
+      cardId: options && options.cardId ? String(options.cardId) : "",
+      provider: options && options.provider ? String(options.provider) : "",
+      source: options && options.source ? String(options.source) : "",
+      totalMs: roundDuration(total),
+      stages: values.slice(0, 12),
+      createdAt: isoTimestamp(options && options.now)
+    };
+  }
+
+  function summarizeRuntimeTimingRecords(records) {
+    var values = (Array.isArray(records) ? records : [])
+      .map(function (record) { return Math.max(0, Number(record && record.totalMs) || 0); })
+      .filter(function (value) { return value > 0; });
+    var total = values.reduce(function (sum, value) { return sum + value; }, 0);
+    return {
+      count: values.length,
+      averageMs: values.length ? roundDuration(total / values.length) : 0,
+      latestMs: values.length ? roundDuration(values[0]) : 0,
+      maxMs: values.length ? roundDuration(Math.max.apply(Math, values)) : 0
+    };
+  }
+
+  function roundDuration(value) {
+    var number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.max(0, Math.round(number));
+  }
+
+  function isoTimestamp(value) {
+    var date = value ? new Date(value) : new Date();
+    if (Number.isNaN(date.getTime())) date = new Date();
+    return date.toISOString();
+  }
+
   function sampleCardData() {
     return {
       id: "sample-card",
@@ -1135,6 +1185,7 @@
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
     createCostRecord: createCostRecord,
+    createRuntimeTimingRecord: createRuntimeTimingRecord,
     detectSensitiveSignals: detectSensitiveSignals,
     evaluateBudgetAlert: evaluateBudgetAlert,
     getOutputModeInstruction: getOutputModeInstruction,
@@ -1152,6 +1203,7 @@
     normalizeAttachments: normalizeAttachments,
     normalizeCardData: normalizeCardData,
     sampleCardData: sampleCardData,
-    summarizeMonthlyProviderCosts: summarizeMonthlyProviderCosts
+    summarizeMonthlyProviderCosts: summarizeMonthlyProviderCosts,
+    summarizeRuntimeTimingRecords: summarizeRuntimeTimingRecords
   };
 }));

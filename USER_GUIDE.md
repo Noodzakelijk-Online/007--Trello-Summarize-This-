@@ -12,10 +12,11 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 6. [Attachment Processing](#attachment-processing)
 7. [Analysis History](#analysis-history)
 8. [Budget Management](#budget-management)
-9. [Batch Processing](#batch-processing)
-10. [Custom Prompts](#custom-prompts)
-11. [Export Options](#export-options)
-12. [Troubleshooting](#troubleshooting)
+9. [Runtime Timing](#runtime-timing)
+10. [Batch Processing](#batch-processing)
+11. [Custom Prompts](#custom-prompts)
+12. [Export Options](#export-options)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -293,6 +294,14 @@ The popup records compact member-private cost records for completed AI runs and 
 
 ---
 
+## Runtime Timing
+
+After each analysis, the popup shows a Runtime timing panel with the latest total duration, recent average, slowest stored run, and stage breakdown.
+
+The timing panel helps diagnose whether time is spent reading Trello context, building the local summary, waiting for an AI provider, building the ledger, or rendering history/review panels. Timing records are compact and member-private. They store run id, card id, provider/source, durations, and timestamp only; they do not store card content, prompts, API keys, or attachment text.
+
+---
+
 ## Batch Processing
 
 ### What is Batch Processing?
@@ -503,6 +512,7 @@ Use these placeholders in templates:
 
 **Issue: "Slow Performance"**
 - **Solution**: Use "Speed-Optimized" strategy
+- Check the Runtime timing panel to see whether the delay is Trello context, local processing, AI provider wait time, or UI/history rendering
 - Reduce number of attachments
 - Clear browser cache
 - Check internet connection
