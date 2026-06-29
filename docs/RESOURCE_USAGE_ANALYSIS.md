@@ -125,6 +125,6 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 
 ## Remaining Opportunities
 
-- Add Cloudflare WAF or managed rate limiting in front of the optional proxy endpoint.
+- Add Cloudflare WAF or managed rate limiting in front of the optional proxy endpoint for durable global quotas beyond the Worker-local per-client burst guard.
 - Add explicit provider-response caching if repeated identical prompts become common and privacy policy allows it.
 - Split the standalone `index.html` demo from the production install if the installer should become even smaller.

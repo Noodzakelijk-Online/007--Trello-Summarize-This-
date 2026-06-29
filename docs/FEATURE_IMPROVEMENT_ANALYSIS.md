@@ -201,7 +201,7 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 - Query strings, fragments, and embedded credentials are stripped or rejected before saving.
 - When proxy mode is enabled, the popup uses the proxy path only. If the proxy fails in Auto mode, the result falls back to local summarization instead of silently using direct browser-held provider keys.
 - The proxy request uses a compact versioned JSON schema containing provider preference, model preference, strategy, output mode/language, and the bounded AI prompt.
-- A Cloudflare Worker reference proxy is included with request-size checks, schema validation, prompt caps, provider-key secrets, allowed-origin checks, CORS handling, no-store responses, and redacted provider errors.
+- A Cloudflare Worker reference proxy is included with request-size checks, schema validation, prompt caps, provider-key secrets, allowed-origin checks, a configurable per-client request limit, CORS handling, no-store responses, and redacted provider errors.
 
 ### 5g. Feedback-Guided Reanalysis
 

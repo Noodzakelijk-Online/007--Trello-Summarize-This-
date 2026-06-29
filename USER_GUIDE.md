@@ -165,7 +165,7 @@ Settings can route AI calls through a backend proxy endpoint. When enabled, the 
 - Query strings, fragments, and embedded credentials are not saved as part of the proxy endpoint.
 - If proxy mode fails in Auto mode, the popup falls back to the local summarizer rather than silently switching back to browser-held provider keys.
 
-The repository includes an optional Cloudflare Worker reference implementation in `proxy/`. It validates request size, schema, prompt length, provider choice, and allowed origins before calling a provider with server-side secrets.
+The repository includes an optional Cloudflare Worker reference implementation in `proxy/`. It validates request size, schema, prompt length, provider choice, allowed origins, and a configurable per-client request rate before calling a provider with server-side secrets.
 
 ---
 

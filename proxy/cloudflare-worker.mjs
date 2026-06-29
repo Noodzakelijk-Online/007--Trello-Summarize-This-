@@ -1,6 +1,8 @@
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_PROMPT_CHARACTERS = 24000;
+const DEFAULT_RATE_LIMIT_PER_MINUTE = 30;
 const ALLOWED_PROVIDERS = new Set(["auto", "openai", "google", "anthropic"]);
+const rateLimitBuckets = new Map();
 
 export default {
   async fetch(request, env, ctx) {
@@ -30,18 +32,28 @@ export async function handleRequest(request, env, ctx) {
     return jsonResponse({ error: "Origin is not allowed." }, 403, null);
   }
 
+  const rateLimit = checkRateLimit(request, env, allowedOrigin);
+  if (!rateLimit.allowed) {
+    return jsonResponse(
+      { error: "Too many proxy requests. Try again shortly." },
+      429,
+      allowedOrigin,
+      rateLimit.headers
+    );
+  }
+
   try {
     const payload = normalizeProxyRequest(await readJsonBody(request, MAX_BODY_BYTES));
     const provider = selectProvider(payload.provider, env);
     const result = await callProvider(provider, payload, env);
-    return jsonResponse(result, 200, allowedOrigin);
+    return jsonResponse(result, 200, allowedOrigin, rateLimit.headers);
   } catch (error) {
     const status = error && error.status ? error.status : 500;
     const message = sanitizeErrorMessage(error && error.message ? error.message : String(error));
     if (ctx && typeof ctx.waitUntil === "function") {
       ctx.waitUntil(logProxyError(status, message));
     }
-    return jsonResponse({ error: message }, status, allowedOrigin);
+    return jsonResponse({ error: message }, status, allowedOrigin, rateLimit.headers);
   }
 }
 
@@ -103,6 +115,44 @@ export function resolveAllowedOrigin(origin, env) {
   if (!allowed.length) return "";
   if (allowed.includes("*")) return origin;
   return allowed.includes(origin) ? origin : "";
+}
+
+export function checkRateLimit(request, env, allowedOrigin, now = Date.now()) {
+  const limit = parseRateLimit(env.RATE_LIMIT_PER_MINUTE);
+  if (limit <= 0) {
+    return { allowed: true, limit: 0, remaining: 0, resetSeconds: 0, headers: {} };
+  }
+
+  pruneRateLimitBuckets(now);
+
+  const windowMs = 60 * 1000;
+  const key = buildRateLimitKey(request, allowedOrigin);
+  const existing = rateLimitBuckets.get(key);
+  const bucket = existing && existing.resetAt > now
+    ? existing
+    : { count: 0, resetAt: now + windowMs };
+
+  bucket.count += 1;
+  rateLimitBuckets.set(key, bucket);
+
+  const remaining = Math.max(0, limit - bucket.count);
+  const resetSeconds = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
+  const headers = {
+    "RateLimit-Limit": String(limit),
+    "RateLimit-Remaining": String(remaining),
+    "RateLimit-Reset": String(resetSeconds)
+  };
+
+  if (bucket.count > limit) {
+    headers["Retry-After"] = String(resetSeconds);
+    return { allowed: false, limit, remaining: 0, resetSeconds, headers };
+  }
+
+  return { allowed: true, limit, remaining, resetSeconds, headers };
+}
+
+export function resetRateLimitBuckets() {
+  rateLimitBuckets.clear();
 }
 
 async function callProvider(provider, payload, env) {
@@ -260,10 +310,13 @@ async function readBodyTextWithLimit(request, maxBytes) {
   return text;
 }
 
-function jsonResponse(body, status, origin) {
+function jsonResponse(body, status, origin, extraHeaders) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: corsHeaders(origin)
+    headers: {
+      ...corsHeaders(origin),
+      ...(extraHeaders || {})
+    }
   });
 }
 
@@ -294,6 +347,29 @@ function parseMaybeJson(value) {
 
 function cleanText(value, limit) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function parseRateLimit(value) {
+  if (value === "0" || String(value).toLowerCase() === "off") return 0;
+  const parsed = Number(value || DEFAULT_RATE_LIMIT_PER_MINUTE);
+  if (!Number.isFinite(parsed) || parsed < 0) return DEFAULT_RATE_LIMIT_PER_MINUTE;
+  return Math.min(600, Math.floor(parsed));
+}
+
+function buildRateLimitKey(request, allowedOrigin) {
+  const ip = request.headers.get("CF-Connecting-IP")
+    || request.headers.get("X-Forwarded-For")
+    || "unknown-ip";
+  return [allowedOrigin || "no-origin", String(ip).split(",")[0].trim()].join("|");
+}
+
+function pruneRateLimitBuckets(now) {
+  if (rateLimitBuckets.size < 1000) return;
+  for (const [key, bucket] of rateLimitBuckets) {
+    if (bucket.resetAt <= now) {
+      rateLimitBuckets.delete(key);
+    }
+  }
 }
 
 function estimateOpenAICost(model, usage) {

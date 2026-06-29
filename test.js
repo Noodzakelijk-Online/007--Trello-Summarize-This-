@@ -1078,6 +1078,31 @@ async function runAsyncTests() {
     provider: "openai",
     prompt: "x".repeat(24001)
   }), /Prompt is too large/);
+  ProxyWorker.resetRateLimitBuckets();
+  const rateLimitRequest = new Request("https://proxy.example.test/", {
+    headers: {
+      "Origin": "https://powerup.example",
+      "CF-Connecting-IP": "203.0.113.10"
+    }
+  });
+  const firstRateLimit = ProxyWorker.checkRateLimit(
+    rateLimitRequest,
+    { RATE_LIMIT_PER_MINUTE: "1" },
+    "https://powerup.example",
+    Date.parse("2026-06-29T12:00:00.000Z")
+  );
+  const secondRateLimit = ProxyWorker.checkRateLimit(
+    rateLimitRequest,
+    { RATE_LIMIT_PER_MINUTE: "1" },
+    "https://powerup.example",
+    Date.parse("2026-06-29T12:00:01.000Z")
+  );
+  assert.equal(firstRateLimit.allowed, true);
+  assert.equal(firstRateLimit.headers["RateLimit-Limit"], "1");
+  assert.equal(firstRateLimit.headers["RateLimit-Remaining"], "0");
+  assert.equal(secondRateLimit.allowed, false);
+  assert.equal(secondRateLimit.headers["Retry-After"], "59");
+  ProxyWorker.resetRateLimitBuckets();
 
   const blockedProxyResponse = await ProxyWorker.handleRequest(new Request("https://proxy.example.test/", {
     method: "POST",

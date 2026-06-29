@@ -10,6 +10,7 @@
   },
   "vars": {
     "ALLOWED_ORIGINS": "https://your-powerup-host.example",
-    "DEFAULT_PROVIDER": "openai"
+    "DEFAULT_PROVIDER": "openai",
+    "RATE_LIMIT_PER_MINUTE": "30"
   }
 }
