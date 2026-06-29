@@ -16,9 +16,9 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 300.6 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 450.5 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.65 MB.
+- Active popup initial local files: about 306.2 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 456.1 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.66 MB.
 - Generated Windows installer executable: 275,968 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
@@ -84,6 +84,7 @@ Current results:
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
    - The list planning brief is generated on demand from existing bounded list context, capped to 12 sampled preview cards in the exported brief, and does not include neighboring descriptions, comments, attachments, or AI output.
+   - List trend signals are generated on demand from the same bounded list metadata and add no Trello reads, AI calls, polling, or full-card content retention.
    - The batch analysis plan is generated on demand from the same bounded list context, capped to 12 queue seed cards, and does not run AI, fetch neighboring full card bodies, or start background processing.
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.

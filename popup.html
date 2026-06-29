@@ -2009,6 +2009,11 @@
             return card.name + (card.overdue ? " overdue" : " due " + card.due);
           }).join("; "));
         }
+        if (brief.trendSignals && brief.trendSignals.signals && brief.trendSignals.signals.length) {
+          brief.trendSignals.signals.slice(0, 4).forEach(function (signal) {
+            items.push("Trend - " + signal.label + ": " + signal.detail + " " + signal.action);
+          });
+        }
         renderList("listPlanningList", items, "No list planning signals were available.");
       }
 

@@ -426,7 +426,7 @@
 
   function normalizeListContext(input, currentCardId, currentListName) {
     var source = input || {};
-    var rawCards = toArray(source.cards || source.listCards || source.neighborCards);
+    var rawCards = toArray(source.cards || source.listCards || source.neighborCards || source.sampledCardPreview);
     var compactCards = rawCards.map(function (card) {
       return {
         id: cleanText(card.id),
@@ -502,6 +502,130 @@
     });
   }
 
+  function createListTrendSignals(input, options) {
+    var card = normalizeCardData(input);
+    var context = card.listContext || {};
+    var previewCards = toArray(context.sampledCardPreview);
+    var now = options && options.now ? new Date(options.now) : new Date();
+    if (Number.isNaN(now.getTime())) now = new Date();
+    var dueSoonDays = toNumber(options && options.dueSoonDays) || 7;
+    var dueSoonMs = dueSoonDays * 86400000;
+    var counts = {
+      sampled: previewCards.length,
+      overdue: 0,
+      dueSoon: 0,
+      dueOpen: 0,
+      dueComplete: 0,
+      noDue: 0,
+      waitingTitleSignals: 0
+    };
+    var titleSignals = [];
+    var signals = [];
+    var labelPatterns = toArray(context.labelPatterns);
+    var topLabel = labelPatterns[0] || null;
+
+    previewCards.forEach(function (item) {
+      var dueDate = item && item.due ? new Date(item.due) : null;
+      var dueTime = dueDate && !Number.isNaN(dueDate.getTime()) ? dueDate.getTime() : null;
+      var name = cleanText(item && item.name);
+      var lowerName = name.toLowerCase();
+
+      if (item && item.dueComplete) {
+        counts.dueComplete += 1;
+      } else if (dueTime) {
+        counts.dueOpen += 1;
+        if (dueTime < now.getTime()) {
+          counts.overdue += 1;
+        } else if (dueTime - now.getTime() <= dueSoonMs) {
+          counts.dueSoon += 1;
+        }
+      } else {
+        counts.noDue += 1;
+      }
+
+      if (["waiting", "blocked", "blocker", "approve", "approval", "missing", "client reply", "dependency"].some(function (term) {
+        return lowerName.indexOf(term) !== -1;
+      })) {
+        counts.waitingTitleSignals += 1;
+        if (titleSignals.length < 4) titleSignals.push(name);
+      }
+    });
+
+    if (counts.overdue) {
+      signals.push({
+        id: "overdue-pressure",
+        severity: "high",
+        label: "Overdue pressure",
+        detail: counts.overdue + " sampled card(s) are overdue.",
+        action: "Review overdue cards before adding new list work."
+      });
+    } else if (counts.dueSoon) {
+      signals.push({
+        id: "due-soon-pressure",
+        severity: "medium",
+        label: "Due-soon pressure",
+        detail: counts.dueSoon + " sampled card(s) are due within " + dueSoonDays + " day(s).",
+        action: "Prioritize due-soon cards in the next review pass."
+      });
+    }
+
+    if (topLabel && counts.sampled >= 3 && topLabel.count / counts.sampled >= 0.5) {
+      signals.push({
+        id: "label-concentration",
+        severity: "medium",
+        label: "Common workstream",
+        detail: topLabel.label + " appears on " + topLabel.count + " of " + counts.sampled + " sampled card(s).",
+        action: "Group handoff or review work around this label."
+      });
+    }
+
+    if (counts.waitingTitleSignals) {
+      signals.push({
+        id: "waiting-title-signals",
+        severity: counts.waitingTitleSignals > 1 ? "high" : "medium",
+        label: "Waiting or blocker wording",
+        detail: counts.waitingTitleSignals + " sampled card title(s) mention waiting, approval, missing input, or blockers.",
+        action: "Open these cards for full evidence-backed blocker analysis.",
+        examples: titleSignals
+      });
+    }
+
+    if (context.currentPosition && context.totalCards && context.currentPosition > Math.ceil(context.totalCards * 0.75)) {
+      signals.push({
+        id: "lower-list-position",
+        severity: "low",
+        label: "Lower list position",
+        detail: "Current card is position " + context.currentPosition + " of " + context.totalCards + ".",
+        action: "Check whether higher cards in the list should be cleared first."
+      });
+    }
+
+    if (!signals.length && counts.sampled) {
+      signals.push({
+        id: "steady-list",
+        severity: "low",
+        label: "No urgent list trend",
+        detail: "No overdue, due-soon, or waiting-title trend was detected in the bounded sample.",
+        action: "Use the individual card analysis as the primary decision source."
+      });
+    }
+
+    return {
+      schemaVersion: "summarize-this-list-trend-signals-v1",
+      listName: context.listName || card.listName || "",
+      sampledCards: counts.sampled,
+      totalCards: context.totalCards || counts.sampled,
+      dueCounts: counts,
+      labelConcentration: topLabel ? {
+        label: topLabel.label,
+        count: topLabel.count,
+        percent: counts.sampled ? Math.round((topLabel.count / counts.sampled) * 100) : 0
+      } : null,
+      signals: signals.slice(0, 6),
+      privacyNote: "List trend signals use bounded list metadata only: card names, labels, due states, and current position. They do not include neighboring descriptions, comments, attachments, or AI output."
+    };
+  }
+
   function createListPlanningBrief(input, options) {
     var card = normalizeCardData(input);
     var context = card.listContext || {};
@@ -519,11 +643,17 @@
       };
     }).slice(0, 8);
     var labelPatterns = toArray(context.labelPatterns).slice(0, 6);
+    var trendSignals = createListTrendSignals(card, options);
     var nextFocus = [];
 
     if (dueCards.some(function (item) { return item.overdue; })) {
       nextFocus.push("Review overdue cards in this list before adding new work.");
     }
+    toArray(trendSignals.signals).slice(0, 3).forEach(function (signal) {
+      if (signal && signal.action && nextFocus.indexOf(signal.action) === -1) {
+        nextFocus.push(signal.action);
+      }
+    });
     if (labelPatterns.length) {
       nextFocus.push("Use common labels to group related handoff work: " + labelPatterns.map(function (item) {
         return item.label + " (" + item.count + ")";
@@ -553,6 +683,7 @@
       }).slice(0, 8),
       labelPatterns: labelPatterns,
       dueCards: dueCards,
+      trendSignals: trendSignals,
       nextFocus: nextFocus,
       source: context.source || "",
       privacyNote: "This brief uses bounded list metadata only: card names, labels, due states, and current position. It does not include neighboring card descriptions, comments, attachments, or AI output."
@@ -601,6 +732,13 @@
       lines.push("", "## Due signals");
       toArray(source.dueCards).forEach(function (item) {
         lines.push("- " + item.name + ": " + item.due + (item.overdue ? " (overdue)" : ""));
+      });
+    }
+
+    if (source.trendSignals && toArray(source.trendSignals.signals).length) {
+      lines.push("", "## List trend signals");
+      toArray(source.trendSignals.signals).forEach(function (item) {
+        lines.push("- " + item.label + " (" + item.severity + "): " + item.detail + " Action: " + item.action);
       });
     }
 
@@ -1572,6 +1710,7 @@
     createBatchAnalysisPlan: createBatchAnalysisPlan,
     createCostRecord: createCostRecord,
     createListPlanningBrief: createListPlanningBrief,
+    createListTrendSignals: createListTrendSignals,
     createRuntimeTimingRecord: createRuntimeTimingRecord,
     detectSensitiveSignals: detectSensitiveSignals,
     evaluateBudgetAlert: evaluateBudgetAlert,

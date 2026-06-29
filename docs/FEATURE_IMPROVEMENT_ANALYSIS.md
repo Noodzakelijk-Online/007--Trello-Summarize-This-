@@ -134,6 +134,22 @@ Safety/resource notes:
 
 Impact: Medium. This gives a practical multi-card planning view now while keeping full batch AI analysis as a separate approval-gated future feature.
 
+### 5a.1. Bounded List Trend Signals
+
+Problem: A current-list sample can show useful operational pressure, but the earlier list planning panel mainly showed nearby cards, labels, and due dates without a compact risk interpretation.
+
+Status: Implemented in `summarizer-core.js` and surfaced in the active popup list-planning panel.
+
+Implemented:
+
+- Derives list trend signals from the already-bounded list metadata: card names, labels, due states, and current position.
+- Flags overdue pressure, due-soon pressure, dominant label/workstream concentration, waiting/blocker wording in card titles, and low current-card position.
+- Adds the trend signals to the list planning brief, Markdown export, and popup list-planning panel.
+- Keeps the privacy model unchanged: it does not read neighboring descriptions, comments, attachments, full card bodies, or AI output.
+- Adds regression tests proving the trend schema, overdue/label/waiting detection, and no neighboring-description leakage in list exports.
+
+Impact: Medium. This gives Robert a faster list-level triage read without adding provider cost, new network calls, or broad batch processing.
+
 ### 5b. Batch Analysis Plan
 
 Problem: The repository advertised batch processing, but the older batch processor is disconnected from the active popup and assumes broad card processing before the newer privacy and approval rules.

@@ -167,9 +167,26 @@ const listPlanningCard = Object.assign({}, sample, {
   listContext: Object.assign({}, sample.listContext, {
     cards: sample.listContext.cards.map(card => card.id === "sample-card"
       ? Object.assign({}, card, { due: sample.due, dueComplete: false })
+      : card.id === "sample-next"
+        ? Object.assign({}, card, {
+          name: "Waiting on client approval",
+          desc: "This neighboring description must stay out of list planning exports.",
+          due: new Date(Date.now() + 2 * 86400000).toISOString(),
+          dueComplete: false
+        })
       : card)
   })
 });
+const listTrendSignals = SummarizeThis.createListTrendSignals(listPlanningCard, {
+  now: new Date(Date.now() + 4 * 86400000).toISOString()
+});
+assert.equal(listTrendSignals.schemaVersion, "summarize-this-list-trend-signals-v1");
+assert.equal(listTrendSignals.sampledCards, 4);
+assert.ok(listTrendSignals.signals.some(item => item.id === "overdue-pressure"));
+assert.ok(listTrendSignals.signals.some(item => item.id === "label-concentration"));
+assert.ok(listTrendSignals.signals.some(item => item.id === "waiting-title-signals"));
+assert.ok(listTrendSignals.privacyNote.includes("bounded list metadata"));
+
 const listPlanningBrief = SummarizeThis.createListPlanningBrief(listPlanningCard, {
   now: new Date(Date.now() + 4 * 86400000).toISOString()
 });
@@ -179,13 +196,16 @@ assert.equal(listPlanningBrief.currentPosition, 2);
 assert.ok(listPlanningBrief.labelPatterns.some(item => item.label === "Launch"));
 assert.ok(listPlanningBrief.dueCards.some(item => item.name === "Prepare launch checklist"));
 assert.ok(listPlanningBrief.nextFocus.some(item => item.includes("Current card position")));
+assert.ok(listPlanningBrief.trendSignals.signals.some(item => item.id === "waiting-title-signals"));
 assert.ok(listPlanningBrief.privacyNote.includes("bounded list metadata"));
 
 const listPlanningMarkdown = SummarizeThis.markdownForListPlanningBrief(listPlanningBrief);
 assert.ok(listPlanningMarkdown.includes("List planning brief"));
 assert.ok(listPlanningMarkdown.includes("Nearby cards"));
+assert.ok(listPlanningMarkdown.includes("List trend signals"));
 assert.ok(listPlanningMarkdown.includes("Privacy:"));
 assert.equal(listPlanningMarkdown.includes("Finalize the launch checklist"), false);
+assert.equal(listPlanningMarkdown.includes("neighboring description"), false);
 
 const batchAnalysisPlan = SummarizeThis.createBatchAnalysisPlan(listPlanningCard, {
   now: new Date(Date.now() + 4 * 86400000).toISOString()
