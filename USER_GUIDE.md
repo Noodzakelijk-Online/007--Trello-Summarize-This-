@@ -433,6 +433,16 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 - No file download
 - Best for quick use
 
+### Active Popup Handoff Formats
+
+- **Copy selected mode brief**: uses the saved output mode, such as meeting brief, risk review, status update, next-action checklist, or client-friendly summary.
+- **Copy Robert decisions**: creates a focused Robert decision brief with Yes/No framing, blockers, confidence, evidence claims, and source coverage.
+- **Copy VA handoff**: creates a VA/team handoff brief that separates delegated work from Robert-only decisions.
+- **Copy status update**: creates a compact status message for email, chat, or Trello.
+- **Copy JSON / Download JSON**: exports the compact card intelligence ledger for Sneup, HAI, or another structured workflow.
+
+Sensitive-card exports still require visible approval before copy or download.
+
 ### Exporting Analysis Results
 
 1. Complete an analysis

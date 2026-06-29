@@ -646,6 +646,14 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     now: "2026-06-29T12:07:00.000Z",
     cardId: run.cardId
   }),
+  CardIntelligenceLedger.createExportRecord(run.id, "robert-decision-brief", "clipboard", {
+    now: "2026-06-29T12:07:02.000Z",
+    cardId: run.cardId
+  }),
+  CardIntelligenceLedger.createExportRecord(run.id, "va-handoff-brief", "clipboard", {
+    now: "2026-06-29T12:07:03.000Z",
+    cardId: run.cardId
+  }),
   CardIntelligenceLedger.createExportRecord(run.id, "list-planning-json", "clipboard", {
     now: "2026-06-29T12:06:50.000Z",
     cardId: run.cardId
@@ -657,14 +665,16 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     now: "2026-06-29T12:07:05.000Z",
     cardId: run.cardId
   })
-], [run.id], 5);
-assert.equal(summarizedExports.length, 4);
+], [run.id], 7);
+assert.equal(summarizedExports.length, 6);
 assert.equal(summarizedExports[0].exportLabel, "Trello comment");
 assert.equal(summarizedExports[0].destinationLabel, "posted to Trello");
-assert.equal(summarizedExports[1].exportLabel, "Batch analysis JSON");
-assert.equal(summarizedExports[2].exportLabel, "Ledger JSON");
-assert.equal(summarizedExports[2].sensitiveReviewApproved, true);
-assert.equal(summarizedExports[3].exportLabel, "List planning JSON");
+assert.equal(summarizedExports[1].exportLabel, "VA/team handoff brief");
+assert.equal(summarizedExports[2].exportLabel, "Robert decision brief");
+assert.equal(summarizedExports[3].exportLabel, "Batch analysis JSON");
+assert.equal(summarizedExports[4].exportLabel, "Ledger JSON");
+assert.equal(summarizedExports[4].sensitiveReviewApproved, true);
+assert.equal(summarizedExports[5].exportLabel, "List planning JSON");
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
@@ -685,6 +695,23 @@ assert.ok(ledgerStatusUpdate.includes("Status update:"));
 assert.ok(ledgerStatusUpdate.includes("Top next action:"));
 assert.ok(ledgerStatusUpdate.includes("VA/team handoff:"));
 assert.ok(ledgerStatusUpdate.includes("Source coverage:"));
+
+const robertDecisionBrief = CardIntelligenceLedger.robertDecisionBriefForLedgerRun(run);
+assert.ok(robertDecisionBrief.includes("Robert decision brief:"));
+assert.ok(robertDecisionBrief.includes("Decision needed:"));
+assert.ok(robertDecisionBrief.includes("Yes/No framing:"));
+assert.ok(robertDecisionBrief.includes("Evidence-backed claims:"));
+assert.ok(robertDecisionBrief.includes("Source coverage:"));
+assert.equal(robertDecisionBrief.includes("Prefer Yes/No decisions"), false);
+
+const vaHandoffBrief = CardIntelligenceLedger.vaHandoffBriefForLedgerRun(run);
+assert.ok(vaHandoffBrief.includes("VA/team handoff:"));
+assert.ok(vaHandoffBrief.includes("VA/team-ready actions:"));
+assert.ok(vaHandoffBrief.includes("Blockers to avoid:"));
+assert.ok(vaHandoffBrief.includes("Robert decisions not delegated:"));
+assert.ok(vaHandoffBrief.includes("Evidence-backed claims:"));
+assert.ok(vaHandoffBrief.includes("Source coverage:"));
+assert.equal(vaHandoffBrief.includes("Prefer Yes/No decisions"), false);
 
 const meetingBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run);
 assert.ok(meetingBrief.includes("Meeting brief:"));

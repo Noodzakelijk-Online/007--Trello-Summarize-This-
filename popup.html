@@ -682,6 +682,8 @@
           <button class="secondary" type="button" id="copyPlainTextButton">Copy plain text</button>
           <button class="secondary" type="button" id="copyModeBriefButton">Copy selected mode brief</button>
           <button class="secondary" type="button" id="copyStatusUpdateButton">Copy status update</button>
+          <button class="secondary" type="button" id="copyRobertDecisionButton">Copy Robert decisions</button>
+          <button class="secondary" type="button" id="copyVaHandoffButton">Copy VA handoff</button>
           <button class="secondary" type="button" id="copyJsonButton">Copy JSON</button>
           <button class="secondary" type="button" id="downloadJsonButton">Download JSON</button>
         </div>
@@ -811,6 +813,12 @@
       });
       document.getElementById("copyStatusUpdateButton").addEventListener("click", function () {
         copyLedgerExport("status-update");
+      });
+      document.getElementById("copyRobertDecisionButton").addEventListener("click", function () {
+        copyLedgerExport("robert-decision-brief");
+      });
+      document.getElementById("copyVaHandoffButton").addEventListener("click", function () {
+        copyLedgerExport("va-handoff-brief");
       });
       document.getElementById("copyJsonButton").addEventListener("click", function () {
         copyLedgerExport("ledger-json");
@@ -2027,9 +2035,13 @@
           ? "JSON"
           : format === "status-update"
             ? "Status update"
-            : format === "mode-brief"
-              ? "Selected mode brief"
-              : "Plain text";
+            : format === "robert-decision-brief"
+              ? "Robert decision brief"
+              : format === "va-handoff-brief"
+                ? "VA handoff brief"
+                : format === "mode-brief"
+                  ? "Selected mode brief"
+                  : "Plain text";
 
         if (requireSensitiveExportApproval(format, "exportStatus", label + " export")) return;
 
@@ -2067,6 +2079,12 @@
         }
         if (format === "status-update") {
           return CardIntelligenceLedger.statusUpdateForLedgerRun(lastLedgerRun);
+        }
+        if (format === "robert-decision-brief") {
+          return CardIntelligenceLedger.robertDecisionBriefForLedgerRun(lastLedgerRun);
+        }
+        if (format === "va-handoff-brief") {
+          return CardIntelligenceLedger.vaHandoffBriefForLedgerRun(lastLedgerRun);
         }
         if (format === "mode-brief") {
           return CardIntelligenceLedger.modeBriefForLedgerRun(lastLedgerRun, lastLedgerRun.outputMode);

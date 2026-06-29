@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 239.0 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 380.9 KB.
+- Active popup initial local files: about 243.4 KB (`popup.html`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 385.3 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.56 MB.
-- Generated Windows installer executable: 240,128 bytes.
+- Generated Windows installer executable: 241,152 bytes.
 - Large-card AI prompt after caps: 18,943 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -68,7 +68,7 @@ Current results:
    - Review-state history is filtered to current-card analysis run ids and capped to 8 visible records.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
    - Export/postback history is filtered to current-card analysis run ids and capped to 8 visible records.
-   - Plain text, status update, and JSON exports are generated on demand from the existing compact ledger result.
+   - Plain text, status update, Robert decision, VA/team handoff, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
    - Human-readable export evidence/source notes are bounded to compact claim and source-coverage summaries instead of duplicating full card content.
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
