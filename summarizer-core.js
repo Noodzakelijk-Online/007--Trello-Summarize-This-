@@ -428,6 +428,14 @@
       listName: cleanText(source.listName || currentListName),
       totalCards: toNumber(source.totalCards) || compactCards.length,
       sampledCards: compactCards.length,
+      sampledCardPreview: compactCards.slice(0, 12).map(function (card) {
+        return {
+          name: card.name,
+          labels: card.labels.slice(0, 4),
+          due: card.due,
+          dueComplete: card.dueComplete
+        };
+      }),
       currentPosition: currentIndex >= 0 ? currentIndex + 1 : null,
       neighboringCards: neighbors.map(function (card) {
         return {
@@ -459,6 +467,112 @@
         count: counts[label]
       };
     });
+  }
+
+  function createListPlanningBrief(input, options) {
+    var card = normalizeCardData(input);
+    var context = card.listContext || {};
+    var previewCards = toArray(context.sampledCardPreview);
+    var neighbors = toArray(context.neighboringCards);
+    var now = options && options.now ? new Date(options.now) : new Date();
+    if (Number.isNaN(now.getTime())) now = new Date();
+    var dueCards = previewCards.filter(function (item) {
+      return item && item.due && !item.dueComplete;
+    }).map(function (item) {
+      return {
+        name: item.name,
+        due: item.due,
+        overdue: new Date(item.due).getTime() < now.getTime()
+      };
+    }).slice(0, 8);
+    var labelPatterns = toArray(context.labelPatterns).slice(0, 6);
+    var nextFocus = [];
+
+    if (dueCards.some(function (item) { return item.overdue; })) {
+      nextFocus.push("Review overdue cards in this list before adding new work.");
+    }
+    if (labelPatterns.length) {
+      nextFocus.push("Use common labels to group related handoff work: " + labelPatterns.map(function (item) {
+        return item.label + " (" + item.count + ")";
+      }).join(", ") + ".");
+    }
+    if (card.name && context.currentPosition) {
+      nextFocus.push("Current card position: " + context.currentPosition + " of " + (context.totalCards || context.sampledCards) + ".");
+    }
+    if (!nextFocus.length) {
+      nextFocus.push("Use this as a lightweight list overview; detailed card bodies were not read.");
+    }
+
+    return {
+      schemaVersion: "summarize-this-list-planning-brief-v1",
+      listName: context.listName || card.listName || "",
+      currentCard: card.name,
+      currentPosition: context.currentPosition || null,
+      totalCards: context.totalCards || context.sampledCards || 0,
+      sampledCards: context.sampledCards || previewCards.length || 0,
+      neighboringCards: neighbors.map(function (item) {
+        return {
+          name: item.name,
+          labels: toArray(item.labels).slice(0, 4),
+          due: item.due || null,
+          dueComplete: Boolean(item.dueComplete)
+        };
+      }).slice(0, 8),
+      labelPatterns: labelPatterns,
+      dueCards: dueCards,
+      nextFocus: nextFocus,
+      source: context.source || "",
+      privacyNote: "This brief uses bounded list metadata only: card names, labels, due states, and current position. It does not include neighboring card descriptions, comments, attachments, or AI output."
+    };
+  }
+
+  function markdownForListPlanningBrief(brief) {
+    var source = brief || {};
+    var lines = [
+      "# List planning brief",
+      "",
+      "List: " + (source.listName || "current list"),
+      "Current card: " + (source.currentCard || "unknown"),
+      "Sampled cards: " + (source.sampledCards || 0) + " of " + (source.totalCards || source.sampledCards || 0)
+    ];
+
+    if (source.currentPosition) {
+      lines.push("Current position: " + source.currentPosition + " of " + (source.totalCards || source.sampledCards || 0));
+    }
+
+    lines.push("", "## Next focus");
+    toArray(source.nextFocus).forEach(function (item) {
+      lines.push("- " + item);
+    });
+
+    lines.push("", "## Nearby cards");
+    if (toArray(source.neighboringCards).length) {
+      toArray(source.neighboringCards).forEach(function (item) {
+        var labels = toArray(item.labels).map(function (label) { return cleanText(label); }).filter(Boolean);
+        lines.push("- " + item.name + (labels.length ? " [" + labels.join(", ") + "]" : ""));
+      });
+    } else {
+      lines.push("- No nearby cards were available in the bounded sample.");
+    }
+
+    lines.push("", "## Common labels");
+    if (toArray(source.labelPatterns).length) {
+      toArray(source.labelPatterns).forEach(function (item) {
+        lines.push("- " + item.label + ": " + item.count);
+      });
+    } else {
+      lines.push("- No label patterns were available.");
+    }
+
+    if (toArray(source.dueCards).length) {
+      lines.push("", "## Due signals");
+      toArray(source.dueCards).forEach(function (item) {
+        lines.push("- " + item.name + ": " + item.due + (item.overdue ? " (overdue)" : ""));
+      });
+    }
+
+    lines.push("", "Privacy: " + source.privacyNote);
+    return lines.join("\n");
   }
 
   function getChecklistStats(card) {
@@ -1234,6 +1348,7 @@
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
     createCostRecord: createCostRecord,
+    createListPlanningBrief: createListPlanningBrief,
     createRuntimeTimingRecord: createRuntimeTimingRecord,
     detectSensitiveSignals: detectSensitiveSignals,
     evaluateBudgetAlert: evaluateBudgetAlert,
@@ -1253,6 +1368,7 @@
     normalizeActions: normalizeActions,
     normalizeAttachments: normalizeAttachments,
     normalizeCardData: normalizeCardData,
+    markdownForListPlanningBrief: markdownForListPlanningBrief,
     sampleCardData: sampleCardData,
     summarizeMonthlyProviderCosts: summarizeMonthlyProviderCosts,
     summarizeRuntimeTimingRecords: summarizeRuntimeTimingRecords

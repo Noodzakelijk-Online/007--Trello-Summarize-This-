@@ -1396,6 +1396,8 @@
       "mode-brief": "Selected mode brief",
       "status-update": "Status update",
       "ledger-json": "Ledger JSON",
+      "list-planning-markdown": "List planning brief",
+      "list-planning-json": "List planning JSON",
       "trello-comment-draft": "Trello comment draft",
       "trello-comment": "Trello comment"
     };

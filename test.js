@@ -13,6 +13,7 @@ assert.equal(normalized.checklistStats.complete, 1);
 assert.equal(normalized.listContext.sampledCards, 4);
 assert.equal(normalized.listContext.currentPosition, 2);
 assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
+assert.equal(normalized.listContext.sampledCardPreview.length, 4);
 assert.equal(normalized.customFields.length, 2);
 assert.ok(normalized.customFields.some(item => item.name === "Priority" && item.value === "High"));
 assert.equal(normalized.actions.length, 1);
@@ -51,6 +52,30 @@ assert.ok(prompt.includes("Prepare launch checklist"));
 assert.equal(SummarizeThis.normalizeOutputMode("risk-review"), "risk-review");
 assert.equal(SummarizeThis.normalizeOutputMode("unknown-mode"), "operational-ledger");
 assert.equal(SummarizeThis.getOutputModeLabel("meeting-brief"), "Meeting brief");
+
+const listPlanningCard = Object.assign({}, sample, {
+  listContext: Object.assign({}, sample.listContext, {
+    cards: sample.listContext.cards.map(card => card.id === "sample-card"
+      ? Object.assign({}, card, { due: sample.due, dueComplete: false })
+      : card)
+  })
+});
+const listPlanningBrief = SummarizeThis.createListPlanningBrief(listPlanningCard, {
+  now: new Date(Date.now() + 4 * 86400000).toISOString()
+});
+assert.equal(listPlanningBrief.schemaVersion, "summarize-this-list-planning-brief-v1");
+assert.equal(listPlanningBrief.sampledCards, 4);
+assert.equal(listPlanningBrief.currentPosition, 2);
+assert.ok(listPlanningBrief.labelPatterns.some(item => item.label === "Launch"));
+assert.ok(listPlanningBrief.dueCards.some(item => item.name === "Prepare launch checklist"));
+assert.ok(listPlanningBrief.nextFocus.some(item => item.includes("Current card position")));
+assert.ok(listPlanningBrief.privacyNote.includes("bounded list metadata"));
+
+const listPlanningMarkdown = SummarizeThis.markdownForListPlanningBrief(listPlanningBrief);
+assert.ok(listPlanningMarkdown.includes("List planning brief"));
+assert.ok(listPlanningMarkdown.includes("Nearby cards"));
+assert.ok(listPlanningMarkdown.includes("Privacy:"));
+assert.equal(listPlanningMarkdown.includes("Finalize the launch checklist"), false);
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",
@@ -587,6 +612,10 @@ assert.equal(sensitiveExportRecord.cardId, run.cardId);
 
 const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
   sensitiveExportRecord,
+  CardIntelligenceLedger.createExportRecord(run.id, "list-planning-json", "clipboard", {
+    now: "2026-06-29T12:06:50.000Z",
+    cardId: run.cardId
+  }),
   CardIntelligenceLedger.createExportRecord("other-run", "markdown", "clipboard", {
     now: "2026-06-29T12:06:55.000Z"
   }),
@@ -595,11 +624,12 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     cardId: run.cardId
   })
 ], [run.id], 5);
-assert.equal(summarizedExports.length, 2);
+assert.equal(summarizedExports.length, 3);
 assert.equal(summarizedExports[0].exportLabel, "Trello comment");
 assert.equal(summarizedExports[0].destinationLabel, "posted to Trello");
 assert.equal(summarizedExports[1].exportLabel, "Ledger JSON");
 assert.equal(summarizedExports[1].sensitiveReviewApproved, true);
+assert.equal(summarizedExports[2].exportLabel, "List planning JSON");
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));

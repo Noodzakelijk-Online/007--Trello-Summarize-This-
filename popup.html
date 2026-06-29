@@ -598,6 +598,17 @@
         <ul id="listContextList" class="compact-list"></ul>
       </section>
 
+      <section id="listPlanningPanel" class="panel hidden">
+        <h2 class="section-title">List planning brief</h2>
+        <p id="listPlanningSummary" class="section-body">List planning will appear when list context is available.</p>
+        <ul id="listPlanningList" class="compact-list"></ul>
+        <div class="actions">
+          <button class="secondary" type="button" id="copyListBriefButton">Copy list brief</button>
+          <button class="secondary" type="button" id="copyListJsonButton">Copy list JSON</button>
+        </div>
+        <p id="listPlanningStatus" class="feedback-status"></p>
+      </section>
+
       <section class="panel">
         <h2 class="section-title">Source coverage</h2>
         <p id="sourceCoverageSummary" class="section-body">Source coverage will appear after analysis.</p>
@@ -794,6 +805,12 @@
         copyLedgerExport("ledger-json");
       });
       document.getElementById("downloadJsonButton").addEventListener("click", downloadLedgerJson);
+      document.getElementById("copyListBriefButton").addEventListener("click", function () {
+        copyListPlanningBrief("markdown");
+      });
+      document.getElementById("copyListJsonButton").addEventListener("click", function () {
+        copyListPlanningBrief("json");
+      });
 
       document.addEventListener("DOMContentLoaded", runAnalysis);
 
@@ -895,6 +912,10 @@
         document.getElementById("exportSensitiveApproval").checked = false;
         document.getElementById("listContextSummary").textContent = "List context will appear after analysis.";
         document.getElementById("listContextList").innerHTML = "";
+        document.getElementById("listPlanningPanel").classList.add("hidden");
+        document.getElementById("listPlanningSummary").textContent = "List planning will appear when list context is available.";
+        document.getElementById("listPlanningList").innerHTML = "";
+        document.getElementById("listPlanningStatus").textContent = "";
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
         document.getElementById("sourceCoverageList").innerHTML = "";
         document.getElementById("trustSignalsSummary").textContent = "Trust signals will appear after analysis.";
@@ -1519,6 +1540,7 @@
         renderOperationalList("validationList", result ? result.validationFindings : [], "No validation findings.");
         renderEvidence(result ? result.evidence : []);
         renderListContext(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.listContext : null);
+        renderListPlanningBrief(cardData);
         renderSourceCoverage(ledgerRun && ledgerRun.cardSnapshot ? ledgerRun.cardSnapshot.sourceCoverage : CardIntelligenceLedger.createSourceCoverage(cardData));
         renderTrustSignals(result && result.trustSignals ? result.trustSignals : CardIntelligenceLedger.createTrustSignals(cardData));
         renderPriorFeedback(cardData.priorFeedback);
@@ -1635,6 +1657,39 @@
           }).join(", "));
         }
         renderList("listContextList", items, "No nearby cards or label patterns were available.");
+      }
+
+      function renderListPlanningBrief(cardData) {
+        var panel = document.getElementById("listPlanningPanel");
+        var summary = document.getElementById("listPlanningSummary");
+        var list = document.getElementById("listPlanningList");
+        var brief = SummarizeThis.createListPlanningBrief(cardData);
+        var visible = brief && brief.sampledCards > 0;
+        panel.classList.toggle("hidden", !visible);
+        list.innerHTML = "";
+
+        if (!visible) {
+          summary.textContent = "List planning will appear when list context is available.";
+          return;
+        }
+
+        summary.textContent = (brief.listName || "Current list") + ": " + brief.sampledCards + " sampled card(s)";
+        if (brief.currentPosition) {
+          summary.textContent += "; this card is position " + brief.currentPosition + " of " + brief.totalCards + ".";
+        } else {
+          summary.textContent += ".";
+        }
+
+        var items = [];
+        brief.nextFocus.forEach(function (item) {
+          items.push(item);
+        });
+        if (brief.dueCards.length) {
+          items.push("Due signals: " + brief.dueCards.map(function (card) {
+            return card.name + (card.overdue ? " overdue" : " due " + card.due);
+          }).join("; "));
+        }
+        renderList("listPlanningList", items, "No list planning signals were available.");
       }
 
       function renderSourceCoverage(coverage) {
@@ -1965,6 +2020,53 @@
           return CardIntelligenceLedger.modeBriefForLedgerRun(lastLedgerRun, lastLedgerRun.outputMode);
         }
         return CardIntelligenceLedger.plainTextForLedgerRun(lastLedgerRun);
+      }
+
+      function copyListPlanningBrief(format) {
+        if (!lastCardData) {
+          document.getElementById("listPlanningStatus").textContent = "Analyze the card first to build list planning context.";
+          return;
+        }
+
+        var brief = SummarizeThis.createListPlanningBrief(lastCardData);
+        if (!brief.sampledCards) {
+          document.getElementById("listPlanningStatus").textContent = "No list context is available for a planning brief.";
+          return;
+        }
+
+        var label = format === "json" ? "List JSON" : "List brief";
+        var text = format === "json"
+          ? JSON.stringify(brief, null, 2)
+          : SummarizeThis.markdownForListPlanningBrief(brief);
+
+        if (requireSensitiveExportApproval("list-planning-" + format, "listPlanningStatus", label)) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            elements.confidencePill.textContent = label + " copied";
+            document.getElementById("listPlanningStatus").textContent = label + " copied.";
+            recordExport("list-planning-" + format, "clipboard", null, true);
+          }).catch(function () {
+            fallbackListPlanningCopy(text, format, label);
+          });
+        } else {
+          fallbackListPlanningCopy(text, format, label);
+        }
+      }
+
+      function fallbackListPlanningCopy(text, format, label) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        elements.confidencePill.textContent = label + " copied";
+        document.getElementById("listPlanningStatus").textContent = label + " copied.";
+        recordExport("list-planning-" + format, "clipboard", null, true);
       }
 
       function downloadLedgerJson() {

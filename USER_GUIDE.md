@@ -302,62 +302,36 @@ The timing panel helps diagnose whether time is spent reading Trello context, bu
 
 ---
 
-## Batch Processing
+## List Planning
 
-### What is Batch Processing?
+### What is List Planning?
 
-Analyze multiple cards at once instead of one by one.
+List planning creates a compact planning brief from the current card's surrounding Trello list context. It helps spot nearby work, repeated labels, due-date signals, and the current card's position in the list without running AI across every card.
 
-### Adding Cards to Batch
+The active popup uses bounded list metadata only:
 
-**Method 1: Manual Entry**
-1. Click "Batch Processing"
-2. Enter card IDs (comma-separated)
-3. Click "Add Cards"
+- Card names.
+- Labels.
+- Due state.
+- Current card position.
+- Nearby card names.
 
-**Method 2: From List**
-1. Enter list ID
-2. Click "Add List"
-3. All cards from that list are added
+It does not include neighboring card descriptions, comments, attachments, or AI output.
 
-**Method 3: From Board**
-1. Enter board ID
-2. Click "Add Board"
-3. All cards from that board are added
+### Using the List Planning Brief
 
-### Processing Options
+1. Open a Trello card.
+2. Click **Summarize This**.
+3. Make sure list context is enabled in settings.
+4. Run the analysis.
+5. Use **Copy list brief** for a Markdown planning note.
+6. Use **Copy list JSON** for structured handoff to another tool.
 
-**Sequential Processing:**
-- Analyzes cards one after another
-- Slower but more reliable
-- Respects rate limits
-- Recommended for large batches
+Detailed list exports require the same sensitive-export approval flow used by the other evidence-backed exports. Copying a list brief never posts to Trello and never changes card data.
 
-**Parallel Processing:**
-- Analyzes multiple cards simultaneously
-- Faster completion
-- Higher API usage
-- Recommended for small batches (< 20 cards)
+### What Remains Future Work
 
-### Batch Settings
-
-- **Delay Between Requests**: 1-5 seconds (prevents rate limiting)
-- **Concurrency**: 1-5 cards at once
-- **Stop on Error**: Continue or stop if a card fails
-
-### Monitoring Progress
-
-- Real-time progress bar
-- Card-by-card status updates
-- Error notifications
-- Estimated completion time
-
-### Exporting Batch Results
-
-1. Wait for batch to complete
-2. Click "Export Results"
-3. Choose format (JSON or CSV)
-4. Download comprehensive report
+Full batch analysis of selected cards, an entire list, or an entire board is still future work. That future version should use an approval-gated queue, visible rate-limit controls, and explicit AI handoff consent before processing many cards.
 
 ---
 
