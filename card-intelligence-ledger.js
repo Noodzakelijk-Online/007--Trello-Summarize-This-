@@ -1083,13 +1083,41 @@
     };
   }
 
+  function createSensitiveActionReview(signals, actionType, approved, options) {
+    var categories = toArray(signals && signals.categories).map(cleanText).filter(Boolean);
+    var matches = toArray(signals && signals.matches).map(cleanText).filter(Boolean).slice(0, 20);
+    var required = Boolean(signals && signals.requiresAiApproval);
+    var isApproved = Boolean(approved);
+    return {
+      required: required,
+      requiresApproval: required && !isApproved,
+      approved: required ? isApproved : false,
+      actionType: cleanText(actionType || "export"),
+      categories: categories,
+      matches: matches,
+      reason: required
+        ? "Sensitive card signals were detected before this action."
+        : "No sensitive card signals required approval.",
+      reviewedAt: required && isApproved ? nowIso(options) : null
+    };
+  }
+
   function createExportRecord(analysisRunId, exportType, destination, options) {
+    var review = options && options.sensitiveReview ? options.sensitiveReview : null;
     return {
       id: "export-" + shortHash(analysisRunId + exportType + destination + nowIso(options)),
       analysisRunId: analysisRunId,
       exportType: cleanText(exportType || "markdown"),
       destination: cleanText(destination || "clipboard"),
-      createdAt: nowIso(options)
+      createdAt: nowIso(options),
+      sensitiveReview: review ? {
+        required: Boolean(review.required),
+        approved: Boolean(review.approved),
+        actionType: cleanText(review.actionType || exportType || "export"),
+        categories: toArray(review.categories).map(cleanText).filter(Boolean),
+        matches: toArray(review.matches).map(cleanText).filter(Boolean).slice(0, 20),
+        reviewedAt: review.reviewedAt || null
+      } : null
     };
   }
 
@@ -1371,6 +1399,7 @@
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,
     createHumanFeedback: createHumanFeedback,
+    createSensitiveActionReview: createSensitiveActionReview,
     createSourceCoverage: createSourceCoverage,
     createTrelloCommentDraft: createTrelloCommentDraft,
     createLedgerEntry: createLedgerEntry,

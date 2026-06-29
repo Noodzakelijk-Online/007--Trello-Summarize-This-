@@ -632,6 +632,11 @@
           <button class="secondary" type="button" id="copyJsonButton">Copy JSON</button>
           <button class="secondary" type="button" id="downloadJsonButton">Download JSON</button>
         </div>
+        <p id="exportSensitivityText" class="feedback-status hidden"></p>
+        <label id="exportSensitiveApprovalRow" class="checkbox-row hidden" for="exportSensitiveApproval">
+          <input id="exportSensitiveApproval" type="checkbox">
+          <span>I reviewed this sensitive export and approve copying or downloading it.</span>
+        </label>
         <p id="exportStatus" class="feedback-status"></p>
       </section>
 
@@ -641,7 +646,7 @@
         <textarea id="postbackPreview" class="postback-preview" readonly></textarea>
         <label class="checkbox-row" for="postbackApproval">
           <input id="postbackApproval" type="checkbox">
-          <span>I reviewed this comment and approve posting it to Trello.</span>
+          <span>I reviewed this comment and approve copying or posting it.</span>
         </label>
         <div class="actions">
           <button class="secondary" type="button" id="copyPostbackButton">Copy comment draft</button>
@@ -725,6 +730,7 @@
       });
       document.getElementById("historyList").addEventListener("click", copyHistoryRun);
       document.getElementById("postbackApproval").addEventListener("change", updatePostbackControls);
+      document.getElementById("exportSensitiveApproval").addEventListener("change", updateSensitiveExportControls);
       document.getElementById("copyPostbackButton").addEventListener("click", copyPostbackDraft);
       document.getElementById("postCommentButton").addEventListener("click", postApprovedComment);
       document.getElementById("copyPlainTextButton").addEventListener("click", function () {
@@ -805,6 +811,7 @@
       }
 
       function resetView() {
+        lastSensitiveSignals = null;
         elements.errorPanel.classList.add("hidden");
         elements.warningPanel.classList.add("hidden");
         elements.aiApprovalPanel.classList.add("hidden");
@@ -817,6 +824,10 @@
         document.getElementById("feedbackStatus").textContent = "";
         document.getElementById("correctionText").value = "";
         document.getElementById("exportStatus").textContent = "";
+        document.getElementById("exportSensitivityText").textContent = "";
+        document.getElementById("exportSensitivityText").classList.add("hidden");
+        document.getElementById("exportSensitiveApprovalRow").classList.add("hidden");
+        document.getElementById("exportSensitiveApproval").checked = false;
         document.getElementById("listContextSummary").textContent = "List context will appear after analysis.";
         document.getElementById("listContextList").innerHTML = "";
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
@@ -832,6 +843,7 @@
         document.getElementById("postbackApproval").checked = false;
         document.getElementById("postbackStatus").textContent = "Review the exact draft before copying or posting it.";
         updatePostbackControls();
+        updateSensitiveExportControls();
       }
 
       function setStatus(title, detail) {
@@ -1345,6 +1357,7 @@
         var mode = ledgerRun && ledgerRun.outputMode ? ledgerRun.outputMode : "operational-ledger";
         var label = SummarizeThis.getOutputModeLabel ? SummarizeThis.getOutputModeLabel(mode) : mode;
         document.getElementById("outputModeText").textContent = "Selected output mode: " + label + ". Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.";
+        updateSensitiveExportControls();
       }
 
       function renderList(id, items, emptyText) {
@@ -1504,6 +1517,63 @@
         updatePostbackControls();
       }
 
+      function hasSensitiveSignals() {
+        return Boolean(lastSensitiveSignals && lastSensitiveSignals.requiresAiApproval);
+      }
+
+      function sensitiveReviewFor(actionType, approved) {
+        return CardIntelligenceLedger.createSensitiveActionReview(lastSensitiveSignals, actionType, approved);
+      }
+
+      function sensitiveExportApproved() {
+        return Boolean(document.getElementById("exportSensitiveApproval").checked);
+      }
+
+      function updateSensitiveExportControls() {
+        var row = document.getElementById("exportSensitiveApprovalRow");
+        var text = document.getElementById("exportSensitivityText");
+        var checkbox = document.getElementById("exportSensitiveApproval");
+        var sensitive = hasSensitiveSignals();
+
+        row.classList.toggle("hidden", !sensitive);
+        text.classList.toggle("hidden", !sensitive);
+        if (!sensitive) {
+          checkbox.checked = false;
+          text.textContent = "";
+          return;
+        }
+
+        var review = sensitiveReviewFor("ledger-export", checkbox.checked);
+        var categories = review.categories.length ? review.categories.join(", ") : "sensitive";
+        text.textContent = review.requiresApproval
+          ? "Sensitive " + categories + " signals were detected. Review the export contents and tick the approval box before copying or downloading."
+          : "Sensitive export review approved for this analysis.";
+      }
+
+      function requireSensitiveExportApproval(actionType, statusId, label) {
+        if (!hasSensitiveSignals()) return false;
+        var approved = sensitiveExportApproved();
+        var review = sensitiveReviewFor(actionType, approved);
+        if (!review.requiresApproval) return false;
+
+        updateSensitiveExportControls();
+        document.getElementById(statusId).textContent = label + " contains sensitive card context. Review it and tick the sensitive export approval box first.";
+        elements.confidencePill.textContent = "Review export";
+        return true;
+      }
+
+      function requireSensitivePostbackApproval(actionType) {
+        if (!hasSensitiveSignals()) return false;
+        var approved = Boolean(document.getElementById("postbackApproval").checked);
+        var review = sensitiveReviewFor(actionType, approved);
+        if (!review.requiresApproval) return false;
+
+        document.getElementById("postbackStatus").textContent = "Sensitive card context was detected. Review the exact draft and tick the approval box before copying or posting it.";
+        elements.confidencePill.textContent = "Review draft";
+        updatePostbackControls();
+        return true;
+      }
+
       function canPostTrelloComment() {
         return Boolean(t && inTrello && lastCardData && lastCardData.id && typeof t.getRestApi === "function");
       }
@@ -1517,12 +1587,15 @@
         var hasDraft = Boolean(preview.value);
         var approved = Boolean(approval.checked);
         var canPost = canPostTrelloComment();
+        var sensitive = hasSensitiveSignals();
 
-        copyButton.disabled = !hasDraft;
+        copyButton.disabled = !hasDraft || (sensitive && !approved);
         postButton.disabled = !hasDraft || !approved || !canPost;
 
         if (!hasDraft) {
           status.textContent = "Analyze the card first to create a Trello comment draft.";
+        } else if (sensitive && !approved) {
+          status.textContent = "Sensitive card context was detected. Review the exact draft and tick the approval box before copying or posting it.";
         } else if (!canPost) {
           status.textContent = "Posting is not available in this Power-Up runtime. Copy the approved draft instead.";
         } else if (!approved) {
@@ -1535,11 +1608,12 @@
       function copyPostbackDraft() {
         var text = document.getElementById("postbackPreview").value;
         if (!text || !lastLedgerRun) return;
+        if (requireSensitivePostbackApproval("trello-comment-draft")) return;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = "Draft copied";
             document.getElementById("postbackStatus").textContent = "Comment draft copied. No Trello card was changed.";
-            recordExport("trello-comment-draft", "clipboard");
+            recordExport("trello-comment-draft", "clipboard", null, true);
           }).catch(function () {
             fallbackPostbackCopy(text);
           });
@@ -1560,7 +1634,7 @@
         document.body.removeChild(textarea);
         elements.confidencePill.textContent = "Draft copied";
         document.getElementById("postbackStatus").textContent = "Comment draft copied. No Trello card was changed.";
-        recordExport("trello-comment-draft", "clipboard");
+        recordExport("trello-comment-draft", "clipboard", null, true);
       }
 
       async function postApprovedComment() {
@@ -1571,6 +1645,7 @@
           updatePostbackControls();
           return;
         }
+        if (requireSensitivePostbackApproval("trello-comment")) return;
         if (!canPostTrelloComment()) {
           document.getElementById("postbackStatus").textContent = "Posting is not available in this Power-Up runtime. Copy the approved draft instead.";
           return;
@@ -1591,7 +1666,7 @@
           await rest.addCardComment(lastCardData.id, text);
           elements.confidencePill.textContent = "Comment posted";
           document.getElementById("postbackStatus").textContent = "Reviewed comment posted to Trello.";
-          await recordExport("trello-comment", "trello-comment");
+          await recordExport("trello-comment", "trello-comment", null, true);
           approval.checked = false;
           posted = true;
         } catch (error) {
@@ -1619,11 +1694,13 @@
               ? "Selected mode brief"
               : "Plain text";
 
+        if (requireSensitiveExportApproval(format, "exportStatus", label + " export")) return;
+
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = label + " copied";
             document.getElementById("exportStatus").textContent = label + " export copied.";
-            recordExport(format, "clipboard");
+            recordExport(format, "clipboard", null, true);
           }).catch(function () {
             fallbackLedgerExportCopy(text, format, label);
           });
@@ -1644,7 +1721,7 @@
         document.body.removeChild(textarea);
         elements.confidencePill.textContent = label + " copied";
         document.getElementById("exportStatus").textContent = label + " export copied.";
-        recordExport(format, "clipboard");
+        recordExport(format, "clipboard", null, true);
       }
 
       function getLedgerExportText(format) {
@@ -1666,6 +1743,8 @@
           return;
         }
 
+        if (requireSensitiveExportApproval("ledger-json", "exportStatus", "JSON export")) return;
+
         var text = CardIntelligenceLedger.jsonForLedgerRun(lastLedgerRun);
         var blob = new Blob([text], { type: "application/json" });
         var url = URL.createObjectURL(blob);
@@ -1681,7 +1760,7 @@
         URL.revokeObjectURL(url);
         elements.confidencePill.textContent = "JSON downloaded";
         document.getElementById("exportStatus").textContent = "Structured JSON export downloaded.";
-        recordExport("ledger-json", "download");
+        recordExport("ledger-json", "download", null, true);
       }
 
       function safeFileName(value) {
@@ -1749,18 +1828,19 @@
 
       function copySummary() {
         if (!lastAnalysis || !lastCardData) return;
+        if (requireSensitiveExportApproval("markdown", "exportStatus", "Markdown summary")) return;
         var text = lastLedgerRun
           ? CardIntelligenceLedger.markdownForLedgerRun(lastLedgerRun)
           : SummarizeThis.markdownForAnalysis(lastCardData, lastAnalysis);
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = "Copied";
-            recordExport("markdown", "clipboard");
+            recordExport("markdown", "clipboard", null, true);
           }).catch(function () {
-            fallbackCopy(text);
+            fallbackCopy(text, null, true);
           });
         } else {
-          fallbackCopy(text);
+          fallbackCopy(text, null, true);
         }
       }
 
@@ -1820,21 +1900,22 @@
           return item.id === runId;
         });
         if (!run) return;
+        if (requireSensitiveExportApproval("history-markdown", "exportStatus", "History summary")) return;
 
         var text = CardIntelligenceLedger.markdownForLedgerRun(run);
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = "History copied";
-            recordExport("markdown", "clipboard", run.id);
+            recordExport("markdown", "clipboard", run.id, true);
           }).catch(function () {
-            fallbackCopy(text, run.id);
+            fallbackCopy(text, run.id, true);
           });
         } else {
-          fallbackCopy(text, run.id);
+          fallbackCopy(text, run.id, true);
         }
       }
 
-      function fallbackCopy(text, runId) {
+      function fallbackCopy(text, runId, sensitiveApproved) {
         var textarea = document.createElement("textarea");
         textarea.value = text;
         textarea.setAttribute("readonly", "readonly");
@@ -1845,12 +1926,15 @@
         document.execCommand("copy");
         document.body.removeChild(textarea);
         elements.confidencePill.textContent = "Copied";
-        recordExport("markdown", "clipboard", runId);
+        recordExport("markdown", "clipboard", runId, sensitiveApproved);
       }
 
-      async function recordExport(exportType, destination, runId) {
+      async function recordExport(exportType, destination, runId, sensitiveApproved) {
         if (!lastLedgerRun && !runId) return;
-        var record = CardIntelligenceLedger.createExportRecord(runId || lastLedgerRun.id, exportType, destination);
+        var review = sensitiveReviewFor(exportType, Boolean(sensitiveApproved));
+        var record = CardIntelligenceLedger.createExportRecord(runId || lastLedgerRun.id, exportType, destination, {
+          sensitiveReview: review.required ? review : null
+        });
         var records = await readPrivateObject("summarizeThisExportRecords", []);
         if (!Array.isArray(records)) records = [];
         records.unshift(record);

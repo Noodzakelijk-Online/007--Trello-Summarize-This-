@@ -128,6 +128,15 @@ Status: Implemented in `settings-powerup.html` and the active popup.
 - The setting is enabled by default and can be disabled by the user.
 - Approved AI prompts include compact sensitive-signal metadata so the provider response can stay operational and avoid unnecessary private detail.
 
+### 5c. Sensitive Export Approval
+
+Status: Implemented in the active popup and ledger export records.
+
+- The same sensitive-card signals now trigger a visible review step before copying or downloading detailed ledger exports.
+- Sensitive Trello comment drafts cannot be copied or posted until the user reviews the exact draft and approves it.
+- Export records store whether sensitive review was required and approved, including compact signal categories and matched terms.
+- The flow keeps non-sensitive exports fast while making sensitive client, financial, legal, or personal handoffs explicit.
+
 ### 6. Attachment Content Extraction
 
 Problem: Attachments are counted but not deeply summarized in the active Power-Up.
@@ -158,7 +167,7 @@ Impact: Medium. Improves confidence without adding heavy features.
 
 Problem: Copying markdown is useful, but some workflows need issue comments, email text, or meeting notes.
 
-Status: Mostly implemented for the active popup. It now copies markdown, plain text, status/email text, and structured ledger JSON; downloads compact JSON; generates a Trello comment draft; and gates Trello comment posting behind explicit review, checkbox approval, and a second confirmation.
+Status: Mostly implemented for the active popup. It now copies markdown, plain text, status/email text, and structured ledger JSON; downloads compact JSON; generates a Trello comment draft; and gates Trello comment posting behind explicit review, checkbox approval, and a second confirmation. Sensitive-card exports and comment drafts require a visible approval step before copy, download, or Trello postback.
 
 Recommendation:
 

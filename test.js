@@ -300,6 +300,29 @@ const exportRecord = CardIntelligenceLedger.createExportRecord(run.id, "markdown
   now: "2026-06-29T12:06:00.000Z"
 });
 assert.equal(exportRecord.destination, "clipboard");
+assert.equal(exportRecord.sensitiveReview, null);
+
+const blockedSensitiveExport = CardIntelligenceLedger.createSensitiveActionReview(sensitiveSignals, "ledger-json", false, {
+  now: "2026-06-29T12:06:30.000Z"
+});
+assert.equal(blockedSensitiveExport.required, true);
+assert.equal(blockedSensitiveExport.requiresApproval, true);
+assert.ok(blockedSensitiveExport.categories.includes("client"));
+
+const approvedSensitiveExport = CardIntelligenceLedger.createSensitiveActionReview(sensitiveSignals, "ledger-json", true, {
+  now: "2026-06-29T12:06:45.000Z"
+});
+assert.equal(approvedSensitiveExport.requiresApproval, false);
+assert.equal(approvedSensitiveExport.approved, true);
+assert.equal(approvedSensitiveExport.reviewedAt, "2026-06-29T12:06:45.000Z");
+
+const sensitiveExportRecord = CardIntelligenceLedger.createExportRecord(run.id, "ledger-json", "download", {
+  now: "2026-06-29T12:06:50.000Z",
+  sensitiveReview: approvedSensitiveExport
+});
+assert.equal(sensitiveExportRecord.sensitiveReview.required, true);
+assert.equal(sensitiveExportRecord.sensitiveReview.approved, true);
+assert.ok(sensitiveExportRecord.sensitiveReview.categories.includes("financial"));
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));
