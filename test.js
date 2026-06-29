@@ -11,7 +11,8 @@ const TrelloIntegration = require("./trello-integration");
 
 [
   "README.md",
-  "FINAL_DEPLOYMENT_GUIDE.md"
+  "FINAL_DEPLOYMENT_GUIDE.md",
+  "999_ACCURACY_IMPLEMENTATION.md"
 ].forEach((fileName) => {
   const documentText = fs.readFileSync(path.join(__dirname, fileName), "utf8");
   assert.doesNotMatch(documentText, /99\.9|Est\. Accuracy|Overall Accuracy|Accuracy: 99|accurate AI-powered|accuracy through/i);

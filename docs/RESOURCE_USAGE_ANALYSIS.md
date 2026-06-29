@@ -18,7 +18,7 @@ Current results:
 
 - Active popup initial local files: about 300.6 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
 - Windows installer runtime payload: about 450.5 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.66 MB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.65 MB.
 - Generated Windows installer executable: 275,968 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
