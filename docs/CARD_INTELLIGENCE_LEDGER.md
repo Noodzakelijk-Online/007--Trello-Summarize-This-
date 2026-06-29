@@ -45,7 +45,7 @@ The active popup stores ledger history, feedback, and export records in Trello m
 - `summarizeThisFeedback`
 - `summarizeThisExportRecords`
 
-Local preview mode uses `localStorage` for the same keys. The popup no longer silently writes the latest analysis into shared card storage.
+Local preview mode uses `localStorage` for the same non-secret ledger keys. Provider API keys are not persisted in local preview: settings strips `apiKeys`, clears key fields after save, blocks AI-only mode, and cleans older local preview data that still contains keys. The popup no longer silently writes the latest analysis into shared card storage.
 
 Feedback records remain compact. Correction text is capped, and `incorrectSections` stores only section ids such as `blockers`, `waiting-on`, `next-actions`, `robert-decisions`, `va-team-actions`, `unclear-points`, `evidence-validation`, and `unresolved-questions`. Prior feedback is included in later prompts as correction guidance only, not as verified card evidence.
 

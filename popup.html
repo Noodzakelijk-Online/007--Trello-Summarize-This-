@@ -1095,6 +1095,11 @@
         if (!t) {
           try {
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+            var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
+            if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
+              localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
+            }
+            localSettings = safeLocalSettings;
             var localPromptProfile = SummarizeThis.normalizePromptTemplateSettings(localSettings);
             return Object.assign({}, localSettings, {
               customInstructions: localPromptProfile.customInstructions,

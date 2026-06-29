@@ -1315,6 +1315,13 @@
     };
   }
 
+  function stripApiKeysForLocalPreview(settings) {
+    var source = settings && typeof settings === "object" ? settings : {};
+    return Object.assign({}, source, {
+      apiKeys: {}
+    });
+  }
+
   function createCostRecord(metadata, options) {
     var source = metadata || {};
     var providerKey = normalizeProviderKey(source.provider);
@@ -1543,6 +1550,7 @@
     normalizeProviderKey: normalizeProviderKey,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
+    stripApiKeysForLocalPreview: stripApiKeysForLocalPreview,
     markdownForBatchAnalysisPlan: markdownForBatchAnalysisPlan,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,

@@ -183,6 +183,15 @@ Status: Implemented across active and legacy client-side modules.
 - Key-like strings, bearer tokens, Trello tokens, and URLs are redacted from diagnostic messages.
 - Placeholder email/Slack report hooks no longer print full generated reports to the browser console.
 
+### 5f.1. Local Preview API Key Containment
+
+Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-core.js`.
+
+- Trello runtime continues to save provider API keys only through member-private Power-Up storage.
+- Standalone/local preview saves non-key settings only and clears provider key fields after saving.
+- AI-only mode is blocked in local preview because it cannot safely persist provider API keys.
+- Older local preview data that contains an `apiKeys` object is cleaned on popup/settings load.
+
 ### 5g. Feedback-Guided Reanalysis
 
 Status: Implemented in the active popup, `summarizer-core.js`, and `card-intelligence-ledger.js`.

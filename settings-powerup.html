@@ -531,7 +531,12 @@
 
         if (!t) {
           try {
-            return Object.assign(fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+            var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+            var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
+            if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
+              localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
+            }
+            return safeLocalSettings;
           } catch (error) {
             return fallback;
           }
@@ -606,14 +611,20 @@
           if (!settings.apiKeys[key]) delete settings.apiKeys[key];
         });
 
-        if (settings.analysisMode === "ai-only" && Object.keys(settings.apiKeys).length === 0) {
-          showMessage("Add at least one API key or choose Auto/local mode.", "error");
+        if (settings.analysisMode === "ai-only" && (Object.keys(settings.apiKeys).length === 0 || !t)) {
+          showMessage(!t
+            ? "AI-only mode requires Trello member-private storage. Choose Auto/local mode for local preview."
+            : "Add at least one API key or choose Auto/local mode.", "error");
           return;
         }
 
         if (!t) {
-          localStorage.setItem("summarizeThisSettings", JSON.stringify(settings));
-          showMessage(successMessage || "Settings saved for local preview.", "success");
+          var safePreviewSettings = SummarizeThis.stripApiKeysForLocalPreview(settings);
+          localStorage.setItem("summarizeThisSettings", JSON.stringify(safePreviewSettings));
+          fields.openaiKey.value = "";
+          fields.googleKey.value = "";
+          fields.anthropicKey.value = "";
+          showMessage("Non-key settings saved for local preview. API keys are only stored in Trello member-private storage.", "success");
           return;
         }
 

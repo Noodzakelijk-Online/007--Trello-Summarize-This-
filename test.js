@@ -68,6 +68,20 @@ const attachmentSanitizer = new AttachmentProcessor();
 const attachmentSafeError = attachmentSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(attachmentSafeError, /secret123|trello-token|attachments\.example\.com/);
 assert.match(attachmentSafeError, /redacted|url redacted/);
+const localPreviewSettings = SummarizeThis.stripApiKeysForLocalPreview({
+  analysisMode: "auto",
+  provider: "openai",
+  apiKeys: {
+    openai: "sk-local-preview-secret",
+    google: "google-local-preview-secret"
+  },
+  promptContext: {
+    commentLimit: 12
+  }
+});
+assert.deepEqual(localPreviewSettings.apiKeys, {});
+assert.equal(localPreviewSettings.analysisMode, "auto");
+assert.equal(localPreviewSettings.promptContext.commentLimit, 12);
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()

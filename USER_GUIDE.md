@@ -154,6 +154,8 @@ The Review / correction panel stores feedback privately for the same card. When 
 4. Click "Save" or "Validate"
 5. Green checkmark = API key is valid
 
+In the Trello Power-Up runtime, provider API keys are saved in Trello member-private storage for the current member. In local preview or standalone Windows mode, the settings page saves only non-key settings to `localStorage`; API key fields are cleared and AI-only mode requires Trello member-private storage. If older local preview data contains keys, the popup/settings page strips them on load.
+
 ---
 
 ## Analysis Strategies
@@ -561,18 +563,19 @@ Sensitive-card exports still require visible approval before copy or download.
 
 ### Data Handling
 
-- **API Keys**: Stored locally in browser only
-- **Card Data**: Sent to AI providers for analysis
-- **History**: Stored locally, not on servers
+- **API Keys**: Stored in Trello member-private Power-Up storage when running inside Trello; local preview strips API keys instead of persisting them in `localStorage`
+- **Card Data**: Sent to AI providers only when AI mode is used and sensitive handoff approval allows it
+- **History**: Stored in member-private Power-Up storage, with local preview using `localStorage` for non-secret preview data
 - **Exports**: Generated client-side
 
 ### Security Best Practices
 
 1. Never share API keys
-2. Use HTTPS connections only
-3. Review provider privacy policies
-4. Clear history periodically
-5. Use private boards for sensitive data
+2. Configure API keys from the Trello Power-Up settings page, not from local preview
+3. Use HTTPS connections only
+4. Review provider privacy policies
+5. Clear history periodically
+6. Use private boards for sensitive data
 
 ---
 
