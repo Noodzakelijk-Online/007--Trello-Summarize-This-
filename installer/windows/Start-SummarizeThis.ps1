@@ -1,12 +1,22 @@
 param(
   [switch]$NoLaunch,
-  [switch]$Setup
+  [switch]$Setup,
+  [int]$Port = 17117
 )
 
 $ErrorActionPreference = "Stop"
 
-$AppRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$DefaultPort = 17117
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRootCandidate = [System.IO.Path]::GetFullPath((Join-Path $ScriptRoot "..\.."))
+
+if (Test-Path -LiteralPath (Join-Path $ScriptRoot "popup.html") -PathType Leaf) {
+  $AppRoot = $ScriptRoot
+} elseif (Test-Path -LiteralPath (Join-Path $RepoRootCandidate "popup.html") -PathType Leaf) {
+  $AppRoot = $RepoRootCandidate
+} else {
+  $AppRoot = $ScriptRoot
+}
+$DefaultPort = $Port
 $HostAddress = [System.Net.IPAddress]::Parse("127.0.0.1")
 
 function Test-SummarizeThisServer {
