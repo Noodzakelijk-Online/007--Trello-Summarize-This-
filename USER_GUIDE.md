@@ -279,6 +279,8 @@ Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs 
 
 The active popup also shows a compact change summary against the previous saved analysis. Use **Copy change brief** when you need a handoff that explains what changed, the confidence trend, the current top blocker, the current next action, the current Robert decision, and the current VA/team handoff.
 
+When the card snapshot and analysis settings have not changed, the popup can reuse the latest matching private ledger run instead of calling an AI provider again. Use **Analyze again** when you intentionally want a fresh run.
+
 ### Statistics Dashboard
 
 Track your usage:
@@ -342,6 +344,8 @@ The popup records compact member-private cost records for completed AI runs and 
 After each analysis, the popup shows a Runtime timing panel with the latest total duration, recent average, slowest stored run, and stage breakdown.
 
 The timing panel helps diagnose whether time is spent reading Trello context, building the local summary, waiting for an AI provider, building the ledger, or rendering history/review panels. Timing records are compact and member-private. They store run id, card id, provider/source, durations, and timestamp only; they do not store card content, prompts, API keys, or attachment text.
+
+If the latest matching ledger run is reused, timing will show a cached ledger match rather than an AI provider wait. That means no new provider cost was recorded for the reused view.
 
 ---
 
@@ -535,6 +539,7 @@ Power-Up settings include a **Default quick copy** preference for the main popup
 **Issue: "Slow Performance"**
 - **Solution**: Use "Speed-Optimized" strategy
 - Check the Runtime timing panel to see whether the delay is Trello context, local processing, AI provider wait time, or UI/history rendering
+- If the card and settings are unchanged, let the popup reuse the saved ledger run; use "Analyze again" only when a fresh provider call is needed
 - Reduce number of attachments
 - Clear browser cache
 - Check internet connection

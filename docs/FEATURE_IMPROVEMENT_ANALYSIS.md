@@ -82,6 +82,7 @@ Implemented:
 - Stores timestamp, provider, model, confidence, and structured summary snapshot.
 - Shows what changed since the previous analysis and a confidence trend.
 - Adds a copy-ready change brief that compares the current run with the previous run and includes operational changes, current top blocker, next action, Robert decision, VA/team handoff, confidence trend, and source coverage.
+- Reuses the latest matching private ledger run when the card input hash and analysis settings profile have not changed, avoiding duplicate provider calls and duplicate history writes on popup reopen.
 - Allows copying older structured summaries.
 - The Trello card badge now uses the latest private ledger run to show review-needed, failed-analysis, or confidence status when history exists; otherwise it falls back to setup/readiness status.
 
@@ -382,11 +383,12 @@ Impact: Medium. This reduces surprise API spend without blocking analysis or add
 
 Problem: The tool had static footprint checks, but no lightweight in-popup way to spot slower analysis runs over time.
 
-Status: Implemented in `popup.html` and `summarizer-core.js`.
+Status: Implemented in `popup.html`, `summarizer-core.js`, and `card-intelligence-ledger.js`.
 
 Implemented:
 
 - Each completed analysis records compact stage timings for card context read, local summary, AI provider call when used, ledger build, and history/review UI work.
+- Reused unchanged ledger runs record a cached-match timing stage and do not create another provider cost record.
 - Timing records are stored in member-private Power-Up storage and capped to 100 records.
 - Records include only run id, card id, provider/source, duration values, and timestamp; they do not include card content, prompt text, API keys, or attachment text.
 - The popup shows the latest total duration, recent average, slowest stored run, and the latest stage breakdown.

@@ -919,10 +919,14 @@
       };
 
       document.getElementById("copyButton").addEventListener("click", copySummary);
-      document.getElementById("reanalyzeButton").addEventListener("click", runAnalysis);
-      document.getElementById("retryButton").addEventListener("click", runAnalysis);
+      document.getElementById("reanalyzeButton").addEventListener("click", function () {
+        runAnalysis({ forceRefresh: true });
+      });
+      document.getElementById("retryButton").addEventListener("click", function () {
+        runAnalysis({ forceRefresh: true });
+      });
       document.getElementById("approveAiButton").addEventListener("click", function () {
-        runAnalysis({ approveSensitiveAi: true });
+        runAnalysis({ approveSensitiveAi: true, forceRefresh: true });
       });
       document.getElementById("keepLocalButton").addEventListener("click", function () {
         elements.aiApprovalPanel.classList.add("hidden");
@@ -988,10 +992,13 @@
         copyBatchAnalysisPlan("json");
       });
 
-      document.addEventListener("DOMContentLoaded", runAnalysis);
+      document.addEventListener("DOMContentLoaded", function () {
+        runAnalysis();
+      });
 
       async function runAnalysis(options) {
         var allowSensitiveAi = Boolean(options && options.approveSensitiveAi);
+        var forceRefresh = Boolean(options && options.forceRefresh);
         var timingTracker = createTimingTracker();
         resetView();
         setStatus("Reading card", "Collecting card title, description, due date, labels, members, and progress.");
@@ -1013,6 +1020,17 @@
           var normalized = SummarizeThis.normalizeCardData(cardData);
           elements.cardTitle.textContent = normalized.name;
           elements.contextLine.textContent = [normalized.boardName, normalized.listName].filter(Boolean).join(" / ") || "Local preview mode";
+          var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
+          var cacheProfile = analysisCacheProfile(settings, promptProfile, allowSensitiveAi);
+          var cacheProfileHash = compactHash(JSON.stringify(cacheProfile));
+          var inputHash = CardIntelligenceLedger.createInputHash(cardData);
+          var existingHistoryRuns = await loadLedgerRunsForCard(cardData);
+          var cachedRun = !forceRefresh ? findReusableLedgerRun(existingHistoryRuns, inputHash, cacheProfileHash) : null;
+          if (cachedRun) {
+            timingTracker.mark("cache-match", "Cached ledger match");
+            await renderCachedRun(cardData, cachedRun, existingHistoryRuns, settings, timingTracker);
+            return;
+          }
 
           setStatus("Building summary", "Creating a reliable local summary first.");
           var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData);
@@ -1052,13 +1070,14 @@
           }
 
           lastAnalysis = analysis;
-          var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
           lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
             outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
             outputLanguage: SummarizeThis.normalizeOutputLanguage(settings.outputLanguage),
             promptTemplateId: promptProfile.selectedPromptTemplateId || "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
             promptTemplateName: promptProfile.selectedPromptTemplateName,
-            customInstructions: promptProfile.customInstructions
+            customInstructions: promptProfile.customInstructions,
+            cacheProfileHash: cacheProfileHash,
+            cacheProfile: cacheProfile
           });
           timingTracker.mark("ledger", "Ledger build");
           renderAnalysis(cardData, analysis, warning, lastLedgerRun);
@@ -1076,6 +1095,56 @@
         } catch (error) {
           showError(sanitizeUserVisibleError(error));
         }
+      }
+
+      async function renderCachedRun(cardData, ledgerRun, historyRuns, settings, timingTracker) {
+        lastLedgerRun = ledgerRun;
+        lastAnalysis = analysisFromLedgerRun(ledgerRun);
+        lastHistoryRuns = Array.isArray(historyRuns) ? historyRuns : [ledgerRun];
+        renderAnalysis(cardData, lastAnalysis, "Reused the last saved analysis because the card snapshot and analysis settings have not changed. Use Analyze again to force a fresh run.", ledgerRun);
+        renderAiApproval(settings, SummarizeThis.detectSensitiveSignals(cardData), false, true, cardData);
+        document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
+        renderHistory(lastHistoryRuns);
+        renderBudgetAlert(null);
+        await loadAndRenderReviewState();
+        await loadAndRenderExportHistory();
+        timingTracker.mark("history-ui", "History and review panels");
+        var timingRecord = await recordRuntimeTiming(cardData, ledgerRun, lastAnalysis, timingTracker);
+        renderRuntimeTiming(timingRecord.record, timingRecord.summary);
+      }
+
+      function analysisFromLedgerRun(run) {
+        var result = run && run.result ? run.result : {};
+        var confidence = result.confidence || {};
+        var score = Number(confidence.overall) || 0;
+        return {
+          summary: {
+            about: result.about || "",
+            history: result.history || "",
+            status: result.currentStatus || "",
+            nextSteps: textListFromOperationalItems(result.nextActions),
+            insights: textListFromOperationalItems(result.insights),
+            risks: textListFromOperationalItems(result.risks).concat(textListFromOperationalItems(result.blockers)),
+            recommendations: textListFromOperationalItems(result.recommendations)
+          },
+          metadata: {
+            provider: (run.provider || "Saved ledger") + " (saved)",
+            model: run.model || "",
+            tokens: 0,
+            cost: 0
+          },
+          qualityScore: score,
+          qualityLevel: confidence.level || (score >= 80 ? "high" : score >= 60 ? "medium" : "low"),
+          source: "cache"
+        };
+      }
+
+      function textListFromOperationalItems(items) {
+        return (Array.isArray(items) ? items : []).map(function (item) {
+          if (typeof item === "string") return item;
+          if (!item || typeof item !== "object") return "";
+          return item.text || item.claim || item.summary || item.description || item.question || "";
+        }).filter(Boolean);
       }
 
       function resetView() {
@@ -1244,7 +1313,7 @@
 
       async function gatherCardData(settings, options) {
         if (!t) {
-          return Object.assign({}, SummarizeThis.sampleCardData(), {
+          return Object.assign({}, stableLocalPreviewCardData(), {
             __sourceStatus: {
               card: { ok: true },
               board: { ok: true },
@@ -1292,6 +1361,24 @@
             attachments: sourceReadStatus(attachmentsRead),
             customFields: { ok: Array.isArray(customFieldItems) }
           }
+        });
+      }
+
+      function stableLocalPreviewCardData() {
+        var sample = SummarizeThis.sampleCardData();
+        return Object.assign({}, sample, {
+          due: "2026-07-03T00:00:00.000Z",
+          dateLastActivity: "2026-06-29T12:00:00.000Z",
+          comments: (Array.isArray(sample.comments) ? sample.comments : []).map(function (comment, index) {
+            return Object.assign({}, comment, {
+              date: "2026-06-29T12:0" + index + ":00.000Z"
+            });
+          }),
+          actions: (Array.isArray(sample.actions) ? sample.actions : []).map(function (action, index) {
+            return Object.assign({}, action, {
+              date: "2026-06-29T12:1" + index + ":00.000Z"
+            });
+          })
         });
       }
 
@@ -1882,6 +1969,46 @@
 
       function maxOutputTokensFor(settings) {
         return SummarizeThis.normalizeGenerationSettings(settings && (settings.generation || settings)).maxOutputTokens;
+      }
+
+      function analysisCacheProfile(settings, promptProfile, allowSensitiveAi) {
+        var proxy = SummarizeThis.normalizeProxySettings(settings && settings.proxy);
+        var context = SummarizeThis.normalizePromptContext(settings && settings.promptContext);
+        var generation = SummarizeThis.normalizeGenerationSettings(settings && (settings.generation || settings));
+        var profile = promptProfile || SummarizeThis.normalizePromptTemplateSettings(settings);
+        return {
+          version: 1,
+          analysisMode: settings && settings.analysisMode || "auto",
+          provider: settings && settings.provider || "openai",
+          providerMode: SummarizeThis.normalizeProviderMode(settings && settings.providerMode),
+          strategy: settings && settings.strategy || "cost-effective",
+          outputMode: SummarizeThis.normalizeOutputMode(settings && settings.outputMode),
+          outputLanguage: SummarizeThis.normalizeOutputLanguage(settings && settings.outputLanguage),
+          maxOutputTokens: generation.maxOutputTokens,
+          promptContext: context,
+          promptTemplateId: profile.selectedPromptTemplateId || "",
+          promptTemplateName: profile.selectedPromptTemplateName || "",
+          customInstructionsHash: compactHash(profile.customInstructions || ""),
+          customInstructionsCharacters: String(profile.customInstructions || "").length,
+          includeListContext: settings ? settings.includeListContext !== false : true,
+          extractTextAttachments: Boolean(settings && settings.extractTextAttachments),
+          sensitiveAiApproved: Boolean(allowSensitiveAi),
+          proxyEnabled: Boolean(proxy.enabled),
+          proxyEndpointHash: proxy.endpoint ? compactHash(proxy.endpoint) : "",
+          openaiModel: settings && settings.openaiModel || "",
+          googleModel: settings && settings.googleModel || "",
+          anthropicModel: settings && settings.anthropicModel || ""
+        };
+      }
+
+      function compactHash(value) {
+        var text = String(value || "");
+        var hash = 2166136261;
+        for (var i = 0; i < text.length; i += 1) {
+          hash ^= text.charCodeAt(i);
+          hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+        }
+        return ("00000000" + (hash >>> 0).toString(16)).slice(-8);
       }
 
       async function callOpenAI(apiKey, cardData, settings, localAnalysis) {
@@ -2876,6 +3003,26 @@
 
         await saveLegacyPrivateHistory(cardData, ledgerRun);
         return allHistory[cardId];
+      }
+
+      async function loadLedgerRunsForCard(cardData) {
+        var key = "summarizeThisLedgerHistory";
+        var cardId = cardData && cardData.id ? cardData.id : "local-preview";
+        var allHistory = await readPrivateObject(key, {});
+        return allHistory && Array.isArray(allHistory[cardId]) ? allHistory[cardId] : [];
+      }
+
+      function findReusableLedgerRun(historyRuns, inputHash, cacheProfileHash) {
+        if (!inputHash || !cacheProfileHash) return null;
+        var runs = Array.isArray(historyRuns) ? historyRuns : [];
+        for (var i = 0; i < runs.length; i += 1) {
+          var run = runs[i];
+          if (!run || run.status !== "completed") continue;
+          if (run.inputHash === inputHash && run.cacheProfileHash === cacheProfileHash) {
+            return run;
+          }
+        }
+        return null;
       }
 
       async function recordCostUsage(cardData, ledgerRun, analysis, settings) {

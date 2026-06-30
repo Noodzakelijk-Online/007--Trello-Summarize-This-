@@ -488,6 +488,18 @@
     };
   }
 
+  function createInputHash(input) {
+    return shortHash(JSON.stringify(snapshotForInputHash(createCardSnapshot(input, {
+      now: "2000-01-01T00:00:00.000Z"
+    }))));
+  }
+
+  function snapshotForInputHash(snapshot) {
+    var copy = Object.assign({}, snapshot || {});
+    delete copy.capturedAt;
+    return copy;
+  }
+
   function createSourceCoverage(input) {
     var card = normalizeCard(input);
     var raw = input || {};
@@ -1377,7 +1389,11 @@
       errorMessage: (options && options.errorMessage) || "",
       tokenEstimate: analysis && analysis.metadata ? toNumber(analysis.metadata.tokens) : 0,
       costEstimate: analysis && analysis.metadata ? toNumber(analysis.metadata.cost) : 0,
-      inputHash: shortHash(JSON.stringify(cardSnapshot)),
+      inputHash: createInputHash(input),
+      cacheProfileHash: cleanText(options && options.cacheProfileHash),
+      cacheProfile: options && options.cacheProfile && typeof options.cacheProfile === "object"
+        ? options.cacheProfile
+        : null,
       cardSnapshot: cardSnapshot,
       result: {
         about: cleanText(summary.about),
@@ -1392,6 +1408,8 @@
         nextActions: operational.nextActions,
         robertDecisions: operational.robertDecisions,
         vaReadyActions: operational.vaReadyActions,
+        insights: toArray(summary.insights),
+        recommendations: toArray(summary.recommendations),
         risks: toArray(summary.risks),
         missingInfo: missingInfo,
         unresolvedQuestions: unresolvedQuestions,
@@ -2328,6 +2346,7 @@
     createAnalysisRun: createAnalysisRun,
     createAttachmentFacts: createAttachmentFacts,
     createCardSnapshot: createCardSnapshot,
+    createInputHash: createInputHash,
     createEvidenceMap: createEvidenceMap,
     createExportRecord: createExportRecord,
     createHumanFeedback: createHumanFeedback,

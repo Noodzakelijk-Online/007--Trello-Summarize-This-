@@ -156,6 +156,9 @@ assert.match(popupText, /function defaultCopyFormatFor/);
 assert.match(popupText, /function updateQuickCopyButton/);
 assert.match(popupText, /id="copyChangeBriefButton"/);
 assert.match(popupText, /copyLedgerExport\("change-brief"\)/);
+assert.match(popupText, /function analysisCacheProfile/);
+assert.match(popupText, /function findReusableLedgerRun/);
+assert.match(popupText, /forceRefresh: true/);
 assert.match(popupText, /async function runConsensusAI/);
 assert.match(popupText, /consensusProviderCount/);
 assert.match(popupText, /Consensus mode was requested/);
@@ -804,6 +807,31 @@ assert.ok(run.result.trustSignals.needsReview.some(item => item.key === "missing
 assert.ok(run.result.trustSignals.whyScore.some(item => item.includes("Data completeness")));
 assert.ok(run.result.evidence.some(item => item.type === "custom-field" && item.excerpt.includes("Priority")));
 assert.ok(run.result.evidence.some(item => item.type === "activity" && item.excerpt.includes("Waiting on Robert")));
+assert.deepEqual(run.result.insights, operationalAnalysis.summary.insights);
+assert.deepEqual(run.result.recommendations, operationalAnalysis.summary.recommendations);
+
+const sameInputHashLater = CardIntelligenceLedger.createInputHash(Object.assign({}, operationalCard));
+const sameInputHashRun = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
+  now: "2026-06-29T13:00:00.000Z"
+});
+const changedInputHash = CardIntelligenceLedger.createInputHash(Object.assign({}, operationalCard, {
+  desc: operationalCard.desc + " Added new detail."
+}));
+assert.equal(run.inputHash, sameInputHashLater);
+assert.equal(run.inputHash, sameInputHashRun.inputHash);
+assert.notEqual(run.inputHash, changedInputHash);
+
+const cachedProfileRun = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
+  now: "2026-06-29T13:05:00.000Z",
+  cacheProfileHash: "cacheabc",
+  cacheProfile: {
+    version: 1,
+    analysisMode: "auto",
+    providerMode: "fallback"
+  }
+});
+assert.equal(cachedProfileRun.cacheProfileHash, "cacheabc");
+assert.equal(cachedProfileRun.cacheProfile.providerMode, "fallback");
 
 const operationalDigest = CardIntelligenceLedger.createOperationalDigest(run);
 assert.equal(operationalDigest.length, 6);

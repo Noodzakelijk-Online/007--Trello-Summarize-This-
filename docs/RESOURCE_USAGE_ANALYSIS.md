@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 326.0 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 488.6 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.75 MB.
-- Generated Windows installer executable: 299,520 bytes.
+- Active popup initial local files: about 336.5 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 499.2 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.77 MB.
+- Generated Windows installer executable: 304,640 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -48,6 +48,7 @@ Current results:
    - Runtime normalization clamps any saved or proxy-supplied output cap to 300-2,000 tokens before provider calls.
    - AI provider requests time out after 30 seconds and fall back cleanly in auto mode.
    - Provider consensus is opt-in; default mode keeps the existing single-provider/fallback behavior.
+   - The popup reuses the latest matching private ledger run when the stable card input hash and compact settings profile hash match, avoiding duplicate provider calls on repeated opens.
    - Sensitive-card detection runs before provider calls and keeps analysis local until the user explicitly approves AI handoff.
    - Provider key validation is user-triggered only, uses a 10-second timeout, and sends the smallest practical validation request.
 
@@ -68,6 +69,8 @@ Current results:
 6. Lightweight ledger:
    - The card intelligence ledger runs in the popup only when an analysis is created.
    - It stores compact card snapshots with hashes instead of full descriptions.
+   - Card input hashes exclude capture timestamps, so unchanged cards can be recognized reliably across runs.
+   - Cached run matching stores only a compact settings/profile hash plus bounded non-secret profile metadata; API keys and full proxy endpoints are not stored.
    - History, review state, feedback, and export records use member-private Power-Up storage.
    - History comparison uses hashes, counts, and structured result metadata instead of re-reading full card bodies.
    - Prior feedback readback is capped to 5 compact correction records, with each correction capped before it is shown or sent as AI prompt guidance.
@@ -114,11 +117,11 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 488.6 KB, and the generated `SummarizeThisSetup.exe` is 299,520 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 499.2 KB, and the generated `SummarizeThisSetup.exe` is 304,640 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt and response caps reduce token use, latency, and provider cost for large cards. Optional consensus mode can call multiple configured providers, but it is off by default and records combined token/cost estimates when used. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Legacy attachment processing blocks private/local URLs, including normalized IPv4 forms and local/private IPv6 ranges, and no longer fetches binary attachment bodies by default. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt and response caps reduce token use, latency, and provider cost for large cards. Reopening an unchanged card with the same analysis settings reuses the matching private ledger run instead of making another provider call; the Analyze again button still forces a fresh run. Optional consensus mode can call multiple configured providers, but it is off by default and records combined token/cost estimates when used. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Legacy attachment processing blocks private/local URLs, including normalized IPv4 forms and local/private IPv6 ranges, and no longer fetches binary attachment bodies by default. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
 
 Local preview does not persist provider API keys, so AI-only mode requires either the Trello Power-Up runtime where member-private storage is available or a valid backend proxy endpoint. Proxy endpoints are saved only after normalization: HTTPS is required for Trello use, localhost/127.0.0.1 are allowed for development, and query strings, fragments, and embedded credentials are stripped or rejected.
 
