@@ -1474,6 +1474,7 @@
       "status-update": true,
       "robert-decision-brief": true,
       "va-handoff-brief": true,
+      "change-brief": true,
       "plain-text": true,
       "ledger-json": true,
       "trello-comment-draft": true

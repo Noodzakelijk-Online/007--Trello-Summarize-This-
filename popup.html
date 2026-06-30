@@ -785,6 +785,7 @@
           <button class="secondary" type="button" id="copyStatusUpdateButton">Copy status update</button>
           <button class="secondary" type="button" id="copyRobertDecisionButton">Copy Robert decisions</button>
           <button class="secondary" type="button" id="copyVaHandoffButton">Copy VA handoff</button>
+          <button class="secondary" type="button" id="copyChangeBriefButton">Copy change brief</button>
           <button class="secondary" type="button" id="copyJsonButton">Copy JSON</button>
           <button class="secondary" type="button" id="downloadJsonButton">Download JSON</button>
         </div>
@@ -966,6 +967,9 @@
       });
       document.getElementById("copyVaHandoffButton").addEventListener("click", function () {
         copyLedgerExport("va-handoff-brief");
+      });
+      document.getElementById("copyChangeBriefButton").addEventListener("click", function () {
+        copyLedgerExport("change-brief");
       });
       document.getElementById("copyJsonButton").addEventListener("click", function () {
         copyLedgerExport("ledger-json");
@@ -2099,6 +2103,7 @@
           "status-update": "Copy status",
           "robert-decision-brief": "Copy decisions",
           "va-handoff-brief": "Copy VA handoff",
+          "change-brief": "Copy changes",
           "plain-text": "Copy text",
           "ledger-json": "Copy JSON",
           "trello-comment-draft": "Copy Trello draft"
@@ -2674,9 +2679,11 @@
                 ? "Robert decision brief"
                 : format === "va-handoff-brief"
                   ? "VA handoff brief"
-                  : format === "mode-brief"
-                    ? "Selected mode brief"
-                    : "Plain text";
+                  : format === "change-brief"
+                    ? "Change brief"
+                    : format === "mode-brief"
+                      ? "Selected mode brief"
+                      : "Plain text";
 
         if (requireSensitiveExportApproval(format, statusElement.id, label + " export")) return;
 
@@ -2727,6 +2734,9 @@
         }
         if (format === "mode-brief") {
           return CardIntelligenceLedger.modeBriefForLedgerRun(lastLedgerRun, lastLedgerRun.outputMode);
+        }
+        if (format === "change-brief") {
+          return CardIntelligenceLedger.changeBriefForLedgerRuns(lastLedgerRun, lastHistoryRuns[1]);
         }
         return CardIntelligenceLedger.plainTextForLedgerRun(lastLedgerRun);
       }

@@ -1502,6 +1502,45 @@
     changes.push(label + " changed from " + previousNumber + " to " + currentNumber + ".");
   }
 
+  function changeBriefForLedgerRuns(currentRun, previousRun) {
+    var change = summarizeRunChange(currentRun, previousRun);
+    var result = currentRun && currentRun.result ? currentRun.result : {};
+    var snapshot = currentRun && currentRun.cardSnapshot ? currentRun.cardSnapshot : {};
+    var title = snapshot.title || "Trello card";
+    var confidence = result.confidence
+      ? result.confidence.overall + "% " + result.confidence.level
+      : "Unknown";
+    var lines = [
+      "Change brief: " + title,
+      "",
+      "Compared runs:",
+      "Current: " + (currentRun && currentRun.completedAt ? currentRun.completedAt : "unknown"),
+      "Previous: " + (previousRun && previousRun.completedAt ? previousRun.completedAt : "none"),
+      "",
+      "Primary change:",
+      change.text || "No change summary available.",
+      "",
+      "Confidence trend: " + change.confidenceTrend + ". Current confidence: " + confidence + ".",
+      "",
+      "Operational changes:"
+    ];
+
+    appendItems(lines, change.changes, "No material ledger changes detected.");
+    lines.push("", "Current status:");
+    lines.push(cleanText(result.currentStatus || result.about || "No current status available."));
+    lines.push("", "Current top blocker:");
+    lines.push(firstItemText(result.blockers, "No blocker detected."));
+    lines.push("", "Current next action:");
+    lines.push(firstItemText(result.nextActions, "No next action detected."));
+    lines.push("", "Current Robert decision:");
+    appendDecisionFraming(lines, result.robertDecisions);
+    lines.push("", "Current VA/team handoff:");
+    lines.push(firstItemText(result.vaReadyActions, "No VA/team-ready action detected."));
+    lines.push("", "Review note: this change brief uses stored private ledger runs and should be reviewed before acting.");
+    appendSourceCoverageSummary(lines, currentRun, "Current source coverage:", 5);
+    return lines.join("\n");
+  }
+
   function createHumanFeedback(analysisRunId, feedback, options) {
     return {
       id: "feedback-" + shortHash(analysisRunId + nowIso(options) + JSON.stringify(feedback || {})),
@@ -1662,6 +1701,7 @@
       "status-update": "Status update",
       "robert-decision-brief": "Robert decision brief",
       "va-handoff-brief": "VA/team handoff brief",
+      "change-brief": "Change brief",
       "ledger-json": "Ledger JSON",
       "list-planning-markdown": "List planning brief",
       "list-planning-json": "List planning JSON",
@@ -2305,6 +2345,7 @@
     createOperationalAnalysis: createOperationalAnalysis,
     createOperationalDigest: createOperationalDigest,
     createTrustSignals: createTrustSignals,
+    changeBriefForLedgerRuns: changeBriefForLedgerRuns,
     jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,

@@ -154,6 +154,8 @@ assert.match(popupText, /maxOutputTokens: maxOutputTokensFor\(settings\)/);
 assert.match(popupText, /max_tokens: maxOutputTokens/);
 assert.match(popupText, /function defaultCopyFormatFor/);
 assert.match(popupText, /function updateQuickCopyButton/);
+assert.match(popupText, /id="copyChangeBriefButton"/);
+assert.match(popupText, /copyLedgerExport\("change-brief"\)/);
 assert.match(popupText, /async function runConsensusAI/);
 assert.match(popupText, /consensusProviderCount/);
 assert.match(popupText, /Consensus mode was requested/);
@@ -164,6 +166,7 @@ assert.doesNotMatch(popupText, /showError\(error\.message \|\| String\(error\)\)
 const settingsText = fs.readFileSync(path.join(__dirname, "settings-powerup.html"), "utf8");
 assert.match(settingsText, /id="maxOutputTokens"/);
 assert.match(settingsText, /id="defaultCopyFormat"/);
+assert.match(settingsText, /value="change-brief"/);
 assert.match(settingsText, /id="providerMode"/);
 assert.match(settingsText, /normalizeGenerationSettings/);
 assert.match(settingsText, /normalizeExportPreferences/);
@@ -286,6 +289,7 @@ assert.equal(SummarizeThis.normalizeProviderMode("consensus"), "consensus");
 assert.equal(SummarizeThis.normalizeProviderMode("parallel-everything"), "fallback");
 assert.equal(SummarizeThis.normalizeExportPreferences().defaultCopyFormat, "markdown");
 assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "va-handoff-brief" }).defaultCopyFormat, "va-handoff-brief");
+assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "change-brief" }).defaultCopyFormat, "change-brief");
 assert.equal(SummarizeThis.normalizeExportPreferences({ defaultExportFormat: "trello-comment-draft" }).defaultCopyFormat, "trello-comment-draft");
 assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "edit-card-description" }).defaultCopyFormat, "markdown");
 
@@ -892,6 +896,12 @@ const runChange = CardIntelligenceLedger.summarizeRunChange(changedHistory[0], c
 assert.ok(runChange.changes.some(change => change.includes("Card source data changed")));
 assert.ok(runChange.changes.some(change => change.includes("Comment count changed")));
 assert.ok(["up", "down", "flat"].includes(runChange.confidenceTrend));
+const changeBrief = CardIntelligenceLedger.changeBriefForLedgerRuns(changedHistory[0], changedHistory[1]);
+assert.ok(changeBrief.includes("Change brief:"));
+assert.ok(changeBrief.includes("Operational changes:"));
+assert.ok(changeBrief.includes("Card source data changed"));
+assert.ok(changeBrief.includes("Current Robert decision:"));
+assert.ok(changeBrief.includes("Review note:"));
 
 const firstRunChange = CardIntelligenceLedger.summarizeRunChange(run, null);
 assert.equal(firstRunChange.confidenceTrend, "new");
@@ -985,6 +995,10 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     now: "2026-06-29T12:07:03.000Z",
     cardId: run.cardId
   }),
+  CardIntelligenceLedger.createExportRecord(run.id, "change-brief", "clipboard", {
+    now: "2026-06-29T12:07:04.500Z",
+    cardId: run.cardId
+  }),
   CardIntelligenceLedger.createExportRecord(run.id, "operational-digest", "clipboard", {
     now: "2026-06-29T12:07:04.000Z",
     cardId: run.cardId
@@ -1001,16 +1015,17 @@ const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
     cardId: run.cardId
   })
 ], [run.id], 8);
-assert.equal(summarizedExports.length, 7);
+assert.equal(summarizedExports.length, 8);
 assert.equal(summarizedExports[0].exportLabel, "Trello comment");
 assert.equal(summarizedExports[0].destinationLabel, "posted to Trello");
-assert.equal(summarizedExports[1].exportLabel, "Operational digest");
-assert.equal(summarizedExports[2].exportLabel, "VA/team handoff brief");
-assert.equal(summarizedExports[3].exportLabel, "Robert decision brief");
-assert.equal(summarizedExports[4].exportLabel, "Batch analysis JSON");
-assert.equal(summarizedExports[5].exportLabel, "Ledger JSON");
-assert.equal(summarizedExports[5].sensitiveReviewApproved, true);
-assert.equal(summarizedExports[6].exportLabel, "List planning JSON");
+assert.equal(summarizedExports[1].exportLabel, "Change brief");
+assert.equal(summarizedExports[2].exportLabel, "Operational digest");
+assert.equal(summarizedExports[3].exportLabel, "VA/team handoff brief");
+assert.equal(summarizedExports[4].exportLabel, "Robert decision brief");
+assert.equal(summarizedExports[5].exportLabel, "Batch analysis JSON");
+assert.equal(summarizedExports[6].exportLabel, "Ledger JSON");
+assert.equal(summarizedExports[6].sensitiveReviewApproved, true);
+assert.equal(summarizedExports[7].exportLabel, "List planning JSON");
 
 const ledgerMarkdown = CardIntelligenceLedger.markdownForLedgerRun(run);
 assert.ok(ledgerMarkdown.includes("## Robert decisions"));

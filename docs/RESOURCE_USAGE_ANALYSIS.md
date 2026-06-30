@@ -88,6 +88,7 @@ Current results:
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
    - The operational digest and its copy-ready text export are generated on demand from the existing compact ledger result, so they add a first-screen triage and handoff view without storing another summary copy.
+   - The change brief is generated on demand from the two existing private ledger runs and does not store another summary copy, reread Trello, or call an AI provider.
    - The list planning brief is generated on demand from existing bounded list context, capped to 12 sampled preview cards in the exported brief, and does not include neighboring descriptions, comments, attachments, or AI output.
    - List trend signals are generated on demand from the same bounded list metadata and add no Trello reads, AI calls, polling, or full-card content retention.
    - The batch analysis plan is generated on demand from the same bounded list context, capped to 12 queue seed cards, and does not run AI, fetch neighboring full card bodies, or start background processing.

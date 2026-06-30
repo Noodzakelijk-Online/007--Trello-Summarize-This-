@@ -277,6 +277,8 @@ Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs 
 3. Filter by date, board, or strategy
 4. Click any analysis to view details
 
+The active popup also shows a compact change summary against the previous saved analysis. Use **Copy change brief** when you need a handoff that explains what changed, the confidence trend, the current top blocker, the current next action, the current Robert decision, and the current VA/team handoff.
+
 ### Statistics Dashboard
 
 Track your usage:
@@ -472,6 +474,7 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 - **Copy selected mode brief**: uses the saved output mode, such as meeting brief, risk review, status update, next-action checklist, or client-friendly summary.
 - **Copy Robert decisions**: creates a focused Robert decision brief with Yes/No framing, blockers, waiting states, unclear points, unresolved questions, confidence, evidence claims, and source coverage.
 - **Copy VA handoff**: creates a VA/team handoff brief that separates delegated work, waiting states, unclear points, and unresolved questions from Robert-only decisions.
+- **Copy change brief**: creates a previous-run comparison with operational changes, confidence trend, current top blocker, next action, Robert decision, VA/team handoff, and source coverage.
 - **Copy status update**: creates a compact status message for email, chat, or Trello.
 - **Copy JSON / Download JSON**: exports the compact card intelligence ledger for Sneup, HAI, or another structured workflow.
 
@@ -481,7 +484,7 @@ Sensitive-card exports still require visible approval before copy or download.
 
 Power-Up settings include a **Default quick copy** preference for the main popup copy button.
 
-- Choose Markdown, operational digest, status update, Robert decision brief, VA/team handoff, plain text, Ledger JSON, or Trello comment draft.
+- Choose Markdown, operational digest, status update, Robert decision brief, VA/team handoff, change brief, plain text, Ledger JSON, or Trello comment draft.
 - The preference is stored in member-private settings and does not copy, post, or export anything by itself.
 - If Trello comment draft is selected, the exact draft must still be reviewed and the approval checkbox must be ticked before it can be copied or posted.
 

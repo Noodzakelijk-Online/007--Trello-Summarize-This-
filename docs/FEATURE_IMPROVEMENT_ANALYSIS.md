@@ -81,6 +81,7 @@ Implemented:
 - Shows a compact History view in the popup.
 - Stores timestamp, provider, model, confidence, and structured summary snapshot.
 - Shows what changed since the previous analysis and a confidence trend.
+- Adds a copy-ready change brief that compares the current run with the previous run and includes operational changes, current top blocker, next action, Robert decision, VA/team handoff, confidence trend, and source coverage.
 - Allows copying older structured summaries.
 - The Trello card badge now uses the latest private ledger run to show review-needed, failed-analysis, or confidence status when history exists; otherwise it falls back to setup/readiness status.
 
@@ -107,6 +108,7 @@ Implemented:
 - AI prompts include the selected output mode and mode-specific focus instruction.
 - Ledger runs and JSON exports preserve the selected output mode.
 - The active popup can copy a selected-mode brief without changing Trello or posting anything.
+- The active popup can also copy a change brief as an export format or default quick-copy option, using already-saved private history only.
 - Settings now include provider mode: single provider with fallback by default, or opt-in consensus review across configured providers.
 - Consensus mode merges structured AI sections and records provider count, provider names, combined token estimate, and combined cost estimate in the ledger metadata.
 
