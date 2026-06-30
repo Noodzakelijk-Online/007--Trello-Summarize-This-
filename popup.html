@@ -1032,7 +1032,7 @@
                   if (settings.analysisMode === "ai-only") {
                     throw error;
                   }
-                  warning = appendWarning(warning, "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + error.message);
+                  warning = appendWarning(warning, "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + sanitizeUserVisibleError(error));
                   analysis = localAnalysis;
                 }
               }
@@ -1066,7 +1066,7 @@
           var timingRecord = await recordRuntimeTiming(cardData, lastLedgerRun, analysis, timingTracker);
           renderRuntimeTiming(timingRecord.record, timingRecord.summary);
         } catch (error) {
-          showError(error.message || String(error));
+          showError(sanitizeUserVisibleError(error));
         }
       }
 
@@ -1145,6 +1145,17 @@
         elements.errorText.textContent = message;
         elements.errorPanel.classList.remove("hidden");
         elements.confidencePill.textContent = "Needs attention";
+      }
+
+      function sanitizeUserVisibleError(error) {
+        var message = error && error.message ? error.message : String(error || "Request failed.");
+        return message
+          .replace(/https?:\/\/[^\s)]+/gi, "[url redacted]")
+          .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
+          .replace(/sk-[A-Za-z0-9_-]{12,}/g, "sk-[redacted]")
+          .replace(/token\s+[A-Za-z0-9._~+/=-]+/gi, "token [redacted]")
+          .replace(/(api[_-]?key|token)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, "$1$2[redacted]")
+          .slice(0, 240);
       }
 
       async function loadSettings() {
@@ -1323,7 +1334,7 @@
           return {
             ok: false,
             value: attachments,
-            error: error.message || String(error)
+            error: sanitizeUserVisibleError(error)
           };
         }
       }
@@ -1419,7 +1430,7 @@
           return {
             ok: false,
             value: fallback,
-            error: error.message || String(error)
+            error: sanitizeUserVisibleError(error)
           };
         }
       }
@@ -1479,7 +1490,7 @@
           return {
             ok: false,
             value: [],
-            error: error.message || String(error)
+            error: sanitizeUserVisibleError(error)
           };
         }
       }
@@ -1530,7 +1541,7 @@
           return {
             ok: false,
             value: [],
-            error: error.message || String(error)
+            error: sanitizeUserVisibleError(error)
           };
         }
       }
@@ -2442,7 +2453,7 @@
           approval.checked = false;
           posted = true;
         } catch (error) {
-          document.getElementById("postbackStatus").textContent = "Could not post the comment: " + (error.message || String(error)) + " Copy the approved draft instead.";
+          document.getElementById("postbackStatus").textContent = "Could not post the comment: " + sanitizeUserVisibleError(error) + " Copy the approved draft instead.";
         } finally {
           updatePostbackControls();
           if (posted) {

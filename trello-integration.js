@@ -26,6 +26,53 @@ class TrelloIntegration {
         }
     }
 
+    sourceStatusFromRead(result) {
+        if (result && result.ok) {
+            return { ok: true };
+        }
+
+        return {
+            ok: false,
+            error: result && result.error ? result.error : 'Source read failed.'
+        };
+    }
+
+    async readTrelloSource(label, fallbackValue, reader) {
+        try {
+            return {
+                ok: true,
+                value: await reader()
+            };
+        } catch (error) {
+            this.logSafeWarning(`Could not fetch ${label}`, error);
+            return {
+                ok: false,
+                value: fallbackValue,
+                error: this.sanitizeErrorMessage(error)
+            };
+        }
+    }
+
+    toNumber(value, fallback = 0) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+    }
+
+    memberNamesFrom(card, memberRead) {
+        const cardMembers = Array.isArray(card.members) ? card.members : [];
+        const contextMembers = memberRead && Array.isArray(memberRead.value) ? memberRead.value : [];
+        const members = cardMembers.length > 0 ? cardMembers : contextMembers;
+
+        return members
+            .map(member => {
+                if (typeof member === 'string') {
+                    return member;
+                }
+                return member && (member.fullName || member.username || member.name);
+            })
+            .filter(Boolean);
+    }
+
     // Initialize Trello Power-Up
     async initialize() {
         // Check if we're running inside Trello
@@ -44,13 +91,19 @@ class TrelloIntegration {
         }
 
         try {
-            // Get card information using Trello Power-Up API
-            const card = await this.t.card('all');
-            
-            // Fetch additional details
-            const members = await this.t.member('all');
-            const board = await this.t.board('all');
-            const list = await this.t.list('all');
+            const cardRead = await this.readTrelloSource('card', null, () => this.t.card('all'));
+            if (!cardRead.ok || !cardRead.value) {
+                throw new Error(`Could not fetch card: ${cardRead.error || 'Source read failed.'}`);
+            }
+
+            const card = cardRead.value;
+
+            const [memberRead, boardRead, listRead, commentsRead] = await Promise.all([
+                this.readTrelloSource('members', [], () => this.t.member('all')),
+                this.readTrelloSource('board', {}, () => this.t.board('all')),
+                this.readTrelloSource('list', {}, () => this.t.list('all')),
+                this.getCardCommentsWithStatus(card.id)
+            ]);
 
             // Get attachments
             const attachments = card.attachments || [];
@@ -60,7 +113,17 @@ class TrelloIntegration {
             const checklistProgress = this.calculateChecklistProgress(checklists);
 
             // Get comments (actions)
-            const comments = await this.getCardComments(card.id);
+            const comments = commentsRead.value;
+            const sourceStatus = {
+                card: { ok: true },
+                members: this.sourceStatusFromRead(memberRead),
+                board: this.sourceStatusFromRead(boardRead),
+                list: this.sourceStatusFromRead(listRead),
+                comments: this.sourceStatusFromRead(commentsRead),
+                attachments: { ok: true },
+                checklists: { ok: true },
+                customFields: { ok: true }
+            };
 
             // Structure the data
             const cardData = {
@@ -70,11 +133,12 @@ class TrelloIntegration {
                 due: card.due,
                 dueComplete: card.dueComplete,
                 labels: card.labels?.map(l => l.name) || [],
-                members: card.members?.map(m => m.fullName) || [],
-                list: list.name,
-                board: board.name,
+                members: this.memberNamesFrom(card, memberRead),
+                list: listRead.value?.name || '',
+                board: boardRead.value?.name || '',
                 url: card.url,
                 shortUrl: card.shortUrl,
+                badges: card.badges || {},
                 attachments: attachments.map(a => ({
                     id: a.id,
                     name: a.name,
@@ -85,7 +149,15 @@ class TrelloIntegration {
                 checklists: checklists,
                 checklistProgress: checklistProgress,
                 comments: comments,
-                customFields: card.customFieldItems || []
+                customFields: card.customFieldItems || [],
+                __sourceCounts: {
+                    comments: this.toNumber(card.badges?.comments, comments.length),
+                    attachments: this.toNumber(card.badges?.attachments, attachments.length),
+                    checklists: checklists.length,
+                    checklistItems: this.toNumber(card.badges?.checkItems),
+                    customFields: Array.isArray(card.customFieldItems) ? card.customFieldItems.length : 0
+                },
+                __sourceStatus: sourceStatus
             };
 
             return cardData;
@@ -120,22 +192,40 @@ class TrelloIntegration {
 
     // Get card comments using Trello API
     async getCardComments(cardId) {
+        const result = await this.getCardCommentsWithStatus(cardId);
+        return result.value;
+    }
+
+    async getCardCommentsWithStatus(cardId) {
         try {
             // Use Trello's REST API to get card actions (comments)
-            const response = await this.t.getRestApi().getCardActions(cardId, {
+            const restApi = await this.t.getRestApi();
+            if (!restApi || typeof restApi.getCardActions !== 'function') {
+                throw new Error('Comment action API was not available in this Power-Up runtime.');
+            }
+
+            const response = await restApi.getCardActions(cardId, {
                 filter: 'commentCard',
                 limit: 100
             });
 
-            return response.map(action => ({
-                id: action.id,
-                text: action.data.text,
-                date: action.date,
-                memberCreator: action.memberCreator?.fullName || 'Unknown'
-            }));
+            const actions = Array.isArray(response) ? response : [];
+            return {
+                ok: true,
+                value: actions.map(action => ({
+                    id: action.id,
+                    text: action.data?.text || '',
+                    date: action.date,
+                    memberCreator: action.memberCreator?.fullName || 'Unknown'
+                }))
+            };
         } catch (error) {
             this.logSafeWarning('Could not fetch comments', error);
-            return [];
+            return {
+                ok: false,
+                value: [],
+                error: this.sanitizeErrorMessage(error)
+            };
         }
     }
 

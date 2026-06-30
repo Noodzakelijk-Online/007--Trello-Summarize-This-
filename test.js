@@ -105,6 +105,12 @@ const trelloSanitizer = new TrelloIntegration();
 const trelloSafeError = trelloSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(trelloSafeError, /secret123|trello-token|attachments\.example\.com/);
 assert.match(trelloSafeError, /redacted|url redacted/);
+const popupText = fs.readFileSync(path.join(__dirname, "popup.html"), "utf8");
+assert.match(popupText, /function sanitizeUserVisibleError/);
+assert.match(popupText, /Provider message: " \+ sanitizeUserVisibleError\(error\)/);
+assert.match(popupText, /Could not post the comment: " \+ sanitizeUserVisibleError\(error\)/);
+assert.doesNotMatch(popupText, /error:\s*error\.message \|\| String\(error\)/);
+assert.doesNotMatch(popupText, /showError\(error\.message \|\| String\(error\)\)/);
 const attachmentSanitizer = new AttachmentProcessor();
 const attachmentSafeError = attachmentSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(attachmentSafeError, /secret123|trello-token|attachments\.example\.com/);
@@ -1257,6 +1263,67 @@ const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/Summa
 assert.equal(fileValidation.isReadyForTrello, false);
 
 async function runAsyncTests() {
+  const trelloSourceRead = new TrelloIntegration();
+  trelloSourceRead.isInTrello = true;
+  trelloSourceRead.t = {
+    card: async function () {
+      return {
+        id: "card-source-read",
+        name: "Source-read regression",
+        desc: "Verify partial Trello failures are visible.",
+        labels: [{ name: "Ops" }],
+        members: [],
+        due: null,
+        dueComplete: false,
+        url: "https://trello.example/c/source-read",
+        shortUrl: "https://trello.example/c/src",
+        badges: {
+          comments: 4,
+          attachments: 1,
+          checkItems: 2
+        },
+        attachments: [{ id: "att-1", name: "notes.txt", url: "https://files.example/notes.txt" }],
+        checklists: [{ id: "check-1", checkItems: [{ state: "complete" }, { state: "incomplete" }] }],
+        customFieldItems: [{ id: "custom-1" }]
+      };
+    },
+    member: async function () {
+      return [{ fullName: "Context Member" }];
+    },
+    board: async function () {
+      throw new Error("Board read failed token=board-secret https://trello.example/private-board");
+    },
+    list: async function () {
+      return { name: "Doing" };
+    },
+    getRestApi: function () {
+      return {
+        getCardActions: async function () {
+          throw new Error("Authorization: Bearer comment-secret token=comment-secret https://attachments.example.com/private");
+        }
+      };
+    }
+  };
+  const previousWarn = console.warn;
+  console.warn = function () {};
+  try {
+    const trelloCardData = await trelloSourceRead.getCardData();
+    assert.deepEqual(trelloCardData.members, ["Context Member"]);
+    assert.equal(trelloCardData.list, "Doing");
+    assert.equal(trelloCardData.board, "");
+    assert.equal(trelloCardData.comments.length, 0);
+    assert.equal(trelloCardData.__sourceCounts.comments, 4);
+    assert.equal(trelloCardData.__sourceCounts.attachments, 1);
+    assert.equal(trelloCardData.__sourceCounts.checklistItems, 2);
+    assert.equal(trelloCardData.__sourceStatus.list.ok, true);
+    assert.equal(trelloCardData.__sourceStatus.board.ok, false);
+    assert.equal(trelloCardData.__sourceStatus.comments.ok, false);
+    assert.doesNotMatch(trelloCardData.__sourceStatus.board.error, /board-secret|trello\.example/);
+    assert.doesNotMatch(trelloCardData.__sourceStatus.comments.error, /comment-secret|attachments\.example\.com/);
+  } finally {
+    console.warn = previousWarn;
+  }
+
   const ProxyWorker = await import(pathToFileURL(path.join(__dirname, "proxy", "cloudflare-worker.mjs")).href);
   assert.equal(ProxyWorker.selectProvider("auto", {
     DEFAULT_PROVIDER: "openai",
