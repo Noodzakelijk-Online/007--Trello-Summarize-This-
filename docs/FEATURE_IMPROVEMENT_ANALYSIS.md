@@ -95,6 +95,7 @@ Implemented:
 
 - AI providers are now prompted to return blockers, waiting-on items, unclear points, next actions, Robert decisions, VA/team-ready actions, missing information, unresolved questions, evidence claims, validation findings, and confidence reasons directly.
 - The ledger preserves these structured AI fields when present and still falls back to deterministic extraction.
+- The legacy `ai-providers.js` module now builds the same operational ledger prompt shape, preserves comment/attachment/source-status context, and parses fenced provider JSON instead of asking for only a generic four-part summary.
 - Settings now include user-selectable output modes:
   - Operational ledger.
   - Status update.

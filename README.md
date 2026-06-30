@@ -228,7 +228,8 @@ vercel
 | Component | File | Purpose |
 |-----------|------|---------|
 | **Connector** | `connector.js` | Trello Power-Up initialization |
-| **Main UI** | `popup-999-accuracy.html` | Analysis interface |
+| **Main UI** | `popup.html` | Card intelligence analysis interface |
+| **Legacy popup redirects** | `popup-999-accuracy.html`, `popup-enhanced.html`, `popup-nextgen.html`, `popup-original.html` | Compatibility redirects to the active popup |
 | **Accuracy** | `accuracy-system.js` | Confidence, validation, errors |
 | **AI Integration** | `ai-providers.js` | Multi-AI provider support |
 | **Trello API** | `trello-integration.js` | Card data fetching |
@@ -326,7 +327,8 @@ cd 007--Trello-Summarize-This-
 ```
 007--Trello-Summarize-This-/
 ├── connector.js                    # Power-Up connector
-├── popup-999-accuracy.html         # Main analysis UI
+├── popup.html                      # Main card intelligence UI
+├── popup-999-accuracy.html         # Legacy redirect to popup.html
 ├── accuracy-system.js              # Accuracy modules
 ├── settings-powerup.html           # Settings UI
 ├── manifest.json                   # Power-Up manifest

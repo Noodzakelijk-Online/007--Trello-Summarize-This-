@@ -57,11 +57,11 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 1. **Open a Card**: In Trello, open any card you want to analyze
 2. **Click Power-Up Button**: Look for the "Summarize This" button
 3. **Wait for Analysis**: The AI will analyze the card (10-30 seconds)
-4. **View Results**: See the four-part summary:
-   - **About**: What the card is about
-   - **History**: What has happened
-   - **Status**: Current state
-   - **Next Steps**: What needs to be done
+4. **View Results**: See the operational card intelligence panel:
+   - **Operational digest**: current status, main blocker, top next action, Robert decision, VA/team handoff, and confidence
+   - **Detailed summary**: about, history, current status, completed work, risks, and missing information
+   - **Evidence and validation**: source coverage, evidence claims, attachment facts, and review warnings
+   - **Actions and decisions**: blockers, waiting states, next actions, Robert decisions, VA-ready actions, and unresolved questions
 
 ### Understanding the Summary
 

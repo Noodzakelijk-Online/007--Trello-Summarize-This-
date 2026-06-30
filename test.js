@@ -101,6 +101,46 @@ const providerSanitizer = new AIProviders();
 const providerSafeError = providerSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(providerSafeError, /sk-test-secret-token|secret123|trello-token/);
 assert.match(providerSafeError, /redacted/);
+const legacyOperationalPrompt = providerSanitizer.buildOperationalPrompt({
+  name: "Approve VA follow-up",
+  desc: "Robert needs to decide whether the VA may send the client update.",
+  labels: [{ name: "Client" }],
+  members: [{ fullName: "Robert" }],
+  due: "2026-07-05T00:00:00.000Z",
+  checklistProgress: "1 of 3 items completed",
+  comments: [
+    {
+      text: "Waiting on Robert approval before sending.",
+      date: "2026-06-29T10:00:00.000Z",
+      memberCreator: { fullName: "VA Team" }
+    }
+  ],
+  attachments: [
+    {
+      name: "invoice.pdf",
+      mimeType: "application/pdf",
+      extractionStatus: "metadata-only"
+    }
+  ],
+  __sourceStatus: {
+    comments: { ok: true },
+    attachments: { ok: true, detail: "Metadata only." }
+  },
+  __sourceCounts: {
+    comments: 1,
+    attachments: 1
+  }
+});
+assert.ok(legacyOperationalPrompt.includes("robertDecisions"));
+assert.ok(legacyOperationalPrompt.includes("vaReadyActions"));
+assert.ok(legacyOperationalPrompt.includes("evidenceClaims"));
+assert.ok(legacyOperationalPrompt.includes("validationFindings"));
+assert.ok(legacyOperationalPrompt.includes("metadata-only"));
+assert.ok(legacyOperationalPrompt.includes("VA Team"));
+assert.doesNotMatch(legacyOperationalPrompt, /\[object Object\]/);
+const parsedProviderJson = providerSanitizer.parseProviderJson("```json\n{\"about\":\"Card\",\"blockers\":[\"Waiting on Robert\"],\"robertDecisions\":[\"Approve? Yes/No\"],\"vaReadyActions\":[\"Draft update\"]}\n```");
+assert.deepEqual(parsedProviderJson.blockers, ["Waiting on Robert"]);
+assert.deepEqual(parsedProviderJson.robertDecisions, ["Approve? Yes/No"]);
 const trelloSanitizer = new TrelloIntegration();
 const trelloSafeError = trelloSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(trelloSafeError, /secret123|trello-token|attachments\.example\.com/);
