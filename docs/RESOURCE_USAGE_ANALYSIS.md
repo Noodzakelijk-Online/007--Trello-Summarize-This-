@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 314.2 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 470.0 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.68 MB.
-- Generated Windows installer executable: 288,768 bytes.
+- Active popup initial local files: about 315.4 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 476.0 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.74 MB.
+- Generated Windows installer executable: 292,864 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -43,8 +43,9 @@ Current results:
    - Legacy attachment processing now defaults to metadata-only handling for binary files and uses the same bounded safe text extraction path for text-like files.
 
 2. Bounded AI response size and time:
-   - OpenAI and Google outputs are capped at 900 output tokens.
-   - Anthropic output is capped at 900 tokens.
+   - OpenAI, Google AI, and Anthropic outputs default to 900 output tokens.
+   - Settings can lower or raise the response budget to 600, 900, 1,200, or 1,600 output tokens.
+   - Runtime normalization clamps any saved or proxy-supplied output cap to 300-2,000 tokens before provider calls.
    - AI provider requests time out after 30 seconds and fall back cleanly in auto mode.
    - Sensitive-card detection runs before provider calls and keeps analysis local until the user explicitly approves AI handoff.
    - Provider key validation is user-triggered only, uses a 10-second timeout, and sends the smallest practical validation request.
@@ -110,11 +111,11 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 470.0 KB, and the generated `SummarizeThisSetup.exe` is 288,768 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 476.0 KB, and the generated `SummarizeThisSetup.exe` is 292,864 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
-Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Legacy attachment processing blocks private/local URLs, including normalized IPv4 forms and local/private IPv6 ranges, and no longer fetches binary attachment bodies by default. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
+Moderate only when AI is enabled and approved. The app sends Trello card context to the selected AI provider or configured backend proxy, but sensitive client, financial, legal, or personal signals now force a local result first until the user approves the handoff. The same sensitive signals also require review before detailed export copy/download or Trello comment draft handoff. Prior correction text is included only as bounded guidance and participates in sensitive-signal detection. The prompt and response caps reduce token use, latency, and provider cost for large cards. Optional text/CSV attachment extraction adds bounded HTTPS fetches only when enabled in settings, and sensitive cards skip those fetches until approval. Legacy attachment processing blocks private/local URLs, including normalized IPv4 forms and local/private IPv6 ranges, and no longer fetches binary attachment bodies by default. Per-provider monthly budget alerts now warn on estimated spend thresholds without adding any network calls. Runtime diagnostics now redact key-like strings, tokens, and URLs. In local-only mode no AI provider or proxy network request is made.
 
 Local preview does not persist provider API keys, so AI-only mode requires either the Trello Power-Up runtime where member-private storage is available or a valid backend proxy endpoint. Proxy endpoints are saved only after normalization: HTTPS is required for Trello use, localhost/127.0.0.1 are allowed for development, and query strings, fragments, and embedded credentials are stripped or rejected.
 
@@ -124,7 +125,7 @@ Low. The Power-Up reads card, board, list, and settings data on demand. Badge re
 
 ## Tradeoffs
 
-- The default prompt caps preserve the feature but may omit very old or very long comment text from AI analysis. This is intentional: the latest 12 comments and card description usually carry the strongest context, and the local summary still uses structured metadata. Users can raise the caps for unusually large cards.
+- The default prompt and response caps preserve the feature but may omit very old comments or compress very detailed provider output. This is intentional: the latest 12 comments and card description usually carry the strongest context, and the local summary still uses structured metadata. Users can raise the caps for unusually large cards.
 - The Windows `.exe` installer runs the standalone/local version. Trello Power-Up usage still requires hosting the static files on HTTPS, because Trello cannot load a private local Windows installer path inside Trello. The installed setup assistant now provides GitHub Pages, Netlify, Vercel, and custom HTTPS presets so the correct public connector URL can be prepared with less manual work.
 
 ## Remaining Opportunities

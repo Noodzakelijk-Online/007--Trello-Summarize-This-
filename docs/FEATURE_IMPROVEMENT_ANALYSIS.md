@@ -178,6 +178,7 @@ Status: Implemented in `settings-powerup.html` and active AI provider calls.
 - AI prompt comments can be set to 6, 12, 20, or 25 latest comments.
 - Comment excerpts can be set to 400, 700, 1,200, or 1,500 characters each.
 - Description context can be set to 1,500, 2,500, 4,000, or 5,000 characters.
+- AI response budget can be set to 600, 900, 1,200, or 1,600 output tokens and is normalized before direct provider or proxy calls.
 - The settings panel warns that larger context sends more Trello content to the configured AI provider.
 
 ### 5d. Sensitive AI Handoff Approval
@@ -224,7 +225,7 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 - Proxy endpoints must be HTTPS, except local development endpoints on `localhost`, `127.0.0.1`, or `::1`.
 - Query strings, fragments, and embedded credentials are stripped or rejected before saving.
 - When proxy mode is enabled, the popup uses the proxy path only. If the proxy fails in Auto mode, the result falls back to local summarization instead of silently using direct browser-held provider keys.
-- The proxy request uses a compact versioned JSON schema containing provider preference, model preference, strategy, output mode/language, and the bounded AI prompt.
+- The proxy request uses a compact versioned JSON schema containing provider preference, model preference, strategy, output mode/language, output token budget, and the bounded AI prompt.
 - A Cloudflare Worker reference proxy is included with request-size checks, schema validation, prompt caps, provider-key secrets, allowed-origin checks, a configurable per-client request limit, CORS handling, no-store responses, and redacted provider errors.
 
 ### 5g. Feedback-Guided Reanalysis

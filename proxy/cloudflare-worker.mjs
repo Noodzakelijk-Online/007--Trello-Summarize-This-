@@ -85,6 +85,7 @@ export function normalizeProxyRequest(input) {
     strategy: cleanText(input.strategy, 80) || "cost-effective",
     outputMode: cleanText(input.outputMode, 80) || "operational-ledger",
     outputLanguage: cleanText(input.outputLanguage, 20) || "en",
+    maxOutputTokens: clampNumber(input.maxOutputTokens || input.maxTokens, 900, 300, 2000),
     prompt
   };
 }
@@ -178,7 +179,7 @@ async function callOpenAI(payload, env) {
       ],
       response_format: { type: "json_object" },
       temperature: 0.2,
-      max_tokens: 900
+      max_tokens: payload.maxOutputTokens
     })
   });
   const data = await parseProviderJson(response);
@@ -206,7 +207,7 @@ async function callGoogle(payload, env) {
       generationConfig: {
         temperature: 0.2,
         responseMimeType: "application/json",
-        maxOutputTokens: 900
+        maxOutputTokens: payload.maxOutputTokens
       }
     })
   });
@@ -233,7 +234,7 @@ async function callAnthropic(payload, env) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 900,
+      max_tokens: payload.maxOutputTokens,
       temperature: 0.2,
       messages: [{ role: "user", content: payload.prompt }]
     })
@@ -347,6 +348,12 @@ function parseMaybeJson(value) {
 
 function cleanText(value, limit) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function clampNumber(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
 }
 
 function parseRateLimit(value) {

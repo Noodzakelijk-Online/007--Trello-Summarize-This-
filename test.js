@@ -149,8 +149,14 @@ const popupText = fs.readFileSync(path.join(__dirname, "popup.html"), "utf8");
 assert.match(popupText, /function sanitizeUserVisibleError/);
 assert.match(popupText, /Provider message: " \+ sanitizeUserVisibleError\(error\)/);
 assert.match(popupText, /Could not post the comment: " \+ sanitizeUserVisibleError\(error\)/);
+assert.match(popupText, /function maxOutputTokensFor/);
+assert.match(popupText, /maxOutputTokens: maxOutputTokensFor\(settings\)/);
+assert.match(popupText, /max_tokens: maxOutputTokens/);
 assert.doesNotMatch(popupText, /error:\s*error\.message \|\| String\(error\)/);
 assert.doesNotMatch(popupText, /showError\(error\.message \|\| String\(error\)\)/);
+const settingsText = fs.readFileSync(path.join(__dirname, "settings-powerup.html"), "utf8");
+assert.match(settingsText, /id="maxOutputTokens"/);
+assert.match(settingsText, /normalizeGenerationSettings/);
 const attachmentSanitizer = new AttachmentProcessor();
 const attachmentSafeError = attachmentSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(attachmentSafeError, /secret123|trello-token|attachments\.example\.com/);
@@ -258,6 +264,12 @@ const disabledProxySettings = SummarizeThis.normalizeProxySettings({
 });
 assert.equal(disabledProxySettings.enabled, false);
 assert.equal(disabledProxySettings.endpoint, "https://proxy.example.com/ai");
+
+const defaultGenerationSettings = SummarizeThis.normalizeGenerationSettings();
+assert.equal(defaultGenerationSettings.maxOutputTokens, 900);
+assert.equal(SummarizeThis.normalizeGenerationSettings({ maxOutputTokens: "1200" }).maxOutputTokens, 1200);
+assert.equal(SummarizeThis.normalizeGenerationSettings({ maxOutputTokens: "99999" }).maxOutputTokens, 2000);
+assert.equal(SummarizeThis.normalizeGenerationSettings({ maxTokens: "250" }).maxOutputTokens, 300);
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()
@@ -1492,6 +1504,19 @@ async function runAsyncTests() {
     provider: "openai",
     prompt: "x".repeat(24001)
   }), /Prompt is too large/);
+  const normalizedProxyBudget = ProxyWorker.normalizeProxyRequest({
+    schemaVersion: "summarize-this-ai-proxy-request-v1",
+    provider: "openai",
+    prompt: "Return JSON.",
+    maxOutputTokens: "1200"
+  });
+  assert.equal(normalizedProxyBudget.maxOutputTokens, 1200);
+  assert.equal(ProxyWorker.normalizeProxyRequest({
+    schemaVersion: "summarize-this-ai-proxy-request-v1",
+    provider: "openai",
+    prompt: "Return JSON.",
+    maxOutputTokens: "99999"
+  }).maxOutputTokens, 2000);
   ProxyWorker.resetRateLimitBuckets();
   const rateLimitRequest = new Request("https://proxy.example.test/", {
     headers: {
@@ -1584,6 +1609,7 @@ async function runAsyncTests() {
         strategy: "cost-effective",
         outputMode: "operational-ledger",
         outputLanguage: "en",
+        maxOutputTokens: 1200,
         prompt: "Return JSON."
       })
     }), {
@@ -1602,6 +1628,7 @@ async function runAsyncTests() {
     assert.equal(proxyBody.metadata.provider, "OpenAI via proxy");
     assert.equal(proxyBody.metadata.tokens, 150);
     assert.equal(providerCall.url, "https://api.openai.com/v1/chat/completions");
+    assert.equal(JSON.parse(providerCall.options.body).max_tokens, 1200);
     assert.match(providerCall.options.headers.Authorization, /sk-proxy-secret-openai/);
     assert.doesNotMatch(JSON.stringify(proxyBody), /sk-proxy-secret-openai/);
   } finally {

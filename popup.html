@@ -1688,6 +1688,7 @@
             strategy: settings.strategy || "cost-effective",
             outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
             outputLanguage: SummarizeThis.normalizeOutputLanguage(settings.outputLanguage),
+            maxOutputTokens: maxOutputTokensFor(settings),
             prompt: SummarizeThis.buildAIPrompt(cardData, promptContextOptions(settings))
           })
         }, 30000);
@@ -1718,8 +1719,13 @@
         return "";
       }
 
+      function maxOutputTokensFor(settings) {
+        return SummarizeThis.normalizeGenerationSettings(settings && (settings.generation || settings)).maxOutputTokens;
+      }
+
       async function callOpenAI(apiKey, cardData, settings, localAnalysis) {
         var model = settings.openaiModel || (settings.strategy === "best-quality" ? "gpt-4o" : "gpt-4o-mini");
+        var maxOutputTokens = maxOutputTokensFor(settings);
         var response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -1740,7 +1746,7 @@
             ],
             response_format: { type: "json_object" },
             temperature: 0.2,
-            max_tokens: 900
+            max_tokens: maxOutputTokens
           })
         }, 30000);
 
@@ -1762,6 +1768,7 @@
 
       async function callGoogle(apiKey, cardData, settings, localAnalysis) {
         var model = settings.googleModel || "gemini-1.5-flash";
+        var maxOutputTokens = maxOutputTokensFor(settings);
         var response = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
           method: "POST",
           headers: {
@@ -1773,7 +1780,7 @@
             generationConfig: {
               temperature: 0.2,
               responseMimeType: "application/json",
-              maxOutputTokens: 900
+              maxOutputTokens: maxOutputTokens
             }
           })
         }, 30000);
@@ -1796,6 +1803,7 @@
 
       async function callAnthropic(apiKey, cardData, settings, localAnalysis) {
         var model = settings.anthropicModel || (settings.strategy === "best-quality" ? "claude-3-5-sonnet-20241022" : "claude-3-5-haiku-20241022");
+        var maxOutputTokens = maxOutputTokensFor(settings);
         var response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
@@ -1805,7 +1813,7 @@
           },
           body: JSON.stringify({
             model: model,
-            max_tokens: 900,
+            max_tokens: maxOutputTokens,
             temperature: 0.2,
             messages: [{ role: "user", content: SummarizeThis.buildAIPrompt(cardData, promptContextOptions(settings)) }]
           })

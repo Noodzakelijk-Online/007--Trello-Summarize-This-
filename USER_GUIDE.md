@@ -169,6 +169,15 @@ Settings can route AI calls through a backend proxy endpoint. When enabled, the 
 
 The repository includes an optional Cloudflare Worker reference implementation in `proxy/`. It validates request size, schema, prompt length, provider choice, allowed origins, and a configurable per-client request rate before calling a provider with server-side secrets.
 
+### AI Response Budget
+
+Settings include an **AI response budget** control for direct provider mode and proxy mode.
+
+- Use **Short** for lower latency and lower provider cost.
+- Use **Balanced** for the default operational ledger.
+- Use **Detailed** or **Large-card review** when blockers, evidence, and decision notes need more room.
+- Saved values are normalized before provider calls, and the proxy clamps requests server-side as well.
+
 ---
 
 ## Analysis Strategies

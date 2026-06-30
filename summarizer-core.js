@@ -1453,6 +1453,13 @@
     };
   }
 
+  function normalizeGenerationSettings(input) {
+    var source = input || {};
+    return {
+      maxOutputTokens: clampNumber(source.maxOutputTokens || source.maxTokens, 900, 300, 2000)
+    };
+  }
+
   function normalizeProxyEndpoint(value) {
     var raw = cleanText(value);
     if (!raw) return "";
@@ -1723,6 +1730,7 @@
     normalizeOutputLanguage: normalizeOutputLanguage,
     normalizeCustomFields: normalizeCustomFields,
     normalizeCustomInstructions: normalizeCustomInstructions,
+    normalizeGenerationSettings: normalizeGenerationSettings,
     normalizeProxySettings: normalizeProxySettings,
     normalizePromptTemplates: normalizePromptTemplates,
     normalizePromptTemplateSettings: normalizePromptTemplateSettings,

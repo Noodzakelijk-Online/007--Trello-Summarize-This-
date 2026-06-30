@@ -310,6 +310,17 @@
       </div>
 
       <div class="group">
+        <label for="maxOutputTokens">AI response budget</label>
+        <select id="maxOutputTokens">
+          <option value="600">Short: up to 600 output tokens</option>
+          <option value="900">Balanced: up to 900 output tokens</option>
+          <option value="1200">Detailed: up to 1,200 output tokens</option>
+          <option value="1600">Large-card review: up to 1,600 output tokens</option>
+        </select>
+        <p class="help">Lower values reduce latency and provider cost. Higher values allow more detailed blockers, evidence, and decision notes.</p>
+      </div>
+
+      <div class="group">
         <label class="checkbox-row" for="includeListContext">
           <input id="includeListContext" type="checkbox">
           <span>Include bounded list context</span>
@@ -455,6 +466,7 @@
         promptCommentLimit: document.getElementById("promptCommentLimit"),
         promptCommentCharacters: document.getElementById("promptCommentCharacters"),
         promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
+        maxOutputTokens: document.getElementById("maxOutputTokens"),
         includeListContext: document.getElementById("includeListContext"),
         extractTextAttachments: document.getElementById("extractTextAttachments"),
         requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
@@ -513,6 +525,7 @@
         fields.promptCommentLimit.value = String(promptContext.commentLimit);
         fields.promptCommentCharacters.value = String(promptContext.commentCharacters);
         fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
+        fields.maxOutputTokens.value = String(SummarizeThis.normalizeGenerationSettings(settings.generation || settings).maxOutputTokens);
         fields.includeListContext.checked = settings.includeListContext !== false;
         fields.extractTextAttachments.checked = settings.extractTextAttachments === true;
         fields.requireSensitiveAiApproval.checked = settings.requireSensitiveAiApproval !== false;
@@ -545,6 +558,7 @@
             commentLimit: 12,
             commentCharacters: 700
           },
+          generation: SummarizeThis.normalizeGenerationSettings(),
           budget: SummarizeThis.normalizeBudgetSettings(),
           apiKeys: {}
         };
@@ -607,6 +621,9 @@
             descriptionCharacters: fields.promptDescriptionCharacters.value,
             commentLimit: fields.promptCommentLimit.value,
             commentCharacters: fields.promptCommentCharacters.value
+          }),
+          generation: SummarizeThis.normalizeGenerationSettings({
+            maxOutputTokens: fields.maxOutputTokens.value
           }),
           budget: SummarizeThis.normalizeBudgetSettings({
             warningPercent: fields.budgetWarningPercent.value,
