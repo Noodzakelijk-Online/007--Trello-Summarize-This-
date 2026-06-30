@@ -63,6 +63,8 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
    - **Evidence and validation**: source coverage, evidence claims, attachment facts, and review warnings
    - **Actions and decisions**: blockers, waiting states, next actions, Robert decisions, VA-ready actions, and unresolved questions
 
+Cards with no visible Trello activity for 14+ days are flagged as aging. Cards with no visible activity for 30+ days are also surfaced as stale-activity risks, blockers, validation findings, trust warnings, and review questions.
+
 The Trello card badge starts as **Setup needed** until local mode, direct provider keys, or proxy mode is configured. After a card has private ledger history, the badge can show **Review needed**, **Analysis failed**, or the latest confidence percentage.
 
 ### Understanding the Summary

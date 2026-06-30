@@ -12,6 +12,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - `AnalysisRun`: provider/model metadata, input hash, timing, structured result, and audit event.
 - `EvidenceClaim`: summary claims linked to card title, description, list, due date, checklist, comment, activity, attachment, label, member, or custom-field evidence.
 - `Blocker`: explicit and implied blockers from card text, missing context, overdue state, low checklist progress, and attachment extraction limitations.
+- `StaleActivity`: deterministic inactivity signal based on Trello `dateLastActivity`, comment dates, or activity dates. Cards with no visible activity for 14+ days are aging; 30+ days becomes a stale-activity blocker, validation finding, confidence penalty, trust warning, and review question.
 - `WaitingOn`: explicit waiting states, external replies, approvals, missing input, and dependency signals that block movement.
 - `NextAction`: extracted next steps plus open checklist items.
 - `DecisionItem`: Robert-specific approval or Yes/No decision candidates.
@@ -59,6 +60,7 @@ Feedback records remain compact. Correction text is capped, and `incorrectSectio
 - Custom prompt guidance is stored member-private in settings. Ledger runs and JSON exports record only a presence flag, character count, and short hash, not the full guidance text.
 - Custom fields are included as compact evidence and AI prompt context when available.
 - Recent activity is included as compact non-comment action evidence when available, capped to 25 stored items and 12 prompt/evidence items.
+- Stale-activity detection uses only activity timestamps and does not read more Trello content or call an AI provider.
 - Attachment evidence is honest about metadata-only extraction and now classifies linked documents, transcripts, and recordings from metadata.
 - Optional text/CSV extraction is off by default. When enabled, the popup fetches only small HTTPS text-like attachments, stores bounded excerpts, and includes compact previews in evidence and AI prompt context. Sensitive-card signals keep those attachments metadata-only until the user approves the sensitive run.
 - Deeper PDF/Word/image/audio/video extraction still needs a safer extraction path.

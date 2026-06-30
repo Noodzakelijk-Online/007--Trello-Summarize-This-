@@ -956,6 +956,43 @@
     };
   }
 
+  function getActivityAgeInfo(card, now) {
+    var reference = now || new Date();
+    if (Number.isNaN(reference.getTime())) reference = new Date();
+    var dates = [];
+    if (card.dateLastActivity) dates.push(card.dateLastActivity);
+    card.comments.forEach(function (comment) {
+      if (comment.date) dates.push(comment.date);
+    });
+    card.actions.forEach(function (action) {
+      if (action.date) dates.push(action.date);
+    });
+
+    var latest = dates.reduce(function (best, value) {
+      var date = new Date(value);
+      if (Number.isNaN(date.getTime())) return best;
+      return !best || date.getTime() > best.getTime() ? date : best;
+    }, null);
+
+    if (!latest) {
+      return {
+        known: false,
+        stale: false,
+        veryStale: false,
+        days: null
+      };
+    }
+
+    var days = Math.max(0, Math.floor((reference.getTime() - latest.getTime()) / 86400000));
+    return {
+      known: true,
+      latestAt: latest.toISOString(),
+      days: days,
+      stale: days >= 14,
+      veryStale: days >= 30
+    };
+  }
+
   function extractKeywords(card) {
     var source = [card.name, card.desc].join(" ").toLowerCase();
     var counts = {};
@@ -1022,6 +1059,7 @@
   function buildRuleBasedAnalysis(input, options) {
     var card = normalizeCardData(input);
     var due = getDueInfo(card, options && options.now);
+    var activityAge = getActivityAgeInfo(card, options && options.now);
     var checklist = card.checklistStats;
     var keywords = extractKeywords(card);
     var nextSteps = [];
@@ -1040,6 +1078,9 @@
     var historyParts = [];
     if (card.dateLastActivity) {
       historyParts.push("Last activity was recorded on " + new Date(card.dateLastActivity).toLocaleDateString() + ".");
+    }
+    if (activityAge.veryStale) {
+      historyParts.push("No visible card activity has been recorded for " + activityAge.days + " days.");
     }
     if (card.commentCount) {
       historyParts.push(card.commentCount + " comment" + (card.commentCount === 1 ? "" : "s") + " " + (card.commentCount === 1 ? "is" : "are") + " available for context.");
@@ -1132,6 +1173,11 @@
     if (checklist.total && checklist.percent < 50) {
       risks.push("Less than half of the checklist is complete.");
     }
+    if (activityAge.veryStale) {
+      risks.push("No visible card activity has been recorded for " + activityAge.days + " days; confirm current status before relying on this card.");
+    } else if (activityAge.stale) {
+      risks.push("No visible card activity has been recorded for " + activityAge.days + " days; status may be aging.");
+    }
 
     recommendations.push("Use the next steps as the immediate action list for this card.");
     if (!card.desc) {
@@ -1148,6 +1194,9 @@
     }
     if (due.state === "overdue") {
       recommendations.push("Reconfirm priority and update the due date after the owner reviews the card.");
+    }
+    if (activityAge.stale) {
+      recommendations.push("Add a current status comment or move the card after confirming whether the work is still active.");
     }
 
     var qualityScore = scoreDataQuality(card);

@@ -806,7 +806,7 @@
     }, extra || {});
   }
 
-  function extractBlockers(input, summary, evidence) {
+  function extractBlockers(input, summary, evidence, options) {
     var card = normalizeCard(input);
     var blockers = [];
     var sourceText = [
@@ -857,6 +857,14 @@
       blockers.push(makeItem("blocker-progress", "Less than half of the checklist is complete.", findEvidenceIds(evidence, ["checklist"]), {
         severity: "medium",
         type: "progress"
+      }));
+    }
+
+    var activityAge = getActivityAge(card, options);
+    if (activityAge.veryStale) {
+      blockers.push(makeItem("blocker-stale-activity", "No visible card activity has been recorded for " + activityAge.days + " days; status should be refreshed before acting.", findEvidenceIds(evidence, ["activity", "comment", "list", "due"]), {
+        severity: "medium",
+        type: "stale-activity"
       }));
     }
 
@@ -980,6 +988,43 @@
     return due.getTime() < Date.now() ? "overdue" : "scheduled";
   }
 
+  function getActivityAge(card, options) {
+    var now = options && options.now ? new Date(options.now) : new Date();
+    if (Number.isNaN(now.getTime())) now = new Date();
+    var dates = [];
+    if (card.dateLastActivity) dates.push(card.dateLastActivity);
+    card.comments.forEach(function (comment) {
+      if (comment.date) dates.push(comment.date);
+    });
+    card.actions.forEach(function (action) {
+      if (action.date) dates.push(action.date);
+    });
+
+    var latest = dates.reduce(function (best, value) {
+      var date = new Date(value);
+      if (Number.isNaN(date.getTime())) return best;
+      return !best || date.getTime() > best.getTime() ? date : best;
+    }, null);
+
+    if (!latest) {
+      return {
+        known: false,
+        days: null,
+        stale: false,
+        veryStale: false
+      };
+    }
+
+    var days = Math.max(0, Math.floor((now.getTime() - latest.getTime()) / 86400000));
+    return {
+      known: true,
+      days: days,
+      latestAt: latest.toISOString(),
+      stale: days >= 14,
+      veryStale: days >= 30
+    };
+  }
+
   function extractNextActions(input, summary, evidence) {
     var card = normalizeCard(input);
     var actions = [];
@@ -1068,7 +1113,7 @@
     return dedupeItems(actions).slice(0, 6);
   }
 
-  function createValidationFindings(input, summary, evidence, blockers, decisions) {
+  function createValidationFindings(input, summary, evidence, blockers, decisions, options) {
     var card = normalizeCard(input);
     var findings = [];
 
@@ -1093,6 +1138,12 @@
     }
     if (!toArray(summary && summary.nextSteps).length) {
       findings.push(finding("missing-next-actions", "medium", "Analysis did not provide specific next actions.", findEvidenceIds(evidence, ["title", "description"])));
+    }
+    var activityAge = getActivityAge(card, options);
+    if (activityAge.veryStale) {
+      findings.push(finding("stale-activity", "medium", "No visible card activity has been recorded for " + activityAge.days + " days; confirm current status before relying on this analysis.", findEvidenceIds(evidence, ["activity", "comment", "list", "due"])));
+    } else if (activityAge.stale) {
+      findings.push(finding("aging-activity", "low", "No visible card activity has been recorded for " + activityAge.days + " days; status may be aging.", findEvidenceIds(evidence, ["activity", "comment", "list", "due"])));
     }
     if (!blockers.length && (!summary || !toArray(summary.risks).length)) {
       findings.push(finding("no-blockers-reviewed", "low", "No blockers were detected; review manually if the card is messy or high-risk.", findEvidenceIds(evidence, ["title", "description", "comment"])));
@@ -1234,8 +1285,9 @@
     return parts.join(" ");
   }
 
-  function createTrustSignals(input, operational) {
+  function createTrustSignals(input, operational, options) {
     var coverageItems = createSourceCoverage(input);
+    var card = normalizeCard(input);
     var confidence = operational && operational.confidence ? operational.confidence : null;
     var factors = confidence && confidence.factors ? confidence.factors : {};
     var basedOn = [];
@@ -1263,6 +1315,13 @@
     addMissingContext(needsReview, coverageItems, "comments", "No comments", "Card history may be incomplete.", "medium");
     addMissingContext(needsReview, coverageItems, "due", "No due date", "Deadline risk cannot be assessed from a due date.", "low");
     addMissingContext(needsReview, coverageItems, "checklists", "No checklist detail", "Completion state may be incomplete.", "low");
+
+    var activityAge = getActivityAge(card, options);
+    if (activityAge.veryStale) {
+      needsReview.push(signal("stale-activity", "Stale activity", "No visible card activity has been recorded for " + activityAge.days + " days.", "medium"));
+    } else if (activityAge.stale) {
+      needsReview.push(signal("aging-activity", "Aging activity", "No visible card activity has been recorded for " + activityAge.days + " days.", "low"));
+    }
 
     var whyScore = [];
     if (confidence) {
@@ -1322,10 +1381,10 @@
     });
   }
 
-  function createOperationalAnalysis(input, summary) {
+  function createOperationalAnalysis(input, summary, options) {
     var evidence = createEvidenceMap(input);
     var normalizedSummary = summary || {};
-    var blockers = extractBlockers(input, normalizedSummary, evidence);
+    var blockers = extractBlockers(input, normalizedSummary, evidence, options);
     var waitingOn = extractWaitingOn(input, normalizedSummary, evidence, blockers);
     var unclearPoints = extractUnclearPoints(input, normalizedSummary, evidence, blockers, waitingOn);
     var nextActions = extractNextActions(input, normalizedSummary, evidence);
@@ -1343,7 +1402,7 @@
       evidenceClaims: evidenceClaims,
       validationFindings: []
     };
-    operational.validationFindings = createValidationFindings(input, normalizedSummary, evidence, blockers, robertDecisions);
+    operational.validationFindings = createValidationFindings(input, normalizedSummary, evidence, blockers, robertDecisions, options);
     operational.confidence = calculateConfidence(input, normalizedSummary, operational);
     return operational;
   }
@@ -1351,7 +1410,7 @@
   function createAnalysisRun(input, analysis, options) {
     var card = normalizeCard(input);
     var summary = (analysis && analysis.summary) || analysis || {};
-    var operational = createOperationalAnalysis(input, summary);
+    var operational = createOperationalAnalysis(input, summary, options);
     var timestamp = nowIso(options);
     var runId = "run-" + shortHash(card.id + timestamp + JSON.stringify(summary));
     var outputMode = normalizeOutputMode(options && options.outputMode);
@@ -1415,7 +1474,7 @@
         unresolvedQuestions: unresolvedQuestions,
         confidence: operational.confidence,
         confidenceReason: cleanText(summary.confidenceReason),
-        trustSignals: createTrustSignals(input, operational),
+        trustSignals: createTrustSignals(input, operational, options),
         evidenceClaims: operational.evidenceClaims,
         validationFindings: operational.validationFindings,
         evidence: operational.evidence

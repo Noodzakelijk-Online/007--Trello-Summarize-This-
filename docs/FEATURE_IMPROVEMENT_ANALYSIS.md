@@ -270,6 +270,7 @@ Status: Implemented in `summarizer-core.js`, `card-intelligence-ledger.js`, and 
 - Activity is included in local history, local insights, AI prompt context, source coverage, trust signals, card snapshots, and evidence claims.
 - Runtime collection is capped to 25 activity items, and prompt/evidence usage is capped to 12 activity items.
 - Activity evidence is read-only and never triggers Trello writes.
+- Cards with no visible Trello activity for 14+ days are flagged as aging in local risks/trust warnings; cards with no visible activity for 30+ days are also surfaced as stale-activity blockers, validation findings, confidence penalties, and unresolved review questions.
 
 ### 5j. Custom Prompt Guidance
 

@@ -316,6 +316,17 @@ assert.ok(local.summary.insights.some(item => item.includes("Recent activity inc
 assert.ok(local.summary.insights.some(item => item.includes("Attachment metadata includes")));
 assert.ok(local.summary.risks.some(item => item.includes("Attachment contents were not verified")));
 
+const staleLocal = SummarizeThis.buildRuleBasedAnalysis(Object.assign({}, sample, {
+  dateLastActivity: "2026-05-20T12:00:00.000Z",
+  comments: [],
+  actions: []
+}), {
+  now: new Date("2026-06-30T12:00:00.000Z")
+});
+assert.ok(staleLocal.summary.history.includes("No visible card activity has been recorded for 41 days."));
+assert.ok(staleLocal.summary.risks.some(item => item.includes("41 days")));
+assert.ok(staleLocal.summary.recommendations.some(item => item.includes("current status comment")));
+
 const prompt = SummarizeThis.buildAIPrompt(sample);
 assert.ok(prompt.includes("Return only valid JSON"));
 assert.ok(prompt.includes("robertDecisions"));
@@ -813,6 +824,18 @@ assert.ok(run.result.evidence.some(item => item.type === "custom-field" && item.
 assert.ok(run.result.evidence.some(item => item.type === "activity" && item.excerpt.includes("Waiting on Robert")));
 assert.deepEqual(run.result.insights, operationalAnalysis.summary.insights);
 assert.deepEqual(run.result.recommendations, operationalAnalysis.summary.recommendations);
+
+const staleRun = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, operationalCard, {
+  dateLastActivity: "2026-05-20T12:00:00.000Z",
+  comments: [],
+  actions: []
+}), operationalAnalysis, {
+  now: "2026-06-30T12:00:00.000Z"
+});
+assert.ok(staleRun.result.blockers.some(item => item.id === "blocker-stale-activity" && item.text.includes("41 days")));
+assert.ok(staleRun.result.validationFindings.some(item => item.id === "stale-activity" && item.text.includes("41 days")));
+assert.ok(staleRun.result.trustSignals.needsReview.some(item => item.key === "stale-activity"));
+assert.ok(staleRun.result.unresolvedQuestions.some(item => item.text.includes("status should be refreshed") || item.text.includes("confirm current status")));
 
 const sameInputHashLater = CardIntelligenceLedger.createInputHash(Object.assign({}, operationalCard));
 const sameInputHashRun = CardIntelligenceLedger.createAnalysisRun(operationalCard, operationalAnalysis, {
