@@ -1460,6 +1460,11 @@
     };
   }
 
+  function normalizeProviderMode(value) {
+    var mode = cleanText(value || "fallback").toLowerCase();
+    return mode === "consensus" ? "consensus" : "fallback";
+  }
+
   function normalizeExportPreferences(input) {
     var source = input || {};
     var format = cleanText(source.defaultCopyFormat || source.defaultExportFormat || source.copyFormat);
@@ -1750,6 +1755,7 @@
     normalizeCustomInstructions: normalizeCustomInstructions,
     normalizeExportPreferences: normalizeExportPreferences,
     normalizeGenerationSettings: normalizeGenerationSettings,
+    normalizeProviderMode: normalizeProviderMode,
     normalizeProxySettings: normalizeProxySettings,
     normalizePromptTemplates: normalizePromptTemplates,
     normalizePromptTemplateSettings: normalizePromptTemplateSettings,

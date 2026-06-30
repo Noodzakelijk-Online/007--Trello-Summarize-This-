@@ -233,6 +233,15 @@
       </div>
 
       <div class="group">
+        <label for="providerMode">Provider mode</label>
+        <select id="providerMode">
+          <option value="fallback">Single provider with fallback</option>
+          <option value="consensus">Consensus review across configured providers</option>
+        </select>
+        <p class="help">Consensus is off by default. When enabled, the popup tries multiple configured providers and merges the strongest structured sections; this can increase latency and provider cost.</p>
+      </div>
+
+      <div class="group">
         <label for="outputMode">Default output mode</label>
         <select id="outputMode">
           <option value="operational-ledger">Operational ledger</option>
@@ -473,6 +482,7 @@
         analysisMode: document.getElementById("analysisMode"),
         provider: document.getElementById("provider"),
         strategy: document.getElementById("strategy"),
+        providerMode: document.getElementById("providerMode"),
         outputMode: document.getElementById("outputMode"),
         outputLanguage: document.getElementById("outputLanguage"),
         defaultCopyFormat: document.getElementById("defaultCopyFormat"),
@@ -524,6 +534,7 @@
         fields.analysisMode.value = settings.analysisMode || "auto";
         fields.provider.value = settings.provider || "openai";
         fields.strategy.value = settings.strategy || "cost-effective";
+        fields.providerMode.value = SummarizeThis.normalizeProviderMode(settings.providerMode);
         fields.outputMode.value = normalizeOutputMode(settings.outputMode);
         fields.outputLanguage.value = normalizeOutputLanguage(settings.outputLanguage);
         fields.defaultCopyFormat.value = SummarizeThis.normalizeExportPreferences(settings.exportPreferences || settings).defaultCopyFormat;
@@ -561,6 +572,7 @@
           analysisMode: "auto",
           provider: "openai",
           strategy: "cost-effective",
+          providerMode: "fallback",
           outputMode: "operational-ledger",
           outputLanguage: "en",
           exportPreferences: SummarizeThis.normalizeExportPreferences(),
@@ -623,6 +635,7 @@
           analysisMode: fields.analysisMode.value,
           provider: fields.provider.value,
           strategy: fields.strategy.value,
+          providerMode: SummarizeThis.normalizeProviderMode(fields.providerMode.value),
           outputMode: normalizeOutputMode(fields.outputMode.value),
           outputLanguage: normalizeOutputLanguage(fields.outputLanguage.value),
           exportPreferences: SummarizeThis.normalizeExportPreferences({

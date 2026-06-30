@@ -1027,6 +1027,9 @@
                 setStatus("Calling AI provider", "Asking the configured provider or proxy for a structured project summary.");
                 try {
                   analysis = await runConfiguredAI(cardData, settings, localAnalysis);
+                  if (analysis.metadata && analysis.metadata.consensusRequested && analysis.metadata.consensusProviderCount < 2) {
+                    warning = appendWarning(warning, "Consensus mode was requested, but fewer than two providers returned results. Review the single-provider result before relying on it.");
+                  }
                   timingTracker.mark("ai-provider", "AI provider");
                 } catch (error) {
                   timingTracker.mark("ai-provider", "AI provider");
@@ -1165,6 +1168,7 @@
           provider: "openai",
           analysisMode: "auto",
           strategy: "cost-effective",
+          providerMode: "fallback",
           outputMode: "operational-ledger",
           outputLanguage: "en",
           exportPreferences: SummarizeThis.normalizeExportPreferences(),
@@ -1188,6 +1192,7 @@
           try {
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
+            safeLocalSettings.providerMode = SummarizeThis.normalizeProviderMode(safeLocalSettings.providerMode);
             safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
             safeLocalSettings.exportPreferences = SummarizeThis.normalizeExportPreferences(safeLocalSettings.exportPreferences || safeLocalSettings);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
@@ -1221,6 +1226,7 @@
         var merged = Object.assign({}, fallback, settings || {}, {
           apiKeys: apiKeys,
           strategy: settings.strategy || legacyStrategy || fallback.strategy,
+          providerMode: SummarizeThis.normalizeProviderMode(settings.providerMode),
           exportPreferences: SummarizeThis.normalizeExportPreferences(settings.exportPreferences || settings),
           proxy: SummarizeThis.normalizeProxySettings(settings.proxy)
         });
@@ -1641,8 +1647,8 @@
       }
 
       async function runConfiguredAI(cardData, settings, localAnalysis) {
-        if (hasUsableProxy(settings)) {
-          return await callProxyAI(cardData, settings, localAnalysis);
+        if (SummarizeThis.normalizeProviderMode(settings && settings.providerMode) === "consensus") {
+          return await runConsensusAI(cardData, settings, localAnalysis);
         }
 
         var providerOrder = settings.provider === "auto"
@@ -1652,25 +1658,171 @@
         var lastError = null;
         for (var i = 0; i < providerOrder.length; i += 1) {
           var provider = providerOrder[i];
-          var key = settings.apiKeys && settings.apiKeys[provider];
-          if (!key) continue;
-
           try {
-            if (provider === "openai") {
-              return await callOpenAI(key, cardData, settings, localAnalysis);
-            }
-            if (provider === "google") {
-              return await callGoogle(key, cardData, settings, localAnalysis);
-            }
-            if (provider === "anthropic") {
-              return await callAnthropic(key, cardData, settings, localAnalysis);
-            }
+            return await callProviderAI(provider, cardData, settings, localAnalysis);
           } catch (error) {
             lastError = error;
           }
         }
 
         throw lastError || new Error("No configured provider was available.");
+      }
+
+      async function callProviderAI(provider, cardData, settings, localAnalysis) {
+        var providerSettings = Object.assign({}, settings, {
+          provider: provider
+        });
+        if (hasUsableProxy(providerSettings)) {
+          return await callProxyAI(cardData, providerSettings, localAnalysis);
+        }
+
+        var key = settings.apiKeys && settings.apiKeys[provider];
+        if (!key) {
+          throw new Error("No " + providerLabel(provider) + " API key is configured.");
+        }
+        if (provider === "openai") return await callOpenAI(key, cardData, providerSettings, localAnalysis);
+        if (provider === "google") return await callGoogle(key, cardData, providerSettings, localAnalysis);
+        if (provider === "anthropic") return await callAnthropic(key, cardData, providerSettings, localAnalysis);
+        throw new Error("Unsupported provider: " + provider);
+      }
+
+      async function runConsensusAI(cardData, settings, localAnalysis) {
+        var providerOrder = consensusProviderOrder(settings);
+        var results = [];
+        var errors = [];
+
+        for (var i = 0; i < providerOrder.length; i += 1) {
+          var provider = providerOrder[i];
+          if (!hasUsableProxy(settings) && !(settings.apiKeys && settings.apiKeys[provider])) continue;
+
+          try {
+            results.push(await callProviderAI(provider, cardData, settings, localAnalysis));
+          } catch (error) {
+            errors.push(providerLabel(provider) + ": " + sanitizeUserVisibleError(error));
+          }
+        }
+
+        if (!results.length) {
+          throw new Error(errors.length ? errors.join(" ") : "Consensus mode needs at least one configured provider.");
+        }
+
+        return createConsensusAnalysis(results, localAnalysis, errors);
+      }
+
+      function consensusProviderOrder(settings) {
+        var providers = ["openai", "google", "anthropic"];
+        var preferred = settings && settings.provider && settings.provider !== "auto" ? settings.provider : "";
+        if (providers.indexOf(preferred) === -1) return providers;
+        return [preferred].concat(providers.filter(function (provider) {
+          return provider !== preferred;
+        }));
+      }
+
+      function providerLabel(provider) {
+        return {
+          openai: "OpenAI",
+          google: "Google AI",
+          anthropic: "Anthropic"
+        }[provider] || provider || "provider";
+      }
+
+      function createConsensusAnalysis(results, localAnalysis, errors) {
+        var primary = results[0];
+        var summaries = results.map(function (result) {
+          return result.summary || {};
+        });
+        var summary = Object.assign({}, primary.summary, {
+          nextSteps: mergeConsensusList(summaries, "nextSteps", localAnalysis.summary.nextSteps),
+          insights: mergeConsensusList(summaries, "insights", localAnalysis.summary.insights),
+          risks: mergeConsensusList(summaries, "risks", localAnalysis.summary.risks),
+          recommendations: mergeConsensusList(summaries, "recommendations", localAnalysis.summary.recommendations),
+          completedWork: mergeConsensusList(summaries, "completedWork", localAnalysis.summary.completedWork),
+          blockers: mergeConsensusList(summaries, "blockers", localAnalysis.summary.blockers),
+          waitingOn: mergeConsensusList(summaries, "waitingOn", localAnalysis.summary.waitingOn),
+          robertDecisions: mergeConsensusList(summaries, "robertDecisions", localAnalysis.summary.robertDecisions),
+          vaReadyActions: mergeConsensusList(summaries, "vaReadyActions", localAnalysis.summary.vaReadyActions),
+          missingInfo: mergeConsensusList(summaries, "missingInfo", localAnalysis.summary.missingInfo),
+          unclearPoints: mergeConsensusList(summaries, "unclearPoints", localAnalysis.summary.unclearPoints),
+          unresolvedQuestions: mergeConsensusList(summaries, "unresolvedQuestions", localAnalysis.summary.unresolvedQuestions),
+          validationFindings: mergeConsensusList(summaries, "validationFindings", localAnalysis.summary.validationFindings).concat(errors.slice(0, 3)),
+          evidenceClaims: mergeConsensusEvidence(summaries, localAnalysis.summary.evidenceClaims),
+          confidenceReason: consensusConfidenceReason(results, errors)
+        });
+        var providerNames = results.map(function (result) {
+          return result.metadata && result.metadata.provider ? result.metadata.provider : "AI provider";
+        });
+        var modelNames = results.map(function (result) {
+          return result.metadata && result.metadata.model ? result.metadata.model : "";
+        }).filter(Boolean);
+        var tokenTotal = results.reduce(function (total, result) {
+          return total + Number(result.metadata && result.metadata.tokens || 0);
+        }, 0);
+        var costTotal = results.reduce(function (total, result) {
+          return total + Number(result.metadata && result.metadata.cost || 0);
+        }, 0);
+        var qualityScore = Math.min(98, Math.max.apply(null, results.map(function (result) {
+          return Number(result.qualityScore) || localAnalysis.qualityScore || 0;
+        })) + (results.length > 1 ? 2 : 0));
+
+        return {
+          summary: summary,
+          metadata: {
+            provider: results.length > 1 ? "AI consensus" : providerNames[0],
+            model: modelNames.join(" + "),
+            tokens: tokenTotal,
+            cost: Number(costTotal.toFixed(6)),
+            consensusRequested: true,
+            consensusProviderCount: results.length,
+            consensusProviders: providerNames
+          },
+          qualityScore: qualityScore,
+          qualityLevel: qualityScore >= 80 ? "high" : qualityScore >= 60 ? "medium" : "low",
+          source: "ai"
+        };
+      }
+
+      function mergeConsensusList(summaries, key, fallback) {
+        var seen = {};
+        var values = [];
+        summaries.forEach(function (summary) {
+          (Array.isArray(summary[key]) ? summary[key] : []).forEach(function (item) {
+            var text = typeof item === "string" ? item : item && (item.text || item.claim || item.summary);
+            text = String(text || "").replace(/\s+/g, " ").trim();
+            var id = text.toLowerCase();
+            if (text && !seen[id]) {
+              seen[id] = true;
+              values.push(text);
+            }
+          });
+        });
+        if (!values.length && Array.isArray(fallback)) return fallback.slice(0, 8);
+        return values.slice(0, 10);
+      }
+
+      function mergeConsensusEvidence(summaries, fallback) {
+        var seen = {};
+        var values = [];
+        summaries.forEach(function (summary) {
+          (Array.isArray(summary.evidenceClaims) ? summary.evidenceClaims : []).forEach(function (item) {
+            var claim = typeof item === "string" ? item : item && (item.claim || item.text || item.summary);
+            claim = String(claim || "").replace(/\s+/g, " ").trim();
+            var id = claim.toLowerCase();
+            if (claim && !seen[id]) {
+              seen[id] = true;
+              values.push(typeof item === "object" ? item : { claim: claim, source: "", confidence: "uncertain" });
+            }
+          });
+        });
+        if (!values.length && Array.isArray(fallback)) return fallback.slice(0, 8);
+        return values.slice(0, 12);
+      }
+
+      function consensusConfidenceReason(results, errors) {
+        var providers = results.map(function (result) {
+          return result.metadata && result.metadata.provider ? result.metadata.provider : "provider";
+        }).join(", ");
+        var errorText = errors.length ? " Some providers failed: " + errors.slice(0, 2).join(" ") : "";
+        return "Consensus mode used " + results.length + " provider result(s): " + providers + "." + errorText;
       }
 
       async function callProxyAI(cardData, settings, localAnalysis) {

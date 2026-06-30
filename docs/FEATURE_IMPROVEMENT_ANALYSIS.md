@@ -107,6 +107,8 @@ Implemented:
 - AI prompts include the selected output mode and mode-specific focus instruction.
 - Ledger runs and JSON exports preserve the selected output mode.
 - The active popup can copy a selected-mode brief without changing Trello or posting anything.
+- Settings now include provider mode: single provider with fallback by default, or opt-in consensus review across configured providers.
+- Consensus mode merges structured AI sections and records provider count, provider names, combined token estimate, and combined cost estimate in the ledger metadata.
 
 Impact: High. This expands usefulness without changing the core architecture.
 

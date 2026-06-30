@@ -209,10 +209,19 @@ Settings include an **AI response budget** control for direct provider mode and 
 ### Comprehensive
 
 **Best for**: Complex projects, thorough analysis
-- Uses: Multiple models in parallel
+- Uses: Multiple configured providers when **Provider mode** is set to consensus
 - Cost: ~$0.10-0.30 per analysis
 - Speed: Slower (20-40 seconds)
 - Quality: Multiple perspectives, consensus insights
+
+### Provider Mode
+
+Settings include a **Provider mode** control:
+
+- **Single provider with fallback**: default mode. Uses the preferred provider, or tries configured providers in order when provider is set to Auto.
+- **Consensus review**: opt-in mode. Tries multiple configured providers, merges structured sections such as blockers, next actions, Robert decisions, VA handoff items, evidence, and validation findings, and records the provider count in the ledger metadata.
+
+Consensus mode can increase latency and provider cost. If fewer than two providers return results, the popup shows a warning and keeps the available single-provider result for review.
 
 ### Privacy-Focused
 
