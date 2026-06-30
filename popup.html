@@ -11,7 +11,7 @@
   <script src="./card-intelligence-ledger.js?v=1.3.0"></script>
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: light dark;
       --blue: #0c66e4;
       --blue-dark: #0747a6;
       --green: #1f845a;
@@ -498,6 +498,91 @@
 
     .hidden {
       display: none !important;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --blue: #579dff;
+        --blue-dark: #85b8ff;
+        --green: #7ee2b8;
+        --yellow: #f5cd47;
+        --red: #ff9c8f;
+        --ink: #f7f8f9;
+        --muted: #b6c2cf;
+        --line: #39465e;
+        --panel: #1f2633;
+        --surface: #10141d;
+      }
+
+      .panel,
+      .metric,
+      .digest-item,
+      .source-list li,
+      .evidence-list li,
+      .secondary {
+        background: #1f2633;
+      }
+
+      .section-body,
+      ul,
+      .digest-value,
+      .checkbox-row,
+      .history-meta {
+        color: #dfe6f2;
+      }
+
+      .pill,
+      .trust-chip {
+        border-color: #2b6ecb;
+        background: #12325f;
+        color: #deebff;
+      }
+
+      .spinner {
+        border-color: #39465e;
+        border-top-color: var(--blue);
+      }
+
+      .secondary:hover {
+        background: #263244;
+      }
+
+      .notice,
+      .digest-item.warning,
+      .trust-chip.partial,
+      .trust-chip.warning {
+        border-color: #8f6f00;
+        background: #352c12;
+        color: #f8e6a0;
+      }
+
+      .digest-item.high,
+      .error,
+      .trust-chip.high {
+        border-color: #ae2e24;
+        background: #3b1f22;
+        color: #ffd5d2;
+      }
+
+      .digest-item.delegate {
+        background: #143224;
+      }
+
+      .source-status.available {
+        color: #7ee2b8;
+      }
+
+      .source-status.partial {
+        color: #f5cd47;
+      }
+
+      textarea,
+      .postback-preview {
+        border-color: #4b5873;
+        background: #151c27;
+        color: var(--ink);
+      }
     }
 
     @media (max-width: 640px) {

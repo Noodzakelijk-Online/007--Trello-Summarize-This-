@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 341.7 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 504.4 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.77 MB.
-- Generated Windows installer executable: 307,200 bytes.
+- Active popup initial local files: about 343.3 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 506.9 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.78 MB.
+- Generated Windows installer executable: 309,248 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -61,6 +61,7 @@ Current results:
    - The Windows launcher uses PowerShell and a tiny local HTTP server, avoiding Electron and background services.
    - The Trello setup assistant, deployment presets, deployment guide, URL validation, readiness package, admin field map, admin autofill helper, and static policy pages add about 52.9 KB to the runtime payload and are not loaded by the active popup.
    - Runtime entry pages declare the existing `icon.svg` as their favicon, avoiding an extra failed `/favicon.ico` request in local preview.
+   - System dark-mode support is CSS-only and follows `prefers-color-scheme`, adding no script, storage, polling, or network work.
 
 5. No always-on service:
    - The installed app starts only when the user launches it.
@@ -118,7 +119,7 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 504.4 KB, and the generated `SummarizeThisSetup.exe` is 307,200 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 506.9 KB, and the generated `SummarizeThisSetup.exe` is 309,248 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

@@ -67,6 +67,8 @@ Cards with no visible Trello activity for 14+ days are flagged as aging. Cards w
 
 The Trello card badge starts as **Setup needed** until local mode, direct provider keys, or proxy mode is configured. After a card has private ledger history, the badge can show **Review needed**, **Analysis failed**, or the latest confidence percentage.
 
+The popup and settings page automatically follow your system light or dark appearance preference.
+
 ### Understanding the Summary
 
 **About Section:**

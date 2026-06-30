@@ -146,6 +146,8 @@ const trelloSafeError = trelloSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(trelloSafeError, /secret123|trello-token|attachments\.example\.com/);
 assert.match(trelloSafeError, /redacted|url redacted/);
 const popupText = fs.readFileSync(path.join(__dirname, "popup.html"), "utf8");
+assert.match(popupText, /color-scheme:\s*light dark/);
+assert.match(popupText, /prefers-color-scheme:\s*dark/);
 assert.match(popupText, /function sanitizeUserVisibleError/);
 assert.match(popupText, /Provider message: " \+ sanitizeUserVisibleError\(error\)/);
 assert.match(popupText, /Could not post the comment: " \+ sanitizeUserVisibleError\(error\)/);
@@ -171,6 +173,8 @@ assert.match(popupText, /Review the exact draft and tick the approval box before
 assert.doesNotMatch(popupText, /error:\s*error\.message \|\| String\(error\)/);
 assert.doesNotMatch(popupText, /showError\(error\.message \|\| String\(error\)\)/);
 const settingsText = fs.readFileSync(path.join(__dirname, "settings-powerup.html"), "utf8");
+assert.match(settingsText, /color-scheme:\s*light dark/);
+assert.match(settingsText, /prefers-color-scheme:\s*dark/);
 assert.match(settingsText, /id="maxOutputTokens"/);
 assert.match(settingsText, /id="defaultCopyFormat"/);
 assert.match(settingsText, /value="change-brief"/);

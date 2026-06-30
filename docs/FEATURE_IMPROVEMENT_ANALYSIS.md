@@ -396,10 +396,24 @@ Implemented:
 
 Impact: Medium. This gives future regression checks a user-visible baseline without adding polling, background services, or network calls.
 
+### 11. System Dark Mode
+
+Problem: The active popup and settings page forced a light color scheme, which can be uncomfortable for users working in Trello with a dark system preference.
+
+Status: Implemented in `popup.html` and `settings-powerup.html`.
+
+Implemented:
+
+- Uses `prefers-color-scheme: dark` so the active popup and settings page follow the operating system/browser preference automatically.
+- Keeps the existing layout, controls, panels, warning states, and Trello Power-Up behavior unchanged.
+- Uses CSS-only overrides, so it adds no storage, script execution, polling, network calls, or user settings migration.
+- Preserves readable contrast for panels, buttons, form fields, digest cards, trust chips, warnings, errors, and postback/review text areas.
+
+Impact: Low-medium. Improves everyday comfort without changing the product workflow.
+
 ## Lower-Priority Improvements
 
 - Execute the reviewed batch queue for selected cards, a full list, or a board with approval-gated AI handoff and visible rate-limit controls.
-- Dark mode.
 - Localization for Dutch and English.
 - Optional update checker for the Windows installer.
 

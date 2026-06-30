@@ -8,7 +8,7 @@
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
   <style>
     :root {
-      color-scheme: light;
+      color-scheme: light dark;
       --blue: #0c66e4;
       --blue-dark: #0747a6;
       --green: #1f845a;
@@ -195,6 +195,56 @@
       background: #ffebe6;
       color: var(--red);
       border: 1px solid #fd9891;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --blue: #579dff;
+        --blue-dark: #85b8ff;
+        --green: #7ee2b8;
+        --red: #ff9c8f;
+        --ink: #f7f8f9;
+        --muted: #b6c2cf;
+        --line: #39465e;
+        --panel: #1f2633;
+        --surface: #10141d;
+      }
+
+      .panel,
+      input,
+      select,
+      textarea,
+      .secondary {
+        background: #1f2633;
+      }
+
+      input,
+      select,
+      textarea {
+        border-color: #4b5873;
+        color: var(--ink);
+      }
+
+      .secondary:hover {
+        background: #263244;
+      }
+
+      .warning {
+        color: #f5cd47;
+      }
+
+      .message.success {
+        background: #143224;
+        color: #baf3db;
+        border-color: #1f845a;
+      }
+
+      .message.error {
+        background: #3b1f22;
+        color: #ffd5d2;
+        border-color: #ae2e24;
+      }
     }
   </style>
 </head>
