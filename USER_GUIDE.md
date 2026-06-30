@@ -43,10 +43,10 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 
 ### First-Time Setup
 
-1. **API Keys**: Enter at least one AI provider API key in Settings
+1. **AI Access**: choose local mode, enter a backend proxy endpoint, or save at least one provider API key in Settings
 2. **Trello Credentials** (optional): Add Trello API key and token for standalone mode
 3. **Choose Strategy**: Select your preferred analysis strategy
-4. **Start Analyzing**: Click "Start Analysis" on any card
+4. **Start Analyzing**: Click "Summarize This" on any Trello card
 
 ---
 

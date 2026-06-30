@@ -1263,6 +1263,60 @@ const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/Summa
 assert.equal(fileValidation.isReadyForTrello, false);
 
 async function runAsyncTests() {
+  const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
+  let registeredPowerUp = null;
+  new Function("TrelloPowerUp", connectorText)({
+    initialize(config) {
+      registeredPowerUp = config;
+    }
+  });
+  assert.ok(registeredPowerUp, "connector registers Trello Power-Up capabilities");
+  assert.equal(registeredPowerUp["card-buttons"]()[0].text, "Summarize This");
+
+  async function connectorStatusFor(settings) {
+    const fakeT = {
+      get(scope, visibility, key) {
+        assert.equal(scope, "member");
+        assert.equal(visibility, "private");
+        assert.equal(key, "summarizeThisSettings");
+        return Promise.resolve(settings);
+      }
+    };
+    const badges = await registeredPowerUp["card-detail-badges"](fakeT);
+    const authorization = await registeredPowerUp["authorization-status"](fakeT);
+    return {
+      badgeText: badges[0].text,
+      badgeColor: badges[0].color,
+      authorized: authorization.authorized
+    };
+  }
+
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }), {
+    badgeText: "Summary ready",
+    badgeColor: "green",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({ apiKeys: { openai: "sk-test-value" } }), {
+    badgeText: "Summary ready",
+    badgeColor: "green",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({
+    proxy: {
+      enabled: true,
+      endpoint: "https://proxy.example.com/summarize"
+    }
+  }), {
+    badgeText: "Summary ready",
+    badgeColor: "green",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({ proxy: { enabled: true } }), {
+    badgeText: "Setup needed",
+    badgeColor: "yellow",
+    authorized: false
+  });
+
   const trelloSourceRead = new TrelloIntegration();
   trelloSourceRead.isInTrello = true;
   trelloSourceRead.t = {

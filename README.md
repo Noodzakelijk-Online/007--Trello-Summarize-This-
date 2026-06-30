@@ -137,10 +137,11 @@ vercel
 1. Open Trello board
 2. Power-Ups → Custom → Add "Summarize This"
 
-### 4. Configure API Key (2 minutes)
+### 4. Configure AI Access (2 minutes)
 
-1. Get OpenAI API key from https://platform.openai.com/api-keys
-2. Power-Up Settings → Paste API key → Save
+1. Choose either a direct provider key or the safer backend proxy mode.
+2. Direct mode: get an OpenAI API key from https://platform.openai.com/api-keys, then Power-Up Settings -> paste the key -> Save.
+3. Proxy mode: configure an HTTPS backend proxy endpoint in Settings so provider keys stay server-side.
 
 ### 5. Start Analyzing! ✨
 
@@ -231,7 +232,7 @@ vercel
 | **Accuracy** | `accuracy-system.js` | Confidence, validation, errors |
 | **AI Integration** | `ai-providers.js` | Multi-AI provider support |
 | **Trello API** | `trello-integration.js` | Card data fetching |
-| **Settings** | `settings-powerup.html` | API key configuration |
+| **Settings** | `settings-powerup.html` | AI access configuration |
 
 ---
 

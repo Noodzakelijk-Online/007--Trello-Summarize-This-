@@ -15,6 +15,15 @@
     return Boolean(keys.openai || keys.anthropic || keys.google);
   }
 
+  function hasUsableProxy(settings) {
+    var proxy = settings && settings.proxy ? settings.proxy : {};
+    return Boolean(proxy.enabled && proxy.endpoint);
+  }
+
+  function canAnalyze(settings) {
+    return settings && (settings.analysisMode === "local" || hasAnyKey(settings) || hasUsableProxy(settings));
+  }
+
   function loadSettings(t) {
     return t.get("member", "private", "summarizeThisSettings")
       .then(function (settings) {
@@ -42,8 +51,7 @@
 
     "card-detail-badges": function (t) {
       return loadSettings(t).then(function (settings) {
-        var localMode = settings.analysisMode === "local";
-        var ready = localMode || hasAnyKey(settings);
+        var ready = canAnalyze(settings);
 
         return [{
           text: ready ? "Summary ready" : "Setup needed",
@@ -64,7 +72,7 @@
     "authorization-status": function (t) {
       return loadSettings(t).then(function (settings) {
         return {
-          authorized: settings.analysisMode === "local" || hasAnyKey(settings)
+          authorized: canAnalyze(settings)
         };
       });
     },

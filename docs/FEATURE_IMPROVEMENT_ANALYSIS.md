@@ -218,6 +218,7 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, and `summarizer-co
 Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.js`, and `proxy/cloudflare-worker.mjs`.
 
 - Settings can enable a backend proxy endpoint for AI calls without storing or sending provider API keys from the browser.
+- The Trello connector badge and authorization status now treat local mode, direct provider keys, and configured proxy mode as valid analysis paths.
 - Proxy endpoints must be HTTPS, except local development endpoints on `localhost`, `127.0.0.1`, or `::1`.
 - Query strings, fragments, and embedded credentials are stripped or rejected before saving.
 - When proxy mode is enabled, the popup uses the proxy path only. If the proxy fails in Auto mode, the result falls back to local summarization instead of silently using direct browser-held provider keys.

@@ -26,7 +26,7 @@ Your Trello Power-Up is configured to use evidence-backed confidence scoring, va
 - advanced-modules.js (Phase 2 features)
 - intelligence-modules.js (Phase 3 features)
 - integration-modules.js (Phase 4 features)
-- settings-powerup.html (API key configuration)
+- settings-powerup.html (AI access configuration)
 - manifest.json (Power-Up configuration)
 - All documentation
 
@@ -82,8 +82,8 @@ Your Trello Power-Up is configured to use evidence-backed confidence scoring, va
 **Capabilities** (Check these boxes):
 - ✅ `card-buttons` - Adds button to cards
 - ✅ `show-settings` - Settings interface
-- ✅ `authorization-status` - API key status
-- ✅ `show-authorization` - API key configuration
+- ✅ `authorization-status` - Local, proxy, or API-key readiness
+- ✅ `show-authorization` - AI access configuration
 
 **Icon** (Optional):
 - Upload a custom icon or use default
@@ -102,7 +102,15 @@ Your Trello Power-Up is configured to use evidence-backed confidence scoring, va
 
 ---
 
-### **Step 4: Configure API Key** (2 minutes)
+### **Step 4: Configure AI Access** (2 minutes)
+
+Choose one of these modes:
+
+- **Backend proxy mode**: configure a public HTTPS proxy endpoint in Settings so provider keys stay server-side.
+- **Direct provider mode**: store a provider key in Trello member-private Power-Up storage.
+- **Local mode**: use the built-in summarizer without sending card content to an AI provider.
+
+For direct OpenAI mode:
 
 1. Get an OpenAI API key:
    - Go to https://platform.openai.com/api-keys

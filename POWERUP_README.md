@@ -19,7 +19,7 @@ An AI-powered Trello Power-Up that adds a "Summarize This" button to every card,
 summarize-this-v2/
 ├── connector.js              # Main Power-Up initialization
 ├── popup.html                # Analysis popup interface
-├── settings-powerup.html     # API key configuration
+├── settings-powerup.html     # AI access configuration
 ├── manifest.json             # Power-Up configuration
 └── icon.png                  # Power-Up icon (optional)
 ```
@@ -75,16 +75,20 @@ You need to host these files on an HTTPS server. Choose one of these options:
 4. Click "Add" next to your Power-Up
 5. The Power-Up is now active!
 
-### Step 4: Configure API Keys
+### Step 4: Configure AI Access
 
 1. Click the Power-Up settings icon
 2. Choose "Summarize This Settings"
-3. Add at least one AI provider API key:
+3. Choose one AI access mode:
+   - **Backend proxy**: enter an HTTPS proxy endpoint so provider keys stay server-side
+   - **Direct provider key**: add at least one AI provider API key in Trello member-private storage
+   - **Local mode**: use the built-in summarizer without provider calls
+4. For direct provider mode, supported keys are:
    - **OpenAI**: Get key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
    - **Anthropic**: Get key at [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys)
    - **Google AI**: Get key at [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey)
-4. Choose your preferred analysis strategy
-5. Click "Save Settings"
+5. Choose your preferred analysis strategy
+6. Click "Save Settings"
 
 ## 🎨 Usage
 
