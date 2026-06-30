@@ -255,6 +255,21 @@
       </div>
 
       <div class="group">
+        <label for="defaultCopyFormat">Default quick copy</label>
+        <select id="defaultCopyFormat">
+          <option value="markdown">Markdown summary</option>
+          <option value="operational-digest">Operational digest</option>
+          <option value="status-update">Status update</option>
+          <option value="robert-decision-brief">Robert decision brief</option>
+          <option value="va-handoff-brief">VA/team handoff</option>
+          <option value="plain-text">Plain text</option>
+          <option value="ledger-json">Ledger JSON</option>
+          <option value="trello-comment-draft">Trello comment draft</option>
+        </select>
+        <p class="help">Controls the main popup copy button. Trello comment drafts still require reviewing the exact draft and ticking approval before copy or post.</p>
+      </div>
+
+      <div class="group">
         <label for="promptTemplateSelect">Saved guidance template</label>
         <select id="promptTemplateSelect"></select>
         <p class="help">Templates are member-private and reusable across cards. Selecting one loads its guidance into the active prompt field below.</p>
@@ -460,6 +475,7 @@
         strategy: document.getElementById("strategy"),
         outputMode: document.getElementById("outputMode"),
         outputLanguage: document.getElementById("outputLanguage"),
+        defaultCopyFormat: document.getElementById("defaultCopyFormat"),
         promptTemplateSelect: document.getElementById("promptTemplateSelect"),
         promptTemplateName: document.getElementById("promptTemplateName"),
         customInstructions: document.getElementById("customInstructions"),
@@ -510,6 +526,7 @@
         fields.strategy.value = settings.strategy || "cost-effective";
         fields.outputMode.value = normalizeOutputMode(settings.outputMode);
         fields.outputLanguage.value = normalizeOutputLanguage(settings.outputLanguage);
+        fields.defaultCopyFormat.value = SummarizeThis.normalizeExportPreferences(settings.exportPreferences || settings).defaultCopyFormat;
         var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
         promptTemplates = promptProfile.promptTemplates;
         renderPromptTemplateOptions(promptProfile.selectedPromptTemplateId);
@@ -546,6 +563,7 @@
           strategy: "cost-effective",
           outputMode: "operational-ledger",
           outputLanguage: "en",
+          exportPreferences: SummarizeThis.normalizeExportPreferences(),
           customInstructions: "",
           selectedPromptTemplateId: "",
           promptTemplates: [],
@@ -607,6 +625,9 @@
           strategy: fields.strategy.value,
           outputMode: normalizeOutputMode(fields.outputMode.value),
           outputLanguage: normalizeOutputLanguage(fields.outputLanguage.value),
+          exportPreferences: SummarizeThis.normalizeExportPreferences({
+            defaultCopyFormat: fields.defaultCopyFormat.value
+          }),
           customInstructions: promptProfile.customInstructions,
           selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
           promptTemplates: promptProfile.promptTemplates,

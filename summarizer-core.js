@@ -1460,6 +1460,24 @@
     };
   }
 
+  function normalizeExportPreferences(input) {
+    var source = input || {};
+    var format = cleanText(source.defaultCopyFormat || source.defaultExportFormat || source.copyFormat);
+    var allowed = {
+      "markdown": true,
+      "operational-digest": true,
+      "status-update": true,
+      "robert-decision-brief": true,
+      "va-handoff-brief": true,
+      "plain-text": true,
+      "ledger-json": true,
+      "trello-comment-draft": true
+    };
+    return {
+      defaultCopyFormat: allowed[format] ? format : "markdown"
+    };
+  }
+
   function normalizeProxyEndpoint(value) {
     var raw = cleanText(value);
     if (!raw) return "";
@@ -1730,6 +1748,7 @@
     normalizeOutputLanguage: normalizeOutputLanguage,
     normalizeCustomFields: normalizeCustomFields,
     normalizeCustomInstructions: normalizeCustomInstructions,
+    normalizeExportPreferences: normalizeExportPreferences,
     normalizeGenerationSettings: normalizeGenerationSettings,
     normalizeProxySettings: normalizeProxySettings,
     normalizePromptTemplates: normalizePromptTemplates,

@@ -468,6 +468,14 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 
 Sensitive-card exports still require visible approval before copy or download.
 
+### Default Quick Copy
+
+Power-Up settings include a **Default quick copy** preference for the main popup copy button.
+
+- Choose Markdown, operational digest, status update, Robert decision brief, VA/team handoff, plain text, Ledger JSON, or Trello comment draft.
+- The preference is stored in member-private settings and does not copy, post, or export anything by itself.
+- If Trello comment draft is selected, the exact draft must still be reviewed and the approval checkbox must be ticked before it can be copied or posted.
+
 ### Exporting Analysis Results
 
 1. Complete an analysis

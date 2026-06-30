@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 315.4 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 476.0 KB.
+- Active popup initial local files: about 317.9 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 479.8 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.74 MB.
-- Generated Windows installer executable: 292,864 bytes.
+- Generated Windows installer executable: 294,912 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -83,6 +83,7 @@ Current results:
    - Unclear or conflicting points are compact derived records capped to 6 items and reuse existing evidence/source ids instead of storing full card text.
    - Trello comment drafts cap individual list sections before the 4,000-character draft cap, preserving the source coverage and review footer on larger cards.
    - Human-readable export evidence/source notes are bounded to compact claim and source-coverage summaries instead of duplicating full card content.
+   - The default quick-copy preference stores only a small format id and reuses existing on-demand export generation.
    - Sensitive export approval stores only compact review metadata, categories, and matched signal terms instead of duplicating exported content.
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
    - The operational digest and its copy-ready text export are generated on demand from the existing compact ledger result, so they add a first-screen triage and handoff view without storing another summary copy.
@@ -111,7 +112,7 @@ Low. The active popup loads a small static HTML page and three shared JS helpers
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 476.0 KB, and the generated `SummarizeThisSetup.exe` is 292,864 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 479.8 KB, and the generated `SummarizeThisSetup.exe` is 294,912 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

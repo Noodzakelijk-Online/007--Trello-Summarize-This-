@@ -996,6 +996,7 @@
           t = inTrello ? TrelloPowerUp.iframe() : null;
           var settings = await loadSettings();
           lastSettings = settings;
+          updateQuickCopyButton(settings);
           var cardData = await gatherCardData(settings, {
             allowSensitiveAttachmentExtraction: allowSensitiveAi
           });
@@ -1130,6 +1131,7 @@
         document.getElementById("postbackPreview").value = "";
         document.getElementById("postbackApproval").checked = false;
         document.getElementById("postbackStatus").textContent = "Review the exact draft before copying or posting it.";
+        updateQuickCopyButton(lastSettings);
         updatePostbackControls();
         updateSensitiveExportControls();
       }
@@ -1165,6 +1167,7 @@
           strategy: "cost-effective",
           outputMode: "operational-ledger",
           outputLanguage: "en",
+          exportPreferences: SummarizeThis.normalizeExportPreferences(),
           customInstructions: "",
           selectedPromptTemplateId: "",
           promptTemplates: [],
@@ -1186,6 +1189,7 @@
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
             safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
+            safeLocalSettings.exportPreferences = SummarizeThis.normalizeExportPreferences(safeLocalSettings.exportPreferences || safeLocalSettings);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
               localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
             }
@@ -1217,6 +1221,7 @@
         var merged = Object.assign({}, fallback, settings || {}, {
           apiKeys: apiKeys,
           strategy: settings.strategy || legacyStrategy || fallback.strategy,
+          exportPreferences: SummarizeThis.normalizeExportPreferences(settings.exportPreferences || settings),
           proxy: SummarizeThis.normalizeProxySettings(settings.proxy)
         });
         var promptProfile = SummarizeThis.normalizePromptTemplateSettings(merged);
@@ -1927,7 +1932,30 @@
         var label = SummarizeThis.getOutputModeLabel ? SummarizeThis.getOutputModeLabel(mode) : mode;
         var languageLabel = SummarizeThis.getOutputLanguageLabel ? SummarizeThis.getOutputLanguageLabel(language) : language;
         document.getElementById("outputModeText").textContent = "Selected output mode: " + label + ". Output language: " + languageLabel + ". Export the compact ledger result for VA handoff, status updates, Sneup, or HAI.";
+        updateQuickCopyButton(lastSettings);
         updateSensitiveExportControls();
+      }
+
+      function defaultCopyFormatFor(settings) {
+        return SummarizeThis.normalizeExportPreferences(settings && (settings.exportPreferences || settings)).defaultCopyFormat;
+      }
+
+      function quickCopyLabel(format) {
+        var labels = {
+          "markdown": "Copy markdown",
+          "operational-digest": "Copy digest",
+          "status-update": "Copy status",
+          "robert-decision-brief": "Copy decisions",
+          "va-handoff-brief": "Copy VA handoff",
+          "plain-text": "Copy text",
+          "ledger-json": "Copy JSON",
+          "trello-comment-draft": "Copy Trello draft"
+        };
+        return labels[format] || "Copy summary";
+      }
+
+      function updateQuickCopyButton(settings) {
+        document.getElementById("copyButton").textContent = quickCopyLabel(defaultCopyFormatFor(settings));
       }
 
       function renderOperationalDigest(ledgerRun) {
@@ -2380,17 +2408,17 @@
         var canPost = canPostTrelloComment();
         var sensitive = hasSensitiveSignals();
 
-        copyButton.disabled = !hasDraft || (sensitive && !approved);
+        copyButton.disabled = !hasDraft || !approved;
         postButton.disabled = !hasDraft || !approved || !canPost;
 
         if (!hasDraft) {
           status.textContent = "Analyze the card first to create a Trello comment draft.";
         } else if (sensitive && !approved) {
           status.textContent = "Sensitive card context was detected. Review the exact draft and tick the approval box before copying or posting it.";
+        } else if (!approved) {
+          status.textContent = "Review the exact draft and tick the approval box before copying or posting to Trello.";
         } else if (!canPost) {
           status.textContent = "Posting is not available in this Power-Up runtime. Copy the approved draft instead.";
-        } else if (!approved) {
-          status.textContent = "Review the exact draft and tick the approval box before posting to Trello.";
         } else {
           status.textContent = "Ready to post the reviewed draft as a Trello comment.";
         }
@@ -2399,6 +2427,12 @@
       function copyPostbackDraft() {
         var text = document.getElementById("postbackPreview").value;
         if (!text || !lastLedgerRun) return;
+        if (!document.getElementById("postbackApproval").checked) {
+          document.getElementById("postbackStatus").textContent = "Review the exact draft and tick the approval box before copying or posting it.";
+          elements.confidencePill.textContent = "Review draft";
+          updatePostbackControls();
+          return;
+        }
         if (requireSensitivePostbackApproval("trello-comment-draft")) return;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
@@ -2865,6 +2899,15 @@
 
       function copySummary() {
         if (!lastAnalysis || !lastCardData) return;
+        var preferredFormat = defaultCopyFormatFor(lastSettings);
+        if (preferredFormat === "trello-comment-draft") {
+          copyPostbackDraft();
+          return;
+        }
+        if (preferredFormat !== "markdown") {
+          copyLedgerExport(preferredFormat, "exportStatus");
+          return;
+        }
         if (requireSensitiveExportApproval("markdown", "exportStatus", "Markdown summary")) return;
         var text = lastLedgerRun
           ? CardIntelligenceLedger.markdownForLedgerRun(lastLedgerRun)

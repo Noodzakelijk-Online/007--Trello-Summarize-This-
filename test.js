@@ -152,11 +152,17 @@ assert.match(popupText, /Could not post the comment: " \+ sanitizeUserVisibleErr
 assert.match(popupText, /function maxOutputTokensFor/);
 assert.match(popupText, /maxOutputTokens: maxOutputTokensFor\(settings\)/);
 assert.match(popupText, /max_tokens: maxOutputTokens/);
+assert.match(popupText, /function defaultCopyFormatFor/);
+assert.match(popupText, /function updateQuickCopyButton/);
+assert.match(popupText, /preferredFormat === "trello-comment-draft"/);
+assert.match(popupText, /Review the exact draft and tick the approval box before copying or posting it/);
 assert.doesNotMatch(popupText, /error:\s*error\.message \|\| String\(error\)/);
 assert.doesNotMatch(popupText, /showError\(error\.message \|\| String\(error\)\)/);
 const settingsText = fs.readFileSync(path.join(__dirname, "settings-powerup.html"), "utf8");
 assert.match(settingsText, /id="maxOutputTokens"/);
+assert.match(settingsText, /id="defaultCopyFormat"/);
 assert.match(settingsText, /normalizeGenerationSettings/);
+assert.match(settingsText, /normalizeExportPreferences/);
 const attachmentSanitizer = new AttachmentProcessor();
 const attachmentSafeError = attachmentSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(attachmentSafeError, /secret123|trello-token|attachments\.example\.com/);
@@ -270,6 +276,10 @@ assert.equal(defaultGenerationSettings.maxOutputTokens, 900);
 assert.equal(SummarizeThis.normalizeGenerationSettings({ maxOutputTokens: "1200" }).maxOutputTokens, 1200);
 assert.equal(SummarizeThis.normalizeGenerationSettings({ maxOutputTokens: "99999" }).maxOutputTokens, 2000);
 assert.equal(SummarizeThis.normalizeGenerationSettings({ maxTokens: "250" }).maxOutputTokens, 300);
+assert.equal(SummarizeThis.normalizeExportPreferences().defaultCopyFormat, "markdown");
+assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "va-handoff-brief" }).defaultCopyFormat, "va-handoff-brief");
+assert.equal(SummarizeThis.normalizeExportPreferences({ defaultExportFormat: "trello-comment-draft" }).defaultCopyFormat, "trello-comment-draft");
+assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "edit-card-description" }).defaultCopyFormat, "markdown");
 
 const local = SummarizeThis.buildRuleBasedAnalysis(sample, {
   now: new Date()
