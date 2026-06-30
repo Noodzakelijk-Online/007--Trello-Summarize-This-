@@ -1995,9 +1995,26 @@
           sensitiveAiApproved: Boolean(allowSensitiveAi),
           proxyEnabled: Boolean(proxy.enabled),
           proxyEndpointHash: proxy.endpoint ? compactHash(proxy.endpoint) : "",
+          aiConnectorSignature: aiConnectorSignature(settings, proxy),
           openaiModel: settings && settings.openaiModel || "",
           googleModel: settings && settings.googleModel || "",
           anthropicModel: settings && settings.anthropicModel || ""
+        };
+      }
+
+      function aiConnectorSignature(settings, normalizedProxy) {
+        var keys = settings && settings.apiKeys ? settings.apiKeys : {};
+        var proxy = normalizedProxy || SummarizeThis.normalizeProxySettings(settings && settings.proxy);
+        var directProviders = ["openai", "google", "anthropic"].filter(function (provider) {
+          return Boolean(keys[provider]);
+        });
+        return {
+          mode: proxy.enabled ? "proxy" : directProviders.length ? "direct" : "none",
+          proxyEnabled: Boolean(proxy.enabled),
+          proxyEndpointHash: proxy.endpoint ? compactHash(proxy.endpoint) : "",
+          directProviders: directProviders,
+          directProviderCount: directProviders.length,
+          selectedProviderHasKey: Boolean(settings && settings.provider && keys[settings.provider])
         };
       }
 

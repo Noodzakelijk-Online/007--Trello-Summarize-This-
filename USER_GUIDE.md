@@ -279,7 +279,7 @@ Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs 
 
 The active popup also shows a compact change summary against the previous saved analysis. Use **Copy change brief** when you need a handoff that explains what changed, the confidence trend, the current top blocker, the current next action, the current Robert decision, and the current VA/team handoff.
 
-When the card snapshot and analysis settings have not changed, the popup can reuse the latest matching private ledger run instead of calling an AI provider again. Use **Analyze again** when you intentionally want a fresh run.
+When the card snapshot, analysis settings, and usable AI connector state have not changed, the popup can reuse the latest matching private ledger run instead of calling an AI provider again. Use **Analyze again** when you intentionally want a fresh run. Adding or removing a provider key or proxy endpoint invalidates reuse without storing the key value.
 
 ### Statistics Dashboard
 

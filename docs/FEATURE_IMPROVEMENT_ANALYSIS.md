@@ -82,7 +82,7 @@ Implemented:
 - Stores timestamp, provider, model, confidence, and structured summary snapshot.
 - Shows what changed since the previous analysis and a confidence trend.
 - Adds a copy-ready change brief that compares the current run with the previous run and includes operational changes, current top blocker, next action, Robert decision, VA/team handoff, confidence trend, and source coverage.
-- Reuses the latest matching private ledger run when the card input hash and analysis settings profile have not changed, avoiding duplicate provider calls and duplicate history writes on popup reopen.
+- Reuses the latest matching private ledger run when the card input hash, analysis settings profile, and non-secret AI connector signature have not changed, avoiding duplicate provider calls and duplicate history writes on popup reopen.
 - Allows copying older structured summaries.
 - The Trello card badge now uses the latest private ledger run to show review-needed, failed-analysis, or confidence status when history exists; otherwise it falls back to setup/readiness status.
 
