@@ -82,6 +82,7 @@ Implemented:
 - Stores timestamp, provider, model, confidence, and structured summary snapshot.
 - Shows what changed since the previous analysis and a confidence trend.
 - Allows copying older structured summaries.
+- The Trello card badge now uses the latest private ledger run to show review-needed, failed-analysis, or confidence status when history exists; otherwise it falls back to setup/readiness status.
 
 Impact: Medium-high. Useful for project managers and async status tracking.
 

@@ -1313,13 +1313,20 @@ async function runAsyncTests() {
   assert.ok(registeredPowerUp, "connector registers Trello Power-Up capabilities");
   assert.equal(registeredPowerUp["card-buttons"]()[0].text, "Summarize This");
 
-  async function connectorStatusFor(settings) {
+  async function connectorStatusFor(settings, options = {}) {
+    const cardId = options.cardId || "connector-card";
+    const history = options.history || {};
     const fakeT = {
       get(scope, visibility, key) {
         assert.equal(scope, "member");
         assert.equal(visibility, "private");
-        assert.equal(key, "summarizeThisSettings");
-        return Promise.resolve(settings);
+        if (key === "summarizeThisSettings") return Promise.resolve(settings);
+        if (key === "summarizeThisLedgerHistory") return Promise.resolve(history);
+        throw new Error(`Unexpected connector storage key: ${key}`);
+      },
+      card(field) {
+        assert.equal(field, "id");
+        return Promise.resolve({ id: cardId });
       }
     };
     const badges = await registeredPowerUp["card-detail-badges"](fakeT);
@@ -1349,6 +1356,57 @@ async function runAsyncTests() {
   }), {
     badgeText: "Summary ready",
     badgeColor: "green",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }, {
+    history: {
+      "connector-card": [{
+        status: "completed",
+        result: {
+          confidence: {
+            overall: 84,
+            reviewNeeded: false
+          }
+        }
+      }]
+    }
+  }), {
+    badgeText: "84% confidence",
+    badgeColor: "green",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }, {
+    history: {
+      "connector-card": [{
+        status: "completed",
+        result: {
+          confidence: {
+            overall: 49,
+            reviewNeeded: true
+          }
+        }
+      }]
+    }
+  }), {
+    badgeText: "Review needed",
+    badgeColor: "yellow",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }, {
+    history: {
+      "connector-card": [{
+        status: "failed",
+        result: {
+          confidence: {
+            overall: 0,
+            reviewNeeded: true
+          }
+        }
+      }]
+    }
+  }), {
+    badgeText: "Analysis failed",
+    badgeColor: "red",
     authorized: true
   });
   assert.deepEqual(await connectorStatusFor({ proxy: { enabled: true } }), {

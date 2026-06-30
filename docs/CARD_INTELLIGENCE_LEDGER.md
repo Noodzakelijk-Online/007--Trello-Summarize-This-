@@ -35,6 +35,7 @@ The first working ledger slice is implemented in `card-intelligence-ledger.js` a
 - Trello comment approval: the popup generates an exact comment draft, supports copy-only use, and only attempts Trello posting after the user checks an approval box and confirms the action.
 - Export/postback history: the popup shows recent private export, copy, download, and Trello comment records for the current card's analysis runs.
 - Review state: the popup lets the user privately mark an analysis reviewed, accepted, or needing follow-up.
+- Trello card badge: the connector reads the latest private ledger run for the current card and shows setup-needed, review-needed, failed-analysis, or confidence status without writing to shared card data.
 
 ## Storage
 
