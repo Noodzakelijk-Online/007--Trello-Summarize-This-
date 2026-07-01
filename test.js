@@ -65,6 +65,18 @@ assert.equal(normalized.listContext.currentPosition, 2);
 assert.ok(normalized.listContext.labelPatterns.some(item => item.label === "Launch" && item.count === 3));
 assert.equal(normalized.listContext.sampledCardPreview.length, 4);
 assert.equal(normalized.listContext.sampledCardPreview[1].id, "sample-card");
+assert.equal(normalized.listContext.sampledCardPreview[1].url, "https://trello.com/c/samplecard/prepare-launch-checklist");
+const normalizedUnsafeListUrl = SummarizeThis.normalizeCardData({
+  name: "Unsafe list URL",
+  listContext: {
+    cards: [
+      { name: "Unsafe card", url: "https://evil.example/c/unsafe" },
+      { name: "Trello card", url: "https://trello.com/c/safe-card/path?token=secret#hash" }
+    ]
+  }
+});
+assert.equal(normalizedUnsafeListUrl.listContext.sampledCardPreview[0].url, "");
+assert.equal(normalizedUnsafeListUrl.listContext.sampledCardPreview[1].url, "https://trello.com/c/safe-card/path");
 assert.equal(normalized.customFields.length, 2);
 assert.ok(normalized.customFields.some(item => item.name === "Priority" && item.value === "High"));
 assert.equal(normalized.actions.length, 1);
@@ -170,7 +182,13 @@ assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/)
 assert.match(popupText, /id="batchExecutionControls"/);
 assert.match(popupText, /id="batchAiHandoffApproval"/);
 assert.match(popupText, /id="previewBatchExecutionButton"/);
+assert.match(popupText, /id="openFirstBatchCardButton"/);
+assert.match(popupText, /id="copyBatchManualChecklistButton"/);
+assert.match(popupText, /id="batchManualChecklistFallback"/);
 assert.match(popupText, /function renderBatchExecutionReview/);
+assert.match(popupText, /function openFirstBatchCard/);
+assert.match(popupText, /function copyBatchManualChecklist/);
+assert.match(popupText, /approved manual batch checklist is shown below/);
 assert.match(popupText, /createBatchExecutionReview\(plan/);
 assert.match(popupText, /Automatic execution:/);
 assert.doesNotMatch(popupText, /startBatch\(/);
@@ -453,6 +471,7 @@ assert.equal(batchAnalysisPlan.aiHandoffDefault, "off");
 assert.equal(batchAnalysisPlan.recommendedConcurrency, 1);
 assert.ok(batchAnalysisPlan.queue.some(item => item.cardId === "sample-card" && item.signals.includes("current-card")));
 assert.ok(batchAnalysisPlan.queue.some(item => item.name === "Prepare launch checklist" && item.signals.includes("overdue")));
+assert.ok(batchAnalysisPlan.queue.some(item => item.cardId === "sample-card" && item.cardUrl === "https://trello.com/c/samplecard/prepare-launch-checklist"));
 assert.ok(batchAnalysisPlan.approvalChecklist.some(item => item.includes("Approve AI handoff")));
 assert.ok(batchAnalysisPlan.privacyNote.includes("bounded list metadata"));
 
@@ -474,6 +493,7 @@ assert.equal(blockedBatchExecutionReview.concurrency, 2);
 assert.equal(blockedBatchExecutionReview.delaySeconds, 5);
 assert.equal(blockedBatchExecutionReview.automaticExecution, false);
 assert.equal(blockedBatchExecutionReview.networkAction, "none");
+assert.equal(blockedBatchExecutionReview.openableCards, 3);
 assert.equal(blockedBatchExecutionReview.executionAllowed, false);
 assert.ok(blockedBatchExecutionReview.blockedReasons.some(item => item.includes("AI handoff approval")));
 assert.ok(blockedBatchExecutionReview.queue.every(item => item.status === "review-required"));
@@ -491,6 +511,13 @@ assert.equal(approvedBatchExecutionReview.delaySeconds, 30);
 assert.equal(approvedBatchExecutionReview.executionAllowed, true);
 assert.equal(approvedBatchExecutionReview.trelloWriteDefault, "off");
 assert.ok(approvedBatchExecutionReview.queue.every(item => item.status === "ready-for-reviewed-run"));
+assert.ok(approvedBatchExecutionReview.queue.every(item => item.manualStep.includes("Open this Trello card")));
+
+const manualBatchChecklist = SummarizeThis.markdownForBatchManualRunChecklist(approvedBatchExecutionReview);
+assert.ok(manualBatchChecklist.includes("Manual batch run checklist"));
+assert.ok(manualBatchChecklist.includes("Automatic execution: off"));
+assert.ok(manualBatchChecklist.includes("[2. Prepare launch checklist](https://trello.com/c/samplecard/prepare-launch-checklist)"));
+assert.equal(manualBatchChecklist.includes("Finalize the launch checklist"), false);
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",
@@ -504,6 +531,8 @@ assert.equal(riskPromptPayload.outputLanguage.label, "Dutch");
 assert.ok(riskPromptPayload.outputLanguage.instruction.includes("Dutch"));
 assert.equal(riskPromptPayload.customInstructions, "Prefer Yes/No decisions for Robert and keep VA-ready work separate.");
 assert.equal(riskPromptPayload.listContext.sampledCards, 4);
+assert.equal(Boolean(riskPromptPayload.listContext.sampledCardPreview[0].url), false);
+assert.equal(JSON.stringify(riskPromptPayload.listContext).includes("https://trello.com/c/"), false);
 assert.equal(riskPromptPayload.contextIncluded.listContextCards, 4);
 assert.equal(riskPromptPayload.customFields.length, 2);
 assert.equal(riskPromptPayload.contextIncluded.customFieldsIncluded, 2);
@@ -1121,6 +1150,28 @@ assert.equal(sensitiveExportRecord.sensitiveReview.required, true);
 assert.equal(sensitiveExportRecord.sensitiveReview.approved, true);
 assert.ok(sensitiveExportRecord.sensitiveReview.categories.includes("financial"));
 assert.equal(sensitiveExportRecord.cardId, run.cardId);
+const manualBatchExportRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch-manual-checklist", "clipboard", {
+  now: "2026-06-29T12:06:58.000Z",
+  cardId: run.cardId
+});
+const manualBatchPanelRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch-manual-checklist", "manual-copy-panel", {
+  now: "2026-06-29T12:06:58.500Z",
+  cardId: run.cardId
+});
+const batchOpenRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch-open-card", "browser-tab", {
+  now: "2026-06-29T12:06:59.000Z",
+  cardId: run.cardId
+});
+const summarizedManualBatchRecords = CardIntelligenceLedger.summarizeExportRecords([
+  manualBatchExportRecord,
+  manualBatchPanelRecord,
+  batchOpenRecord
+], [run.id], 3);
+assert.equal(summarizedManualBatchRecords[0].exportLabel, "Batch card opened");
+assert.equal(summarizedManualBatchRecords[0].destinationLabel, "opened in browser");
+assert.equal(summarizedManualBatchRecords[1].exportLabel, "Manual batch checklist");
+assert.equal(summarizedManualBatchRecords[1].destinationLabel, "prepared for manual copy");
+assert.equal(summarizedManualBatchRecords[2].exportLabel, "Manual batch checklist");
 
 const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
   sensitiveExportRecord,

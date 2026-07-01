@@ -164,7 +164,7 @@ Impact: Medium. This gives Robert a faster list-level triage read without adding
 
 Problem: The repository advertised batch processing, but the older batch processor is disconnected from the active popup and assumes broad card processing before the newer privacy and approval rules.
 
-Status: Implemented in `summarizer-core.js` and the active popup as a bounded review queue plus controlled-run preview. When list context is available, the popup can copy a Markdown batch plan or structured JSON queue seed, then preview selected-card count, concurrency, delay, estimated runtime, and per-card readiness before any future full-card batch run.
+Status: Implemented in `summarizer-core.js` and the active popup as a bounded review queue plus controlled-run preview. When list context is available, the popup can copy a Markdown batch plan or structured JSON queue seed, then preview selected-card count, concurrency, delay, estimated runtime, and per-card readiness before any future full-card batch run. It can also copy a manual card-by-card checklist, show the approved checklist in a manual-copy field when clipboard access is blocked, and open the first selected Trello card when a sanitized Trello card URL is available.
 
 Safety/resource notes:
 
@@ -174,6 +174,7 @@ Safety/resource notes:
 - Sets AI handoff to off by default, recommends concurrency 1 and a short delay, and includes an approval checklist for any later full-card batch run.
 - Blocks the controlled-run preview until the user explicitly approves AI handoff for the selected queue.
 - Keeps Trello posting off even after AI handoff approval; each exact comment draft still requires separate review.
+- Preserves only sanitized `https://trello.com/c/...` card links for local manual navigation and checklist copy; list-context URLs are stripped from AI prompt payloads.
 - Uses the existing sensitive-export approval flow before copying detailed batch plan exports.
 
 Impact: Medium. This makes batch work actionable without reviving unsafe full-list AI execution.

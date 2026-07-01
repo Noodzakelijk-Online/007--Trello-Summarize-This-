@@ -393,8 +393,12 @@ The batch analysis plan creates a review queue from the same bounded list metada
 7. Use the execution review controls to choose the reviewed card count, concurrency, and delay.
 8. Tick AI handoff approval only after reviewing the selected queue.
 9. Use **Preview controlled run** to confirm readiness before opening selected cards for full analysis.
+10. Use **Open first selected card** when a Trello card link is available, then run Summarize This on that card manually.
+11. Use **Copy manual checklist** to hand off the reviewed card-by-card run order. If the browser blocks clipboard access, the approved checklist appears in a manual-copy field instead.
 
 The batch plan and execution review do not run AI, do not fetch neighboring card descriptions or comments, and do not write to Trello. AI handoff stays blocked until approval is checked. Trello posting stays off even after approval, because each exact comment draft still requires separate review.
+
+Card links in the manual checklist are limited to Trello card URLs. Neighboring-card URLs are not included in AI prompts.
 
 ### What Remains Future Work
 

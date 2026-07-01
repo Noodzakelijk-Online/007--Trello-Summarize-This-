@@ -870,10 +870,13 @@
           </label>
           <div class="actions">
             <button class="secondary" type="button" id="previewBatchExecutionButton">Preview controlled run</button>
+            <button class="secondary" type="button" id="openFirstBatchCardButton">Open first selected card</button>
+            <button class="secondary" type="button" id="copyBatchManualChecklistButton">Copy manual checklist</button>
           </div>
           <p id="batchExecutionSummary" class="section-body">Execution review will appear after analysis.</p>
           <ul id="batchExecutionList" class="compact-list"></ul>
           <p id="batchExecutionStatus" class="feedback-status"></p>
+          <textarea id="batchManualChecklistFallback" class="postback-preview hidden" readonly></textarea>
         </div>
       </section>
 
@@ -1061,6 +1064,7 @@
       var lastSettings = null;
       var lastSensitiveSignals = null;
       var lastBatchPlan = null;
+      var lastBatchExecutionReview = null;
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -1175,6 +1179,8 @@
       document.getElementById("previewBatchExecutionButton").addEventListener("click", function () {
         renderBatchExecutionReview(lastBatchPlan, true);
       });
+      document.getElementById("openFirstBatchCardButton").addEventListener("click", openFirstBatchCard);
+      document.getElementById("copyBatchManualChecklistButton").addEventListener("click", copyBatchManualChecklist);
       document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
       document.getElementById("openReleaseNotesButton").addEventListener("click", openReleaseNotes);
       initializeUpdatePanel();
@@ -1370,11 +1376,17 @@
         document.getElementById("batchPlanList").innerHTML = "";
         document.getElementById("batchPlanStatus").textContent = "";
         lastBatchPlan = null;
+        lastBatchExecutionReview = null;
         document.getElementById("batchExecutionControls").classList.add("hidden");
         document.getElementById("batchAiHandoffApproval").checked = false;
+        document.getElementById("openFirstBatchCardButton").disabled = true;
+        document.getElementById("copyBatchManualChecklistButton").disabled = true;
         document.getElementById("batchExecutionSummary").textContent = "Execution review will appear after analysis.";
         document.getElementById("batchExecutionList").innerHTML = "";
         document.getElementById("batchExecutionStatus").textContent = "";
+        var checklistFallback = document.getElementById("batchManualChecklistFallback");
+        checklistFallback.value = "";
+        checklistFallback.classList.add("hidden");
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
         document.getElementById("sourceCoverageList").innerHTML = "";
         document.getElementById("trustSignalsSummary").textContent = "Trust signals will appear after analysis.";
@@ -2737,10 +2749,18 @@
         var summary = document.getElementById("batchExecutionSummary");
         var list = document.getElementById("batchExecutionList");
         var status = document.getElementById("batchExecutionStatus");
+        var openButton = document.getElementById("openFirstBatchCardButton");
+        var copyButton = document.getElementById("copyBatchManualChecklistButton");
+        var checklistFallback = document.getElementById("batchManualChecklistFallback");
 
         list.innerHTML = "";
+        checklistFallback.value = "";
+        checklistFallback.classList.add("hidden");
         if (!plan || !plan.queueSize) {
           controls.classList.add("hidden");
+          lastBatchExecutionReview = null;
+          openButton.disabled = true;
+          copyButton.disabled = true;
           summary.textContent = "Execution review will appear after analysis.";
           status.textContent = "";
           return;
@@ -2748,6 +2768,7 @@
 
         controls.classList.remove("hidden");
         var review = SummarizeThis.createBatchExecutionReview(plan, batchExecutionOptionsFromControls());
+        lastBatchExecutionReview = review;
         var stateText = review.executionAllowed
           ? "Ready for a reviewed manual run preview. No AI call has been made."
           : "Blocked: " + review.blockedReasons.join(" ");
@@ -2757,13 +2778,40 @@
           + "; delay " + review.delaySeconds + "s; estimated " + review.estimatedMinutes
           + " minute(s). " + stateText;
 
-        var items = review.queue.map(function (item) {
+        review.queue.forEach(function (item) {
+          var li = document.createElement("li");
           var signalText = item.signals.length ? " Signals: " + item.signals.join(", ") + "." : "";
-          return item.queuePosition + ". " + item.name + " - " + item.status + "; mode " + item.recommendedMode + "." + signalText;
+          var prefix = item.queuePosition + ". ";
+          li.appendChild(document.createTextNode(prefix));
+          if (item.cardUrl) {
+            var link = document.createElement("a");
+            link.href = item.cardUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = item.name;
+            li.appendChild(link);
+          } else {
+            li.appendChild(document.createTextNode(item.name));
+          }
+          li.appendChild(document.createTextNode(" - " + item.status + "; mode " + item.recommendedMode + "." + signalText));
+          list.appendChild(li);
         });
-        items.push("Trello write default: " + review.trelloWriteDefault + ".");
-        items.push("Automatic execution: " + (review.automaticExecution ? "on" : "off") + ".");
-        renderList("batchExecutionList", items, "No selected batch queue items are available.");
+
+        if (!review.queue.length) {
+          var empty = document.createElement("li");
+          empty.textContent = "No selected batch queue items are available.";
+          list.appendChild(empty);
+        }
+
+        var writeState = document.createElement("li");
+        writeState.textContent = "Trello write default: " + review.trelloWriteDefault + ".";
+        list.appendChild(writeState);
+        var executionState = document.createElement("li");
+        executionState.textContent = "Automatic execution: " + (review.automaticExecution ? "on" : "off") + ".";
+        list.appendChild(executionState);
+
+        openButton.disabled = !review.executionAllowed || !review.openableCards;
+        copyButton.disabled = !review.queue.length;
 
         if (announce) {
           status.textContent = review.executionAllowed
@@ -3253,6 +3301,95 @@
         elements.confidencePill.textContent = label + " copied";
         document.getElementById("batchPlanStatus").textContent = label + " copied. No batch analysis was run.";
         recordExport("batch-plan-" + format, "clipboard", null, true);
+      }
+
+      function currentBatchExecutionReview() {
+        if (!lastBatchPlan || !lastBatchPlan.queueSize) return null;
+        return SummarizeThis.createBatchExecutionReview(lastBatchPlan, batchExecutionOptionsFromControls());
+      }
+
+      function openFirstBatchCard() {
+        var review = currentBatchExecutionReview();
+        var status = document.getElementById("batchExecutionStatus");
+        if (!review || !review.queue.length) {
+          status.textContent = "Build a batch execution review before opening cards.";
+          return;
+        }
+        if (!review.executionAllowed) {
+          status.textContent = "Review the selected queue and approve AI handoff before opening batch cards.";
+          return;
+        }
+
+        var first = review.queue.find(function (item) { return item.cardUrl; });
+        if (!first) {
+          status.textContent = "No Trello card URL is available in the selected queue. Open the card manually from Trello.";
+          return;
+        }
+
+        window.open(first.cardUrl, "_blank", "noopener,noreferrer");
+        status.textContent = "Opened " + first.name + " in a new tab. Run Summarize This there before moving to the next card.";
+        recordExport("batch-open-card", "browser-tab", null, true);
+      }
+
+      function copyBatchManualChecklist() {
+        var review = currentBatchExecutionReview();
+        if (!review || !review.queue.length) {
+          document.getElementById("batchExecutionStatus").textContent = "Build a batch execution review before copying a checklist.";
+          return;
+        }
+
+        if (requireSensitiveExportApproval("batch-manual-checklist", "batchExecutionStatus", "Manual batch checklist")) return;
+
+        var text = SummarizeThis.markdownForBatchManualRunChecklist(review);
+        var fallback = document.getElementById("batchManualChecklistFallback");
+        fallback.value = "";
+        fallback.classList.add("hidden");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            fallback.value = "";
+            fallback.classList.add("hidden");
+            elements.confidencePill.textContent = "Checklist copied";
+            document.getElementById("batchExecutionStatus").textContent = "Manual batch checklist copied. No batch analysis was run.";
+            recordExport("batch-manual-checklist", "clipboard", null, true);
+          }).catch(function () {
+            fallbackBatchManualChecklistCopy(text);
+          });
+        } else {
+          fallbackBatchManualChecklistCopy(text);
+        }
+      }
+
+      function fallbackBatchManualChecklistCopy(text) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        var copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (error) {
+          copied = false;
+        }
+        document.body.removeChild(textarea);
+        if (!copied) {
+          var fallback = document.getElementById("batchManualChecklistFallback");
+          fallback.value = text;
+          fallback.classList.remove("hidden");
+          fallback.focus();
+          fallback.select();
+          document.getElementById("batchExecutionStatus").textContent = "Clipboard copy was blocked. The approved manual batch checklist is shown below for manual copy.";
+          recordExport("batch-manual-checklist", "manual-copy-panel", null, true);
+          return;
+        }
+        var checklistFallback = document.getElementById("batchManualChecklistFallback");
+        checklistFallback.value = "";
+        checklistFallback.classList.add("hidden");
+        elements.confidencePill.textContent = "Checklist copied";
+        document.getElementById("batchExecutionStatus").textContent = "Manual batch checklist copied. No batch analysis was run.";
+        recordExport("batch-manual-checklist", "clipboard", null, true);
       }
 
       function downloadLedgerJson() {

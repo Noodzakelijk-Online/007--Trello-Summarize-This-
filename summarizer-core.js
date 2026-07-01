@@ -185,6 +185,37 @@
     });
   }
 
+  function listContextForPrompt(listContext) {
+    if (!listContext || !listContext.sampledCards) return listContext || null;
+    function compactCard(card) {
+      return {
+        id: cleanText(card.id),
+        name: cleanText(card.name),
+        labels: toArray(card.labels).map(cleanText).filter(Boolean).slice(0, 4),
+        due: card.due || null,
+        dueComplete: Boolean(card.dueComplete)
+      };
+    }
+    return {
+      enabled: listContext.enabled !== false,
+      listName: cleanText(listContext.listName),
+      totalCards: toNumber(listContext.totalCards),
+      sampledCards: toNumber(listContext.sampledCards),
+      sampledCardPreview: toArray(listContext.sampledCardPreview).map(compactCard).slice(0, 12),
+      currentPosition: listContext.currentPosition || null,
+      neighboringCards: toArray(listContext.neighboringCards).map(compactCard).slice(0, 4),
+      labelPatterns: toArray(listContext.labelPatterns).map(function (item) {
+        return {
+          label: cleanText(item.label),
+          count: toNumber(item.count)
+        };
+      }).filter(function (item) {
+        return item.label;
+      }).slice(0, 6),
+      source: cleanText(listContext.source)
+    };
+  }
+
   function valueFromCustomField(item) {
     if (!item || typeof item !== "object") return cleanText(item);
     var value = item.value || {};
@@ -312,6 +343,21 @@
     } catch (_error) {
       return fallback || "";
     }
+  }
+
+  function safeTrelloCardUrl(value) {
+    var url = cleanText(value);
+    if (!url) return "";
+    try {
+      var parsed = new URL(url);
+      var host = parsed.hostname.toLowerCase();
+      if ((host === "trello.com" || host === "www.trello.com") && parsed.protocol === "https:" && /^\/c\//.test(parsed.pathname)) {
+        return parsed.origin + parsed.pathname;
+      }
+    } catch (error) {
+      return "";
+    }
+    return "";
   }
 
   function normalizeUpdateManifest(input) {
@@ -521,7 +567,8 @@
         labels: normalizeNamedItems(card.labels).slice(0, 6),
         due: card.due || null,
         dueComplete: Boolean(card.dueComplete),
-        listName: cleanText(card.listName || getObjectName(card.list))
+        listName: cleanText(card.listName || getObjectName(card.list)),
+        url: safeTrelloCardUrl(card.url || card.shortUrl || card.shortLink)
       };
     }).filter(function (card) {
       return card.name;
@@ -553,7 +600,8 @@
           name: card.name,
           labels: card.labels.slice(0, 4),
           due: card.due,
-          dueComplete: card.dueComplete
+          dueComplete: card.dueComplete,
+          url: card.url
         };
       }),
       currentPosition: currentIndex >= 0 ? currentIndex + 1 : null,
@@ -562,7 +610,8 @@
           name: card.name,
           labels: card.labels.slice(0, 4),
           due: card.due,
-          dueComplete: card.dueComplete
+          dueComplete: card.dueComplete,
+          url: card.url
         };
       }),
       labelPatterns: topLabelsFromCards(compactCards),
@@ -869,6 +918,7 @@
         queuePosition: index + 1,
         cardId: cleanText(item.id),
         name: cleanText(item.name),
+        cardUrl: safeTrelloCardUrl(item.url || item.shortUrl || item.shortLink),
         labels: labels,
         due: item.due || null,
         dueComplete: Boolean(item.dueComplete),
@@ -932,6 +982,9 @@
     var aiHandoffApproved = Boolean(options && options.aiHandoffApproved);
     var selectedQueue = queue.slice(0, selectedCount);
     var blockedReasons = [];
+    var openableCards = selectedQueue.filter(function (item) {
+      return safeTrelloCardUrl(item.cardUrl || item.url);
+    }).length;
 
     if (!selectedQueue.length) {
       blockedReasons.push("No reviewed queue items are available.");
@@ -959,17 +1012,23 @@
       trelloWriteDefault: "off",
       automaticExecution: false,
       networkAction: "none",
+      openableCards: openableCards,
       executionAllowed: !blockedReasons.length,
       blockedReasons: blockedReasons,
       queue: selectedQueue.map(function (item, index) {
+        var cardUrl = safeTrelloCardUrl(item.cardUrl || item.url);
         return {
           queuePosition: item.queuePosition || index + 1,
           cardId: item.cardId || "",
           name: item.name || "Untitled card",
+          cardUrl: cardUrl,
           recommendedMode: item.recommendedMode || "operational-ledger",
           signals: toArray(item.signals).slice(0, 6),
           status: aiHandoffApproved ? "ready-for-reviewed-run" : "review-required",
-          requiredApproval: item.requiredApproval || "Review this queue item before any full-card AI analysis or Trello write."
+          requiredApproval: item.requiredApproval || "Review this queue item before any full-card AI analysis or Trello write.",
+          manualStep: cardUrl
+            ? "Open this Trello card and run Summarize This manually."
+            : "Open this card manually from Trello before running analysis."
         };
       }),
       safetyChecklist: [
@@ -980,6 +1039,45 @@
       ],
       privacyNote: "This execution review still uses bounded list metadata only. It previews controls and queue state, but does not fetch full card bodies, call AI, or write to Trello."
     };
+  }
+
+  function markdownForBatchManualRunChecklist(review) {
+    var source = review || {};
+    var lines = [
+      "# Manual batch run checklist",
+      "",
+      "List: " + (source.listName || "current list"),
+      "Selected cards: " + (source.selectedCards || 0) + " of " + (source.availableCards || 0),
+      "Concurrency: " + (source.concurrency || 1),
+      "Delay between cards: " + (source.delaySeconds || 0) + " seconds",
+      "AI handoff approved: " + (source.aiHandoffApproved ? "yes" : "no"),
+      "Trello write default: " + (source.trelloWriteDefault || "off"),
+      "Automatic execution: " + (source.automaticExecution ? "on" : "off"),
+      "",
+      "## Queue"
+    ];
+
+    if (toArray(source.queue).length) {
+      toArray(source.queue).forEach(function (item) {
+        var label = item.queuePosition + ". " + cleanText(item.name || "Untitled card");
+        var url = safeTrelloCardUrl(item.cardUrl || item.url);
+        var linkedLabel = url ? "[" + label + "](" + url + ")" : label;
+        lines.push("- " + linkedLabel
+          + ": " + cleanText(item.status || "review-required")
+          + "; mode " + cleanText(item.recommendedMode || "operational-ledger")
+          + ". " + cleanText(item.manualStep || "Open this card manually before analysis."));
+      });
+    } else {
+      lines.push("- No selected queue items are available.");
+    }
+
+    lines.push("", "## Safety checklist");
+    toArray(source.safetyChecklist).forEach(function (item) {
+      lines.push("- " + cleanText(item));
+    });
+
+    lines.push("", "Privacy: " + cleanText(source.privacyNote));
+    return lines.join("\n");
   }
 
   function markdownForBatchAnalysisPlan(plan) {
@@ -1587,7 +1685,7 @@
       members: card.members.slice(0, 25),
       due: card.due,
       dueComplete: card.dueComplete,
-      listContext: card.listContext,
+      listContext: listContextForPrompt(card.listContext),
       customFields: card.customFields,
       activity: card.actions.slice(0, 12),
       attachments: compactAttachmentsForPrompt(card.attachments),
@@ -2060,10 +2158,10 @@
         totalCards: 5,
         source: "sample",
         cards: [
-          { id: "sample-prior", name: "Confirm analytics baseline", labels: [{ name: "Launch" }] },
-          { id: "sample-card", name: "Prepare launch checklist", labels: [{ name: "Launch" }, { name: "Client" }] },
-          { id: "sample-next", name: "Draft support handoff", labels: [{ name: "Client" }, { name: "Support" }] },
-          { id: "sample-later", name: "Review billing test run", labels: [{ name: "Billing" }, { name: "Launch" }] }
+          { id: "sample-prior", name: "Confirm analytics baseline", labels: [{ name: "Launch" }], url: "https://trello.com/c/sampleprior/confirm-analytics-baseline" },
+          { id: "sample-card", name: "Prepare launch checklist", labels: [{ name: "Launch" }, { name: "Client" }], url: "https://trello.com/c/samplecard/prepare-launch-checklist" },
+          { id: "sample-next", name: "Draft support handoff", labels: [{ name: "Client" }, { name: "Support" }], url: "https://trello.com/c/samplenext/draft-support-handoff" },
+          { id: "sample-later", name: "Review billing test run", labels: [{ name: "Billing" }, { name: "Launch" }], url: "https://trello.com/c/samplelater/review-billing-test-run" }
         ]
       },
       checklists: [{
@@ -2134,6 +2232,7 @@
     normalizeUpdateManifest: normalizeUpdateManifest,
     stripApiKeysForLocalPreview: stripApiKeysForLocalPreview,
     markdownForBatchAnalysisPlan: markdownForBatchAnalysisPlan,
+    markdownForBatchManualRunChecklist: markdownForBatchManualRunChecklist,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,
     normalizeActions: normalizeActions,

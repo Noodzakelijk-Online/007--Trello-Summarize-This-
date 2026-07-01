@@ -1784,6 +1784,8 @@
       "list-planning-json": "List planning JSON",
       "batch-plan-markdown": "Batch analysis plan",
       "batch-plan-json": "Batch analysis JSON",
+      "batch-manual-checklist": "Manual batch checklist",
+      "batch-open-card": "Batch card opened",
       "trello-comment-draft": "Trello comment draft",
       "trello-comment": "Trello comment"
     };
@@ -1795,6 +1797,8 @@
     var labels = {
       "clipboard": "copied",
       "download": "downloaded",
+      "browser-tab": "opened in browser",
+      "manual-copy-panel": "prepared for manual copy",
       "trello-comment": "posted to Trello"
     };
     return labels[destination] || destination;
