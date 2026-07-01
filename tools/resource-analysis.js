@@ -11,6 +11,7 @@ const runtimeFiles = [
   "trello-setup.html",
   "privacy.html",
   "terms.html",
+  "update.json",
   "trello-admin-config.js",
   "attachment-processor.js",
   "summarizer-core.js",

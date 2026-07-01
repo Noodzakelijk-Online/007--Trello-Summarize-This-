@@ -22,8 +22,11 @@ The installer:
 - Starts a lightweight local launcher at `http://127.0.0.1:17117`.
 - Avoids Electron and external dependencies.
 - Builds as a self-extracting .NET Framework executable using the Windows framework compiler.
+- Bundles `update.json` so the installed popup can manually compare the current version with the GitHub update manifest.
 
 The Start Menu shortcut named `Configure Trello Power-Up` opens a setup assistant with GitHub Pages, Netlify, Vercel, and custom HTTPS presets. It validates that the hosted URL is suitable for Trello, prepares the exact iframe connector URL, app metadata, manifest URL, privacy URL, terms URL, icon URL, capabilities, and admin field map for Trello's Power-Up Admin Portal, and provides a safe admin autofill bookmarklet that can populate matching Trello admin fields and capability checkboxes. The bookmarklet runs only on Trello's Power-Up admin page, uses the same field map shown in the setup assistant, reports filled and missing fields, and does not save or submit the admin page.
+
+The popup's **Installed app updates** panel checks GitHub only when the user presses **Check for updates**. It does not poll, download, install, or run updates automatically, and it does not send Trello card data or API keys.
 
 Important:
 

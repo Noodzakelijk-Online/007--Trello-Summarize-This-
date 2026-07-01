@@ -412,11 +412,26 @@ Implemented:
 
 Impact: Low-medium. Improves everyday comfort without changing the product workflow.
 
+### 12. Manual Windows Update Check
+
+Problem: The Windows installer can run the standalone tool locally, but installed users had no in-app way to see whether the GitHub release manifest advertises a newer build.
+
+Status: Implemented in `popup.html`, `summarizer-core.js`, `update.json`, and the Windows installer runtime lists.
+
+Implemented:
+
+- Adds an Installed app updates panel in standalone/local popup mode.
+- Checks the GitHub update manifest only when the user presses **Check for updates**.
+- Compares bundled app version metadata with the fetched manifest and shows up-to-date, update-available, or unsupported-version status.
+- Constrains release/download links to this GitHub repository and does not auto-download, auto-install, poll, or send Trello card content.
+- Bundles `update.json` in the Windows installer payload so the installed app carries local version metadata.
+
+Impact: Low-medium. Improves Windows install maintenance without adding background resource use or elevated installer behavior.
+
 ## Lower-Priority Improvements
 
 - Execute the reviewed batch queue for selected cards, a full list, or a board with approval-gated AI handoff and visible rate-limit controls.
 - Full interface localization for Dutch and English.
-- Optional update checker for the Windows installer.
 
 ## Implementation Order
 

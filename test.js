@@ -42,10 +42,16 @@ installerBuildRuntimeFiles.forEach((fileName) => {
     `Windows installer install.ps1 copies helper script ${fileName}`
   );
 });
+assert.ok(installerBuildRuntimeFiles.includes("update.json"), "Windows installer bundles update manifest");
+assert.ok(installerInstallRuntimeFiles.includes("update.json"), "Windows installer installs update manifest");
 const launcherScriptText = fs.readFileSync(path.join(__dirname, "installer/windows/Start-SummarizeThis.ps1"), "utf8");
 assert.match(launcherScriptText, /\[int\]\$Port\s*=\s*17117/, "Windows launcher supports an explicit QA port while preserving the installed default");
 assert.match(launcherScriptText, /RepoRootCandidate/, "Windows launcher can resolve the repository root when run from installer/windows");
 assert.match(launcherScriptText, /Join-Path \$RepoRootCandidate "popup\.html"/, "Windows launcher serves repo static files during local development");
+const updateManifest = JSON.parse(fs.readFileSync(path.join(__dirname, "update.json"), "utf8"));
+assert.equal(updateManifest.schemaVersion, "summarize-this-update-manifest-v1");
+assert.equal(updateManifest.version, SummarizeThis.APP_VERSION);
+assert.match(updateManifest.manifestUrl, /^https:\/\/raw\.githubusercontent\.com\/Noodzakelijk-Online\/007--Trello-Summarize-This-\//);
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -155,6 +161,12 @@ assert.match(popupText, /function maxOutputTokensFor/);
 assert.match(popupText, /maxOutputTokens: maxOutputTokensFor\(settings\)/);
 assert.match(popupText, /max_tokens: maxOutputTokens/);
 assert.match(popupText, /buildRuleBasedAnalysis\(cardData,\s*\{\s*outputLanguage: settings\.outputLanguage\s*\}\)/);
+assert.match(popupText, /id="updatePanel"/);
+assert.match(popupText, /id="checkUpdatesButton"/);
+assert.match(popupText, /function checkForUpdates/);
+assert.match(popupText, /credentials:\s*"omit"/);
+assert.match(popupText, /referrerPolicy:\s*"no-referrer"/);
+assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/);
 assert.match(popupText, /function defaultCopyFormatFor/);
 assert.match(popupText, /function updateQuickCopyButton/);
 assert.match(popupText, /id="copyChangeBriefButton"/);
@@ -299,6 +311,23 @@ assert.equal(SummarizeThis.normalizeGenerationSettings({ maxTokens: "250" }).max
 assert.equal(SummarizeThis.normalizeProviderMode(), "fallback");
 assert.equal(SummarizeThis.normalizeProviderMode("consensus"), "consensus");
 assert.equal(SummarizeThis.normalizeProviderMode("parallel-everything"), "fallback");
+assert.equal(SummarizeThis.compareVersions("1.2.0", "1.1.9"), 1);
+assert.equal(SummarizeThis.compareVersions("v1.0.0", "1"), 0);
+assert.equal(SummarizeThis.compareVersions("1.0.0", "1.0.1"), -1);
+const normalizedUpdateManifest = SummarizeThis.normalizeUpdateManifest({
+  version: "1.2.3",
+  releaseNotesUrl: "https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-/releases/tag/v1.2.3",
+  downloadUrl: "https://evil.example/download.exe",
+  manifestUrl: "https://raw.githubusercontent.com/Noodzakelijk-Online/007--Trello-Summarize-This-/main/update.json",
+  message: "Update available."
+});
+assert.equal(normalizedUpdateManifest.version, "1.2.3");
+assert.equal(normalizedUpdateManifest.downloadUrl, "");
+assert.match(normalizedUpdateManifest.releaseNotesUrl, /github\.com\/Noodzakelijk-Online/);
+const availableUpdate = SummarizeThis.evaluateUpdateStatus("1.0.0", normalizedUpdateManifest);
+assert.equal(availableUpdate.updateAvailable, true);
+assert.equal(availableUpdate.upToDate, false);
+assert.equal(SummarizeThis.evaluateUpdateStatus("1.2.3", normalizedUpdateManifest).upToDate, true);
 assert.equal(SummarizeThis.normalizeExportPreferences().defaultCopyFormat, "markdown");
 assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "va-handoff-brief" }).defaultCopyFormat, "va-handoff-brief");
 assert.equal(SummarizeThis.normalizeExportPreferences({ defaultCopyFormat: "change-brief" }).defaultCopyFormat, "change-brief");

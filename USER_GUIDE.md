@@ -633,7 +633,16 @@ Power-Up settings include a **Default quick copy** preference for the main popup
 
 ## Updates and Changelog
 
-Check for updates regularly:
+In standalone Windows mode, the popup includes **Installed app updates**. Use **Check for updates** when you want to compare the installed version against the GitHub update manifest.
+
+The update check:
+
+- Runs only when you press the button.
+- Uses no API keys, Trello data, card content, or background polling.
+- Does not download, install, or run anything automatically.
+- Opens GitHub releases only when you choose the release link.
+
+Check release notes for:
 - New AI providers
 - Enhanced features
 - Bug fixes

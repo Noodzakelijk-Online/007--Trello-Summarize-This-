@@ -261,11 +261,98 @@
       instruction: "Write all user-facing summary values in Dutch."
     }
   };
+  var APP_VERSION = "1.0.0";
+  var DEFAULT_UPDATE_MANIFEST_URL = "https://raw.githubusercontent.com/Noodzakelijk-Online/007--Trello-Summarize-This-/main/update.json";
+  var UPDATE_REPO_URL_PREFIX = "https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-";
 
   function boundedNumber(value, fallback, min, max) {
     var number = Number(value);
     if (!Number.isFinite(number)) return fallback;
     return Math.max(min, Math.min(Math.round(number), max));
+  }
+
+  function normalizeVersionParts(value) {
+    var text = cleanText(value).replace(/^v/i, "");
+    var match = text.match(/\d+(?:\.\d+){0,3}/);
+    if (!match) return [0];
+    return match[0].split(".").map(function (part) {
+      return Math.max(0, parseInt(part, 10) || 0);
+    });
+  }
+
+  function compareVersions(left, right) {
+    var leftParts = normalizeVersionParts(left);
+    var rightParts = normalizeVersionParts(right);
+    var length = Math.max(leftParts.length, rightParts.length);
+
+    for (var index = 0; index < length; index += 1) {
+      var leftPart = leftParts[index] || 0;
+      var rightPart = rightParts[index] || 0;
+      if (leftPart > rightPart) return 1;
+      if (leftPart < rightPart) return -1;
+    }
+
+    return 0;
+  }
+
+  function safeUpdateUrl(value, fallback) {
+    var url = cleanText(value);
+    if (!url) return fallback || "";
+
+    try {
+      var parsed = new URL(url);
+      var allowedGithub = parsed.protocol === "https:" &&
+        parsed.hostname === "github.com" &&
+        parsed.href.indexOf(UPDATE_REPO_URL_PREFIX) === 0;
+      var allowedRawManifest = parsed.protocol === "https:" &&
+        parsed.hostname === "raw.githubusercontent.com" &&
+        /^\/Noodzakelijk-Online\/007--Trello-Summarize-This-\//.test(parsed.pathname);
+
+      return allowedGithub || allowedRawManifest ? parsed.href : fallback || "";
+    } catch (_error) {
+      return fallback || "";
+    }
+  }
+
+  function normalizeUpdateManifest(input) {
+    var source = input && typeof input === "object" ? input : {};
+    var version = cleanText(source.version || source.latestVersion || APP_VERSION);
+    var releaseNotesUrl = safeUpdateUrl(source.releaseNotesUrl || source.releaseUrl || source.url, UPDATE_REPO_URL_PREFIX + "/releases");
+    var downloadUrl = safeUpdateUrl(source.downloadUrl || source.installerUrl || source.assetUrl, "");
+    var manifestUrl = safeUpdateUrl(source.manifestUrl || DEFAULT_UPDATE_MANIFEST_URL, DEFAULT_UPDATE_MANIFEST_URL);
+
+    return {
+      schemaVersion: cleanText(source.schemaVersion || "summarize-this-update-manifest-v1"),
+      version: version,
+      releaseDate: cleanText(source.releaseDate || source.publishedAt),
+      minimumSupportedVersion: cleanText(source.minimumSupportedVersion || ""),
+      releaseNotesUrl: releaseNotesUrl,
+      downloadUrl: downloadUrl,
+      manifestUrl: manifestUrl,
+      message: truncate(source.message || source.summary || "", 240)
+    };
+  }
+
+  function evaluateUpdateStatus(currentVersion, manifest) {
+    var current = cleanText(currentVersion || APP_VERSION);
+    var normalized = normalizeUpdateManifest(manifest);
+    var comparison = compareVersions(normalized.version, current);
+    var minimumComparison = normalized.minimumSupportedVersion
+      ? compareVersions(current, normalized.minimumSupportedVersion)
+      : 0;
+
+    return {
+      currentVersion: current,
+      latestVersion: normalized.version,
+      updateAvailable: comparison > 0,
+      upToDate: comparison <= 0,
+      unsupported: minimumComparison < 0,
+      releaseDate: normalized.releaseDate,
+      releaseNotesUrl: normalized.releaseNotesUrl,
+      downloadUrl: normalized.downloadUrl,
+      message: normalized.message,
+      manifest: normalized
+    };
   }
 
   function normalizePromptContext(options) {
@@ -1944,8 +2031,11 @@
   }
 
   return {
+    APP_VERSION: APP_VERSION,
+    DEFAULT_UPDATE_MANIFEST_URL: DEFAULT_UPDATE_MANIFEST_URL,
     buildAIPrompt: buildAIPrompt,
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
+    compareVersions: compareVersions,
     createBatchAnalysisPlan: createBatchAnalysisPlan,
     createCostRecord: createCostRecord,
     createListPlanningBrief: createListPlanningBrief,
@@ -1953,6 +2043,7 @@
     createRuntimeTimingRecord: createRuntimeTimingRecord,
     detectSensitiveSignals: detectSensitiveSignals,
     evaluateBudgetAlert: evaluateBudgetAlert,
+    evaluateUpdateStatus: evaluateUpdateStatus,
     getOutputModeInstruction: getOutputModeInstruction,
     getOutputModeLabel: getOutputModeLabel,
     getOutputLanguageInstruction: getOutputLanguageInstruction,
@@ -1971,6 +2062,7 @@
     normalizeProviderKey: normalizeProviderKey,
     normalizePriorFeedback: normalizePriorFeedback,
     normalizePromptContext: normalizePromptContext,
+    normalizeUpdateManifest: normalizeUpdateManifest,
     stripApiKeysForLocalPreview: stripApiKeysForLocalPreview,
     markdownForBatchAnalysisPlan: markdownForBatchAnalysisPlan,
     markdownForAnalysis: markdownForAnalysis,

@@ -835,6 +835,16 @@
         <ul id="runtimeTimingList" class="compact-list"></ul>
       </section>
 
+      <section id="updatePanel" class="panel hidden">
+        <h2 class="section-title">Installed app updates</h2>
+        <p id="updateStatusText" class="section-body">Current installed version: 1.0.0. Check manually when you want to compare against the GitHub release manifest.</p>
+        <div class="actions">
+          <button class="secondary" type="button" id="checkUpdatesButton">Check for updates</button>
+          <button class="secondary hidden" type="button" id="openReleaseNotesButton">Open releases</button>
+        </div>
+        <p id="updateCheckStatus" class="feedback-status"></p>
+      </section>
+
       <section class="panel">
         <h2 class="section-title">Analysis review state</h2>
         <p id="reviewStateSummary" class="section-body">Review state will appear after analysis.</p>
@@ -984,6 +994,8 @@
         window.TrelloPowerUp.iframe &&
         window.self !== window.top
       );
+      var pageParams = new URLSearchParams(window.location.search || "");
+      var installedMode = pageParams.get("installed") === "1" || pageParams.get("localPreview") === "1";
 
       var elements = {
         cardTitle: document.getElementById("cardTitle"),
@@ -1076,6 +1088,9 @@
       document.getElementById("copyBatchPlanJsonButton").addEventListener("click", function () {
         copyBatchAnalysisPlan("json");
       });
+      document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
+      document.getElementById("openReleaseNotesButton").addEventListener("click", openReleaseNotes);
+      initializeUpdatePanel();
 
       document.addEventListener("DOMContentLoaded", function () {
         runAnalysis();
@@ -2238,6 +2253,33 @@
         } catch (error) {
           if (error && error.name === "AbortError") {
             throw new Error("The AI provider took too long to respond.");
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      async function fetchUpdateManifest(url, timeoutMs) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function () {
+          controller.abort();
+        }, timeoutMs || 10000);
+
+        try {
+          var response = await fetch(url, {
+            cache: "no-store",
+            credentials: "omit",
+            referrerPolicy: "no-referrer",
+            signal: controller.signal
+          });
+          if (!response.ok) {
+            throw new Error("Update manifest returned HTTP " + response.status + ".");
+          }
+          return await response.json();
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            throw new Error("Update check timed out.");
           }
           throw error;
         } finally {
@@ -3586,6 +3628,65 @@
         } else {
           window.location.href = "./settings-powerup.html";
         }
+      }
+
+      function initializeUpdatePanel() {
+        var panel = document.getElementById("updatePanel");
+        var text = document.getElementById("updateStatusText");
+        if (!panel || !text) return;
+
+        text.textContent = "Current installed version: " + SummarizeThis.APP_VERSION + ". Check manually when you want to compare against the GitHub release manifest.";
+        if (!inTrello || installedMode) {
+          panel.classList.remove("hidden");
+        }
+      }
+
+      async function checkForUpdates() {
+        var status = document.getElementById("updateCheckStatus");
+        var button = document.getElementById("checkUpdatesButton");
+        var releaseButton = document.getElementById("openReleaseNotesButton");
+        if (!status || !button || !releaseButton) return;
+
+        status.textContent = "Checking GitHub release manifest...";
+        button.disabled = true;
+        releaseButton.classList.add("hidden");
+        releaseButton.removeAttribute("data-release-url");
+
+        try {
+          var manifest = await fetchUpdateManifest(SummarizeThis.DEFAULT_UPDATE_MANIFEST_URL, 10000);
+          var updateStatus = SummarizeThis.evaluateUpdateStatus(SummarizeThis.APP_VERSION, manifest);
+          var releaseDate = updateStatus.releaseDate ? " Released " + updateStatus.releaseDate + "." : "";
+
+          if (updateStatus.unsupported) {
+            status.textContent = "This installed version (" + updateStatus.currentVersion + ") is below the supported minimum. Review the GitHub releases before installing an update." + releaseDate;
+          } else if (updateStatus.updateAvailable) {
+            status.textContent = "Update available: " + updateStatus.latestVersion + " (installed " + updateStatus.currentVersion + "). Review the GitHub releases before installing." + releaseDate;
+          } else {
+            status.textContent = "You are up to date on version " + updateStatus.currentVersion + "." + releaseDate;
+          }
+
+          if (updateStatus.message) {
+            status.textContent += " " + updateStatus.message;
+          }
+
+          if (updateStatus.releaseNotesUrl) {
+            releaseButton.setAttribute("data-release-url", updateStatus.releaseNotesUrl);
+            releaseButton.classList.remove("hidden");
+          }
+        } catch (error) {
+          status.textContent = "Could not check updates: " + sanitizeUserVisibleError(error) + " Open GitHub releases manually if needed.";
+          releaseButton.setAttribute("data-release-url", "https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-/releases");
+          releaseButton.classList.remove("hidden");
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function openReleaseNotes() {
+        var button = document.getElementById("openReleaseNotesButton");
+        var url = button && button.getAttribute("data-release-url");
+        if (!url) return;
+        window.open(url, "_blank", "noopener,noreferrer");
       }
     }());
   </script>
