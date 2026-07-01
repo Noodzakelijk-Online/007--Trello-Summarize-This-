@@ -154,6 +154,7 @@ assert.match(popupText, /Could not post the comment: " \+ sanitizeUserVisibleErr
 assert.match(popupText, /function maxOutputTokensFor/);
 assert.match(popupText, /maxOutputTokens: maxOutputTokensFor\(settings\)/);
 assert.match(popupText, /max_tokens: maxOutputTokens/);
+assert.match(popupText, /buildRuleBasedAnalysis\(cardData,\s*\{\s*outputLanguage: settings\.outputLanguage\s*\}\)/);
 assert.match(popupText, /function defaultCopyFormatFor/);
 assert.match(popupText, /function updateQuickCopyButton/);
 assert.match(popupText, /id="copyChangeBriefButton"/);
@@ -319,6 +320,21 @@ assert.ok(local.summary.history.includes("recent activity"));
 assert.ok(local.summary.insights.some(item => item.includes("Recent activity included")));
 assert.ok(local.summary.insights.some(item => item.includes("Attachment metadata includes")));
 assert.ok(local.summary.risks.some(item => item.includes("Attachment contents were not verified")));
+
+const dutchLocal = SummarizeThis.buildRuleBasedAnalysis(sample, {
+  outputLanguage: "nl",
+  now: new Date(Date.now() + 4 * 86400000)
+});
+assert.ok(dutchLocal.summary.about.includes("Deze kaart"));
+assert.ok(dutchLocal.summary.history.includes("opmerking"));
+assert.ok(dutchLocal.summary.history.includes("meegenomen"));
+assert.ok(dutchLocal.summary.status.includes("Huidige lijst"));
+assert.ok(dutchLocal.summary.status.includes("Deze kaart"));
+assert.ok(dutchLocal.summary.insights.some(item => item.includes("Checklistvoortgang")));
+assert.ok(dutchLocal.summary.insights.some(item => item.includes("bijlagen kunnen ondersteunende details bevatten")));
+assert.ok(dutchLocal.summary.risks.some(item => item.includes("Bijlage-inhoud is niet geverifieerd")));
+assert.ok(dutchLocal.summary.recommendations.some(item => item.includes("Gebruik de volgende stappen")));
+assert.equal(dutchLocal.metadata.outputLanguage, "nl");
 
 const staleLocal = SummarizeThis.buildRuleBasedAnalysis(Object.assign({}, sample, {
   dateLastActivity: "2026-05-20T12:00:00.000Z",

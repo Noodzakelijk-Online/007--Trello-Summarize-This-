@@ -1118,7 +1118,9 @@
           }
 
           setStatus("Building summary", "Creating a reliable local summary first.");
-          var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData);
+          var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData, {
+            outputLanguage: settings.outputLanguage
+          });
           timingTracker.mark("local-summary", "Local summary");
           var analysis = localAnalysis;
           var warning = "";

@@ -299,6 +299,7 @@ Status: Implemented in `settings-powerup.html`, `popup.html`, `summarizer-core.j
 
 - Settings now support English or Dutch as the member-private output language preference.
 - AI prompts include the selected language as an explicit instruction while keeping JSON schema field names stable for exports, Sneup, and HAI.
+- The built-in local summarizer also honors the selected language for its overview, history, status, insights, risks, and recommendations, so local mode and sensitive-card fallback do not revert to English-only output.
 - The active popup shows the selected output language in the export panel.
 - Ledger runs and structured JSON exports preserve the requested language without storing full prompt text.
 
@@ -414,7 +415,7 @@ Impact: Low-medium. Improves everyday comfort without changing the product workf
 ## Lower-Priority Improvements
 
 - Execute the reviewed batch queue for selected cards, a full list, or a board with approval-gated AI handoff and visible rate-limit controls.
-- Localization for Dutch and English.
+- Full interface localization for Dutch and English.
 - Optional update checker for the Windows installer.
 
 ## Implementation Order

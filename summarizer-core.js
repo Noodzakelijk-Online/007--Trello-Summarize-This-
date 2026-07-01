@@ -900,11 +900,12 @@
     };
   }
 
-  function getDueInfo(card, now) {
+  function getDueInfo(card, now, language) {
+    var dutch = normalizeOutputLanguage(language) === "nl";
     if (!card.due) {
       return {
         hasDue: false,
-        text: "No due date is set.",
+        text: dutch ? "Er is geen vervaldatum ingesteld." : "No due date is set.",
         state: "none"
       };
     }
@@ -913,7 +914,7 @@
     if (Number.isNaN(dueDate.getTime())) {
       return {
         hasDue: false,
-        text: "The due date could not be read.",
+        text: dutch ? "De vervaldatum kon niet worden gelezen." : "The due date could not be read.",
         state: "unknown"
       };
     }
@@ -921,7 +922,7 @@
     if (card.dueComplete) {
       return {
         hasDue: true,
-        text: "The due date is marked complete.",
+        text: dutch ? "De vervaldatum is gemarkeerd als afgerond." : "The due date is marked complete.",
         state: "complete",
         date: dueDate
       };
@@ -932,7 +933,9 @@
     if (days < 0) {
       return {
         hasDue: true,
-        text: "This card is overdue by " + Math.abs(days) + " day" + (Math.abs(days) === 1 ? "" : "s") + ".",
+        text: dutch
+          ? "Deze kaart is " + Math.abs(days) + " dag" + (Math.abs(days) === 1 ? "" : "en") + " te laat."
+          : "This card is overdue by " + Math.abs(days) + " day" + (Math.abs(days) === 1 ? "" : "s") + ".",
         state: "overdue",
         days: days,
         date: dueDate
@@ -941,7 +944,7 @@
     if (days === 0) {
       return {
         hasDue: true,
-        text: "This card is due today.",
+        text: dutch ? "Deze kaart vervalt vandaag." : "This card is due today.",
         state: "due-today",
         days: days,
         date: dueDate
@@ -949,7 +952,9 @@
     }
     return {
       hasDue: true,
-      text: "This card is due in " + days + " day" + (days === 1 ? "" : "s") + ".",
+      text: dutch
+        ? "Deze kaart vervalt over " + days + " dag" + (days === 1 ? "" : "en") + "."
+        : "This card is due in " + days + " day" + (days === 1 ? "" : "s") + ".",
       state: days <= 3 ? "soon" : "scheduled",
       days: days,
       date: dueDate
@@ -1056,54 +1061,207 @@
     return detectSensitiveSignals(input).requiresAiApproval;
   }
 
+  function localSummaryCopy(language) {
+    var dutch = normalizeOutputLanguage(language) === "nl";
+    return {
+      aboutWithDescription: function (name, description) {
+        return dutch
+          ? "Deze kaart, \"" + name + "\", gaat over " + description
+          : "This card, \"" + name + "\", is about " + description;
+      },
+      aboutWithoutDescription: function (name) {
+        return dutch
+          ? "Deze kaart heet \"" + name + "\", maar heeft nog geen beschrijving. De analyse is daarom gebaseerd op de titel en beschikbare metadata."
+          : "This card is titled \"" + name + "\" but does not yet include a description, so the analysis is based on the title and available metadata.";
+      },
+      labels: function (labels) {
+        return dutch ? " Labels geven aan: " + labels + "." : " Labels indicate: " + labels + ".";
+      },
+      lastActivity: function (dateText) {
+        return dutch ? "Laatste activiteit is geregistreerd op " + dateText + "." : "Last activity was recorded on " + dateText + ".";
+      },
+      noActivityForDays: function (days) {
+        return dutch ? "Er is al " + days + " dagen geen zichtbare kaartactiviteit geregistreerd." : "No visible card activity has been recorded for " + days + " days.";
+      },
+      commentsAvailable: function (count) {
+        return dutch
+          ? count + " opmerking" + (count === 1 ? " is" : "en zijn") + " beschikbaar als context."
+          : count + " comment" + (count === 1 ? "" : "s") + " " + (count === 1 ? "is" : "are") + " available for context.";
+      },
+      activityIncluded: function (count) {
+        return dutch
+          ? count + " recent activiteit-item" + (count === 1 ? " is" : "s zijn") + " meegenomen."
+          : count + " recent activity item" + (count === 1 ? "" : "s") + " were included.";
+      },
+      priorCorrections: function (count) {
+        return dutch
+          ? count + " eerdere correctie" + (count === 1 ? "" : "s") + " uit reviewfeedback beschikbaar voor deze run."
+          : count + " prior correction" + (count === 1 ? "" : "s") + " from review feedback " + (count === 1 ? "is" : "are") + " available for this run.";
+      },
+      checklistComplete: function (complete, total) {
+        return dutch
+          ? complete + " van " + total + " checklistitem" + (total === 1 ? "" : "s") + " afgerond."
+          : complete + " of " + total + " checklist item" + (total === 1 ? "" : "s") + " " + (complete === 1 ? "is" : "are") + " complete.";
+      },
+      limitedHistory: dutch
+        ? "Er is beperkte activiteitshistorie uit Trello beschikbaar voor deze kaart."
+        : "There is limited activity history available from Trello for this card.",
+      board: function (name) {
+        return dutch ? "Bord: " + name + "." : "Board: " + name + ".";
+      },
+      list: function (name) {
+        return dutch ? "Huidige lijst: " + name + "." : "Current list: " + name + ".";
+      },
+      checklistProgress: function (percent) {
+        return dutch ? "Checklistvoortgang is " + percent + "% afgerond." : "Checklist progress is " + percent + "% complete.";
+      },
+      addDescriptionStep: dutch
+        ? "Voeg een korte beschrijving toe met doel, eigenaar en verwacht resultaat."
+        : "Add a short description that states the goal, owner, and expected outcome.",
+      assignOwnerStep: dutch
+        ? "Wijs een eigenaar toe zodat de volgende actie duidelijk is."
+        : "Assign an owner so the next action is clear.",
+      setDueDateStep: dutch
+        ? "Stel een vervaldatum of reviewdatum in voor het resterende werk."
+        : "Set a due date or target review date for the remaining work.",
+      confirmCompleteStep: dutch
+        ? "Bevestig dat de kaart compleet is of voeg de volgende concrete actie toe."
+        : "Confirm the card is complete or add the next concrete action.",
+      mainThemes: function (keywords) {
+        return dutch ? "Belangrijkste thema's: " + keywords + "." : "Main themes detected: " + keywords + ".";
+      },
+      checklistInsight: function (percent, incomplete) {
+        return dutch
+          ? "Checklistvoortgang is " + percent + "%, met " + incomplete + " item" + (incomplete === 1 ? "" : "s") + " open."
+          : "Checklist completion is " + percent + "%, with " + incomplete + " item" + (incomplete === 1 ? "" : "s") + " remaining.";
+      },
+      attachmentsMayContain: function (count) {
+        return dutch
+          ? count + " bijlage" + (count === 1 ? " kan" : "n kunnen") + " ondersteunende details bevatten."
+          : count + " attachment" + (count === 1 ? "" : "s") + " may contain supporting detail.";
+      },
+      attachmentMetadata: function (categories) {
+        return dutch ? "Bijlagemetadata bevat: " + categories + "." : "Attachment metadata includes: " + categories + ".";
+      },
+      attachmentNotVerified: dutch
+        ? "Bijlage-inhoud is niet geverifieerd; voor een of meer bestanden is alleen metadata beschikbaar."
+        : "Attachment contents were not verified; only attachment metadata is available for one or more file(s).",
+      recentActivity: function (items) {
+        return dutch ? "Recente activiteit meegenomen: " + items + "." : "Recent activity included: " + items + ".";
+      },
+      byAuthor: function (author) {
+        return dutch ? " door " + author : " by " + author;
+      },
+      listContext: function (count, listName) {
+        return dutch
+          ? "Lijstcontext bevat " + count + " voorbeeldkaart" + (count === 1 ? "" : "en") + " uit " + (listName || "de huidige lijst") + "."
+          : "List context includes " + count + " sampled card" + (count === 1 ? "" : "s") + " from " + (listName || "the current list") + ".";
+      },
+      commonLabels: function (labels) {
+        return dutch ? "Veelvoorkomende lijstlabels: " + labels + "." : "Common list labels: " + labels + ".";
+      },
+      customFields: function (fields) {
+        return dutch ? "Custom fields meegenomen: " + fields + "." : "Custom fields included: " + fields + ".";
+      },
+      priorFeedbackInsight: dutch
+        ? "Eerdere gebruikersfeedback is beschikbaar en moet worden gecontroleerd voordat deze analyse als definitief wordt behandeld."
+        : "Prior user feedback is available and should be reviewed before treating this analysis as final.",
+      sparseMetadata: dutch
+        ? "De kaart heeft beperkte metadata, dus behandel de samenvatting als startpunt."
+        : "The card has sparse metadata, so the summary should be treated as a starting point.",
+      missingDescriptionRisk: dutch
+        ? "Ontbrekende beschrijving maakt scope en acceptatiecriteria onduidelijk."
+        : "Missing description makes scope and acceptance criteria unclear.",
+      noOwnerRisk: dutch
+        ? "Er is geen zichtbare eigenaar toegewezen."
+        : "No visible owner is assigned.",
+      lowChecklistRisk: dutch
+        ? "Minder dan de helft van de checklist is afgerond."
+        : "Less than half of the checklist is complete.",
+      veryStaleRisk: function (days) {
+        return dutch
+          ? "Er is al " + days + " dagen geen zichtbare kaartactiviteit geregistreerd; bevestig de actuele status voordat je op deze kaart vertrouwt."
+          : "No visible card activity has been recorded for " + days + " days; confirm current status before relying on this card.";
+      },
+      staleRisk: function (days) {
+        return dutch
+          ? "Er is al " + days + " dagen geen zichtbare kaartactiviteit geregistreerd; de status kan verouderen."
+          : "No visible card activity has been recorded for " + days + " days; status may be aging.";
+      },
+      useNextSteps: dutch
+        ? "Gebruik de volgende stappen als directe actielijst voor deze kaart."
+        : "Use the next steps as the immediate action list for this card.",
+      addConciseDescription: dutch
+        ? "Voeg een beknopte kaartbeschrijving toe voordat je AI-analyse voor beslissingen gebruikt."
+        : "Add a concise card description before relying on AI analysis for decisions.",
+      addStatusComment: dutch
+        ? "Voeg een statusopmerking toe wanneer belangrijke context buiten de kaart staat."
+        : "Add a status comment when meaningful context lives outside the card.",
+      enableListContext: dutch
+        ? "Schakel lijstcontext in wanneer deze kaart sprint- of buurkaartvergelijking nodig heeft."
+        : "Enable list context when this card needs sprint or neighboring-card comparison.",
+      checkPriorCorrections: dutch
+        ? "Controleer eerdere correcties en voorkom dat eerder gemelde fouten terugkomen."
+        : "Check prior corrections and avoid repeating previously flagged mistakes.",
+      reconfirmPriority: dutch
+        ? "Bevestig prioriteit opnieuw en werk de vervaldatum bij nadat de eigenaar de kaart heeft beoordeeld."
+        : "Reconfirm priority and update the due date after the owner reviews the card.",
+      refreshStaleStatus: dutch
+        ? "Voeg een actuele statusopmerking toe of verplaats de kaart nadat is bevestigd of het werk nog actief is."
+        : "Add a current status comment or move the card after confirming whether the work is still active."
+    };
+  }
+
   function buildRuleBasedAnalysis(input, options) {
     var card = normalizeCardData(input);
-    var due = getDueInfo(card, options && options.now);
+    var outputLanguage = normalizeOutputLanguage(options && options.outputLanguage);
+    var due = getDueInfo(card, options && options.now, outputLanguage);
     var activityAge = getActivityAgeInfo(card, options && options.now);
     var checklist = card.checklistStats;
     var keywords = extractKeywords(card);
+    var copy = localSummaryCopy(outputLanguage);
     var nextSteps = [];
     var insights = [];
     var risks = [];
     var recommendations = [];
 
     var about = card.desc
-      ? "This card, \"" + card.name + "\", is about " + firstSentences(card.desc, 2)
-      : "This card is titled \"" + card.name + "\" but does not yet include a description, so the analysis is based on the title and available metadata.";
+      ? copy.aboutWithDescription(card.name, firstSentences(card.desc, 2))
+      : copy.aboutWithoutDescription(card.name);
 
     if (card.labels.length) {
-      about += " Labels indicate: " + card.labels.join(", ") + ".";
+      about += copy.labels(card.labels.join(", "));
     }
 
     var historyParts = [];
     if (card.dateLastActivity) {
-      historyParts.push("Last activity was recorded on " + new Date(card.dateLastActivity).toLocaleDateString() + ".");
+      historyParts.push(copy.lastActivity(new Date(card.dateLastActivity).toLocaleDateString()));
     }
     if (activityAge.veryStale) {
-      historyParts.push("No visible card activity has been recorded for " + activityAge.days + " days.");
+      historyParts.push(copy.noActivityForDays(activityAge.days));
     }
     if (card.commentCount) {
-      historyParts.push(card.commentCount + " comment" + (card.commentCount === 1 ? "" : "s") + " " + (card.commentCount === 1 ? "is" : "are") + " available for context.");
+      historyParts.push(copy.commentsAvailable(card.commentCount));
     }
     if (card.actions.length) {
-      historyParts.push(card.actions.length + " recent activity item" + (card.actions.length === 1 ? "" : "s") + " were included.");
+      historyParts.push(copy.activityIncluded(card.actions.length));
     }
     if (card.priorFeedback.length) {
-      historyParts.push(card.priorFeedback.length + " prior correction" + (card.priorFeedback.length === 1 ? "" : "s") + " from review feedback " + (card.priorFeedback.length === 1 ? "is" : "are") + " available for this run.");
+      historyParts.push(copy.priorCorrections(card.priorFeedback.length));
     }
     if (checklist.total) {
-      historyParts.push(checklist.complete + " of " + checklist.total + " checklist item" + (checklist.total === 1 ? "" : "s") + " " + (checklist.complete === 1 ? "is" : "are") + " complete.");
+      historyParts.push(copy.checklistComplete(checklist.complete, checklist.total));
     }
     var history = historyParts.length
       ? historyParts.join(" ")
-      : "There is limited activity history available from Trello for this card.";
+      : copy.limitedHistory;
 
     var statusParts = [];
-    if (card.boardName) statusParts.push("Board: " + card.boardName + ".");
-    if (card.listName) statusParts.push("Current list: " + card.listName + ".");
+    if (card.boardName) statusParts.push(copy.board(card.boardName));
+    if (card.listName) statusParts.push(copy.list(card.listName));
     statusParts.push(due.text);
     if (checklist.total) {
-      statusParts.push("Checklist progress is " + checklist.percent + "% complete.");
+      statusParts.push(copy.checklistProgress(checklist.percent));
     }
     var status = statusParts.join(" ");
 
@@ -1111,92 +1269,92 @@
       nextSteps = checklist.incompleteItems.slice(0, 5);
     }
     if (!card.desc) {
-      nextSteps.push("Add a short description that states the goal, owner, and expected outcome.");
+      nextSteps.push(copy.addDescriptionStep);
     }
     if (!card.members.length) {
-      nextSteps.push("Assign an owner so the next action is clear.");
+      nextSteps.push(copy.assignOwnerStep);
     }
     if (!card.due && checklist.incomplete > 0) {
-      nextSteps.push("Set a due date or target review date for the remaining work.");
+      nextSteps.push(copy.setDueDateStep);
     }
     if (nextSteps.length === 0) {
-      nextSteps.push("Confirm the card is complete or add the next concrete action.");
+      nextSteps.push(copy.confirmCompleteStep);
     }
 
     if (keywords.length) {
-      insights.push("Main themes detected: " + keywords.join(", ") + ".");
+      insights.push(copy.mainThemes(keywords.join(", ")));
     }
     if (checklist.total) {
-      insights.push("Checklist completion is " + checklist.percent + "%, with " + checklist.incomplete + " item" + (checklist.incomplete === 1 ? "" : "s") + " remaining.");
+      insights.push(copy.checklistInsight(checklist.percent, checklist.incomplete));
     }
     if (card.attachmentCount) {
-      insights.push(card.attachmentCount + " attachment" + (card.attachmentCount === 1 ? "" : "s") + " may contain supporting detail.");
-      insights.push("Attachment metadata includes: " + summarizeAttachmentCategories(card.attachments) + ".");
+      insights.push(copy.attachmentsMayContain(card.attachmentCount));
+      insights.push(copy.attachmentMetadata(summarizeAttachmentCategories(card.attachments)));
       if (card.attachments.some(function (attachment) { return !attachment.extractedTextAvailable; })) {
-        risks.push("Attachment contents were not verified; only attachment metadata is available for one or more file(s).");
+        risks.push(copy.attachmentNotVerified);
       }
     }
     if (card.actions.length) {
-      insights.push("Recent activity included: " + card.actions.slice(0, 3).map(function (action) {
-        return action.type + (action.author ? " by " + action.author : "");
-      }).join("; ") + ".");
+      insights.push(copy.recentActivity(card.actions.slice(0, 3).map(function (action) {
+        return action.type + (action.author ? copy.byAuthor(action.author) : "");
+      }).join("; ")));
     }
     if (card.listContext && card.listContext.sampledCards) {
-      insights.push("List context includes " + card.listContext.sampledCards + " sampled card" + (card.listContext.sampledCards === 1 ? "" : "s") + " from " + (card.listContext.listName || "the current list") + ".");
+      insights.push(copy.listContext(card.listContext.sampledCards, card.listContext.listName));
       if (card.listContext.labelPatterns.length) {
-        insights.push("Common list labels: " + card.listContext.labelPatterns.map(function (item) {
+        insights.push(copy.commonLabels(card.listContext.labelPatterns.map(function (item) {
           return item.label + " (" + item.count + ")";
-        }).join(", ") + ".");
+        }).join(", ")));
       }
     }
     if (card.customFields.length) {
-      insights.push("Custom fields included: " + card.customFields.slice(0, 5).map(function (field) {
+      insights.push(copy.customFields(card.customFields.slice(0, 5).map(function (field) {
         return field.name + (field.value ? " = " + field.value : "");
-      }).join("; ") + ".");
+      }).join("; ")));
     }
     if (card.priorFeedback.length) {
-      insights.push("Prior user feedback is available and should be reviewed before treating this analysis as final.");
+      insights.push(copy.priorFeedbackInsight);
     }
     if (insights.length === 0) {
-      insights.push("The card has sparse metadata, so the summary should be treated as a starting point.");
+      insights.push(copy.sparseMetadata);
     }
 
     if (due.state === "overdue" || due.state === "due-today") {
       risks.push(due.text);
     }
     if (!card.desc) {
-      risks.push("Missing description makes scope and acceptance criteria unclear.");
+      risks.push(copy.missingDescriptionRisk);
     }
     if (!card.members.length) {
-      risks.push("No visible owner is assigned.");
+      risks.push(copy.noOwnerRisk);
     }
     if (checklist.total && checklist.percent < 50) {
-      risks.push("Less than half of the checklist is complete.");
+      risks.push(copy.lowChecklistRisk);
     }
     if (activityAge.veryStale) {
-      risks.push("No visible card activity has been recorded for " + activityAge.days + " days; confirm current status before relying on this card.");
+      risks.push(copy.veryStaleRisk(activityAge.days));
     } else if (activityAge.stale) {
-      risks.push("No visible card activity has been recorded for " + activityAge.days + " days; status may be aging.");
+      risks.push(copy.staleRisk(activityAge.days));
     }
 
-    recommendations.push("Use the next steps as the immediate action list for this card.");
+    recommendations.push(copy.useNextSteps);
     if (!card.desc) {
-      recommendations.push("Add a concise card description before relying on AI analysis for decisions.");
+      recommendations.push(copy.addConciseDescription);
     }
     if (card.commentCount === 0) {
-      recommendations.push("Add a status comment when meaningful context lives outside the card.");
+      recommendations.push(copy.addStatusComment);
     }
     if (!card.listContext || !card.listContext.sampledCards) {
-      recommendations.push("Enable list context when this card needs sprint or neighboring-card comparison.");
+      recommendations.push(copy.enableListContext);
     }
     if (card.priorFeedback.length) {
-      recommendations.push("Check prior corrections and avoid repeating previously flagged mistakes.");
+      recommendations.push(copy.checkPriorCorrections);
     }
     if (due.state === "overdue") {
-      recommendations.push("Reconfirm priority and update the due date after the owner reviews the card.");
+      recommendations.push(copy.reconfirmPriority);
     }
     if (activityAge.stale) {
-      recommendations.push("Add a current status comment or move the card after confirming whether the work is still active.");
+      recommendations.push(copy.refreshStaleStatus);
     }
 
     var qualityScore = scoreDataQuality(card);
@@ -1216,6 +1374,7 @@
       metadata: {
         provider: "Local rules",
         model: "built-in summarizer",
+        outputLanguage: outputLanguage,
         tokens: 0,
         cost: 0
       },
