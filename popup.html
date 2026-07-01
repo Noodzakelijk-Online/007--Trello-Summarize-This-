@@ -315,6 +315,29 @@
       text-transform: none;
     }
 
+    .batch-progress-list {
+      margin: 8px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .batch-progress-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 164px;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .batch-progress-title {
+      overflow-wrap: anywhere;
+    }
+
+    .batch-progress-status {
+      width: 100%;
+    }
+
     .source-list {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -614,7 +637,7 @@
       }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 720px) {
       body {
         padding: 12px;
       }
@@ -633,6 +656,10 @@
       .source-list,
       .evidence-list,
       .control-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .batch-progress-item {
         grid-template-columns: 1fr;
       }
 
@@ -870,11 +897,14 @@
           </label>
           <div class="actions">
             <button class="secondary" type="button" id="previewBatchExecutionButton">Preview controlled run</button>
-            <button class="secondary" type="button" id="openFirstBatchCardButton">Open first selected card</button>
+            <button class="secondary" type="button" id="openFirstBatchCardButton">Open next selected card</button>
             <button class="secondary" type="button" id="copyBatchManualChecklistButton">Copy manual checklist</button>
+            <button class="secondary" type="button" id="resetBatchProgressButton">Reset progress</button>
           </div>
           <p id="batchExecutionSummary" class="section-body">Execution review will appear after analysis.</p>
           <ul id="batchExecutionList" class="compact-list"></ul>
+          <p id="batchProgressSummary" class="section-body">Batch progress will appear after preview.</p>
+          <ul id="batchProgressList" class="batch-progress-list"></ul>
           <p id="batchExecutionStatus" class="feedback-status"></p>
           <textarea id="batchManualChecklistFallback" class="postback-preview hidden" readonly></textarea>
         </div>
@@ -1065,6 +1095,8 @@
       var lastSensitiveSignals = null;
       var lastBatchPlan = null;
       var lastBatchExecutionReview = null;
+      var lastBatchProgressScope = "";
+      var lastBatchProgressState = {};
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -1181,6 +1213,8 @@
       });
       document.getElementById("openFirstBatchCardButton").addEventListener("click", openFirstBatchCard);
       document.getElementById("copyBatchManualChecklistButton").addEventListener("click", copyBatchManualChecklist);
+      document.getElementById("batchProgressList").addEventListener("change", updateBatchProgressFromControl);
+      document.getElementById("resetBatchProgressButton").addEventListener("click", resetBatchProgress);
       document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
       document.getElementById("openReleaseNotesButton").addEventListener("click", openReleaseNotes);
       initializeUpdatePanel();
@@ -1377,12 +1411,17 @@
         document.getElementById("batchPlanStatus").textContent = "";
         lastBatchPlan = null;
         lastBatchExecutionReview = null;
+        lastBatchProgressScope = "";
+        lastBatchProgressState = {};
         document.getElementById("batchExecutionControls").classList.add("hidden");
         document.getElementById("batchAiHandoffApproval").checked = false;
         document.getElementById("openFirstBatchCardButton").disabled = true;
         document.getElementById("copyBatchManualChecklistButton").disabled = true;
+        document.getElementById("resetBatchProgressButton").disabled = true;
         document.getElementById("batchExecutionSummary").textContent = "Execution review will appear after analysis.";
         document.getElementById("batchExecutionList").innerHTML = "";
+        document.getElementById("batchProgressSummary").textContent = "Batch progress will appear after preview.";
+        document.getElementById("batchProgressList").innerHTML = "";
         document.getElementById("batchExecutionStatus").textContent = "";
         var checklistFallback = document.getElementById("batchManualChecklistFallback");
         checklistFallback.value = "";
@@ -2751,6 +2790,7 @@
         var status = document.getElementById("batchExecutionStatus");
         var openButton = document.getElementById("openFirstBatchCardButton");
         var copyButton = document.getElementById("copyBatchManualChecklistButton");
+        var resetButton = document.getElementById("resetBatchProgressButton");
         var checklistFallback = document.getElementById("batchManualChecklistFallback");
 
         list.innerHTML = "";
@@ -2761,7 +2801,10 @@
           lastBatchExecutionReview = null;
           openButton.disabled = true;
           copyButton.disabled = true;
+          resetButton.disabled = true;
           summary.textContent = "Execution review will appear after analysis.";
+          document.getElementById("batchProgressSummary").textContent = "Batch progress will appear after preview.";
+          document.getElementById("batchProgressList").innerHTML = "";
           status.textContent = "";
           return;
         }
@@ -2812,6 +2855,8 @@
 
         openButton.disabled = !review.executionAllowed || !review.openableCards;
         copyButton.disabled = !review.queue.length;
+        resetButton.disabled = !review.queue.length;
+        renderBatchProgress(review);
 
         if (announce) {
           status.textContent = review.executionAllowed
@@ -2820,6 +2865,117 @@
         } else {
           status.textContent = "";
         }
+      }
+
+      function batchProgressScopeForReview(review) {
+        var snapshot = SummarizeThis.createBatchProgressSnapshot(review, {});
+        var boardId = lastCardData && (lastCardData.boardId || lastCardData.idBoard || (lastCardData.board && lastCardData.board.id)) || "";
+        var listId = lastCardData && (lastCardData.listId || lastCardData.idList || (lastCardData.list && lastCardData.list.id)) || review.listName || "";
+        var keys = snapshot.queue.map(function (item) { return item.key; }).join(",");
+        return ["batch-progress-v1", boardId, listId, review.listName || "", keys].join("|");
+      }
+
+      async function loadBatchProgress(review) {
+        var scope = batchProgressScopeForReview(review);
+        var allProgress = await readPrivateObject("summarizeThisBatchProgress", {});
+        if (!allProgress || typeof allProgress !== "object") allProgress = {};
+        var progress = allProgress[scope] && typeof allProgress[scope] === "object" ? allProgress[scope] : {};
+        lastBatchProgressScope = scope;
+        lastBatchProgressState = progress;
+        return {
+          scope: scope,
+          progress: progress
+        };
+      }
+
+      async function saveBatchProgress(scope, progress) {
+        var allProgress = await readPrivateObject("summarizeThisBatchProgress", {});
+        if (!allProgress || typeof allProgress !== "object") allProgress = {};
+        var nextProgress = Object.assign({}, progress, { _updatedAt: new Date().toISOString() });
+        allProgress[scope] = nextProgress;
+        Object.keys(allProgress)
+          .sort(function (left, right) {
+            var leftDate = allProgress[left] && allProgress[left]._updatedAt || "";
+            var rightDate = allProgress[right] && allProgress[right]._updatedAt || "";
+            return rightDate.localeCompare(leftDate);
+          })
+          .slice(30)
+          .forEach(function (key) {
+            delete allProgress[key];
+          });
+        await writePrivateObject("summarizeThisBatchProgress", allProgress);
+        lastBatchProgressScope = scope;
+        lastBatchProgressState = nextProgress;
+      }
+
+      async function renderBatchProgress(review) {
+        var summary = document.getElementById("batchProgressSummary");
+        var list = document.getElementById("batchProgressList");
+        list.innerHTML = "";
+        if (!review || !review.queue || !review.queue.length) {
+          summary.textContent = "Batch progress will appear after preview.";
+          return;
+        }
+
+        var loaded = await loadBatchProgress(review);
+        var snapshot = SummarizeThis.createBatchProgressSnapshot(review, loaded.progress);
+        summary.textContent = snapshot.summary
+          + " Pending " + snapshot.counts.pending
+          + ", opened " + snapshot.counts.opened
+          + ", analyzed " + snapshot.counts.analyzed
+          + ", copied " + snapshot.counts.copied
+          + ", skipped " + snapshot.counts.skipped
+          + ", blocked " + snapshot.counts.blocked + ".";
+
+        snapshot.queue.forEach(function (item) {
+          var li = document.createElement("li");
+          var title = document.createElement("span");
+          var select = document.createElement("select");
+          li.className = "batch-progress-item";
+          title.className = "batch-progress-title";
+          title.textContent = item.queuePosition + ". " + item.name;
+          select.className = "batch-progress-status";
+          select.setAttribute("data-progress-key", item.key);
+          [
+            ["pending", "Pending"],
+            ["opened", "Opened"],
+            ["analyzed", "Analyzed"],
+            ["copied", "Copied/exported"],
+            ["skipped", "Skipped"],
+            ["blocked", "Blocked"]
+          ].forEach(function (optionData) {
+            var option = document.createElement("option");
+            option.value = optionData[0];
+            option.textContent = optionData[1];
+            option.selected = option.value === item.status;
+            select.appendChild(option);
+          });
+          li.appendChild(title);
+          li.appendChild(select);
+          list.appendChild(li);
+        });
+      }
+
+      async function updateBatchProgressFromControl(event) {
+        var target = event.target;
+        if (!target || !target.getAttribute || !target.getAttribute("data-progress-key")) return;
+        var review = currentBatchExecutionReview();
+        if (!review || !lastBatchProgressScope) return;
+        var key = target.getAttribute("data-progress-key");
+        var nextState = Object.assign({}, lastBatchProgressState);
+        nextState[key] = target.value;
+        await saveBatchProgress(lastBatchProgressScope, nextState);
+        await renderBatchProgress(review);
+        document.getElementById("batchExecutionStatus").textContent = "Batch progress saved privately for this reviewed queue. No Trello card was changed.";
+      }
+
+      async function resetBatchProgress() {
+        var review = currentBatchExecutionReview();
+        if (!review || !review.queue.length) return;
+        var scope = batchProgressScopeForReview(review);
+        await saveBatchProgress(scope, {});
+        await renderBatchProgress(review);
+        document.getElementById("batchExecutionStatus").textContent = "Batch progress reset for this reviewed queue only.";
       }
 
       function renderSourceCoverage(coverage) {
@@ -3308,7 +3464,7 @@
         return SummarizeThis.createBatchExecutionReview(lastBatchPlan, batchExecutionOptionsFromControls());
       }
 
-      function openFirstBatchCard() {
+      async function openFirstBatchCard() {
         var review = currentBatchExecutionReview();
         var status = document.getElementById("batchExecutionStatus");
         if (!review || !review.queue.length) {
@@ -3320,14 +3476,22 @@
           return;
         }
 
-        var first = review.queue.find(function (item) { return item.cardUrl; });
+        var loaded = await loadBatchProgress(review);
+        var snapshot = SummarizeThis.createBatchProgressSnapshot(review, loaded.progress);
+        var first = snapshot.queue.find(function (item) { return item.cardUrl && item.status === "pending"; })
+          || snapshot.queue.find(function (item) { return item.cardUrl && item.status === "blocked"; })
+          || snapshot.queue.find(function (item) { return item.cardUrl && item.status === "opened"; });
         if (!first) {
-          status.textContent = "No Trello card URL is available in the selected queue. Open the card manually from Trello.";
+          status.textContent = "No pending Trello card URL is available in the selected queue.";
           return;
         }
 
         window.open(first.cardUrl, "_blank", "noopener,noreferrer");
-        status.textContent = "Opened " + first.name + " in a new tab. Run Summarize This there before moving to the next card.";
+        var nextState = Object.assign({}, loaded.progress);
+        nextState[first.key] = "opened";
+        await saveBatchProgress(loaded.scope, nextState);
+        await renderBatchProgress(review);
+        status.textContent = "Opened " + first.name + " in a new tab and marked it opened. Run Summarize This there before moving to the next card.";
         recordExport("batch-open-card", "browser-tab", null, true);
       }
 

@@ -360,6 +360,29 @@
     return "";
   }
 
+  function normalizeBatchProgressStatus(value) {
+    var status = cleanText(value).toLowerCase();
+    var allowed = {
+      pending: true,
+      opened: true,
+      analyzed: true,
+      copied: true,
+      skipped: true,
+      blocked: true
+    };
+    return allowed[status] ? status : "pending";
+  }
+
+  function batchProgressKeyForItem(item) {
+    var source = item || {};
+    var url = safeTrelloCardUrl(source.cardUrl || source.url);
+    if (url) return "url:" + url;
+    var id = cleanText(source.cardId || source.id);
+    if (id) return "id:" + id;
+    var name = cleanText(source.name || source.title || "untitled-card").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").slice(0, 80);
+    return "name:" + (name || "untitled-card");
+  }
+
   function normalizeUpdateManifest(input) {
     var source = input && typeof input === "object" ? input : {};
     var version = cleanText(source.version || source.latestVersion || APP_VERSION);
@@ -1078,6 +1101,48 @@
 
     lines.push("", "Privacy: " + cleanText(source.privacyNote));
     return lines.join("\n");
+  }
+
+  function createBatchProgressSnapshot(review, storedProgress) {
+    var source = review || {};
+    var saved = storedProgress && typeof storedProgress === "object" ? storedProgress : {};
+    var counts = {
+      pending: 0,
+      opened: 0,
+      analyzed: 0,
+      copied: 0,
+      skipped: 0,
+      blocked: 0
+    };
+    var queue = toArray(source.queue).map(function (item) {
+      var key = batchProgressKeyForItem(item);
+      var status = normalizeBatchProgressStatus(saved[key]);
+      counts[status] += 1;
+      return {
+        key: key,
+        queuePosition: item.queuePosition || 0,
+        cardId: item.cardId || "",
+        name: cleanText(item.name || "Untitled card"),
+        cardUrl: safeTrelloCardUrl(item.cardUrl || item.url),
+        status: status,
+        recommendedMode: cleanText(item.recommendedMode || "operational-ledger")
+      };
+    });
+    var done = counts.analyzed + counts.copied + counts.skipped;
+    var needsAttention = counts.pending + counts.opened + counts.blocked;
+
+    return {
+      schemaVersion: "summarize-this-batch-progress-v1",
+      listName: cleanText(source.listName || ""),
+      totalCards: queue.length,
+      doneCards: done,
+      needsAttentionCards: needsAttention,
+      counts: counts,
+      queue: queue,
+      summary: queue.length
+        ? done + " of " + queue.length + " card(s) done; " + needsAttention + " need attention."
+        : "No selected batch cards are being tracked."
+    };
   }
 
   function markdownForBatchAnalysisPlan(plan) {
@@ -2204,6 +2269,7 @@
     compareVersions: compareVersions,
     createBatchAnalysisPlan: createBatchAnalysisPlan,
     createBatchExecutionReview: createBatchExecutionReview,
+    createBatchProgressSnapshot: createBatchProgressSnapshot,
     createCostRecord: createCostRecord,
     createListPlanningBrief: createListPlanningBrief,
     createListTrendSignals: createListTrendSignals,

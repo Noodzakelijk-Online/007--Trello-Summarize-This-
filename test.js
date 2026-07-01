@@ -184,10 +184,16 @@ assert.match(popupText, /id="batchAiHandoffApproval"/);
 assert.match(popupText, /id="previewBatchExecutionButton"/);
 assert.match(popupText, /id="openFirstBatchCardButton"/);
 assert.match(popupText, /id="copyBatchManualChecklistButton"/);
+assert.match(popupText, /id="resetBatchProgressButton"/);
+assert.match(popupText, /id="batchProgressSummary"/);
+assert.match(popupText, /id="batchProgressList"/);
 assert.match(popupText, /id="batchManualChecklistFallback"/);
 assert.match(popupText, /function renderBatchExecutionReview/);
 assert.match(popupText, /function openFirstBatchCard/);
 assert.match(popupText, /function copyBatchManualChecklist/);
+assert.match(popupText, /function renderBatchProgress/);
+assert.match(popupText, /function updateBatchProgressFromControl/);
+assert.match(popupText, /Batch progress saved privately/);
 assert.match(popupText, /approved manual batch checklist is shown below/);
 assert.match(popupText, /createBatchExecutionReview\(plan/);
 assert.match(popupText, /Automatic execution:/);
@@ -518,6 +524,26 @@ assert.ok(manualBatchChecklist.includes("Manual batch run checklist"));
 assert.ok(manualBatchChecklist.includes("Automatic execution: off"));
 assert.ok(manualBatchChecklist.includes("[2. Prepare launch checklist](https://trello.com/c/samplecard/prepare-launch-checklist)"));
 assert.equal(manualBatchChecklist.includes("Finalize the launch checklist"), false);
+
+const emptyBatchProgress = SummarizeThis.createBatchProgressSnapshot(approvedBatchExecutionReview, {});
+assert.equal(emptyBatchProgress.schemaVersion, "summarize-this-batch-progress-v1");
+assert.equal(emptyBatchProgress.totalCards, 4);
+assert.equal(emptyBatchProgress.counts.pending, 4);
+assert.equal(emptyBatchProgress.doneCards, 0);
+assert.ok(emptyBatchProgress.queue[1].key.includes("https://trello.com/c/samplecard/prepare-launch-checklist"));
+const trackedBatchProgress = SummarizeThis.createBatchProgressSnapshot(approvedBatchExecutionReview, {
+  "url:https://trello.com/c/sampleprior/confirm-analytics-baseline": "opened",
+  "url:https://trello.com/c/samplecard/prepare-launch-checklist": "analyzed",
+  "url:https://trello.com/c/samplenext/draft-support-handoff": "copied",
+  "url:https://trello.com/c/samplelater/review-billing-test-run": "invalid"
+});
+assert.equal(trackedBatchProgress.counts.opened, 1);
+assert.equal(trackedBatchProgress.counts.analyzed, 1);
+assert.equal(trackedBatchProgress.counts.copied, 1);
+assert.equal(trackedBatchProgress.counts.pending, 1);
+assert.equal(trackedBatchProgress.doneCards, 2);
+assert.equal(trackedBatchProgress.needsAttentionCards, 2);
+assert.ok(trackedBatchProgress.summary.includes("2 of 4 card(s) done"));
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",
