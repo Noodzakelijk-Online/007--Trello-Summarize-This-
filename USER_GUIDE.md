@@ -390,12 +390,15 @@ The batch analysis plan creates a review queue from the same bounded list metada
 4. Run the analysis.
 5. Use **Copy batch plan** for a Markdown queue review.
 6. Use **Copy batch JSON** for a structured queue seed.
+7. Use the execution review controls to choose the reviewed card count, concurrency, and delay.
+8. Tick AI handoff approval only after reviewing the selected queue.
+9. Use **Preview controlled run** to confirm readiness before opening selected cards for full analysis.
 
-The batch plan does not run AI, does not fetch neighboring card descriptions or comments, and does not write to Trello. It sets AI handoff to off by default, recommends concurrency `1`, and includes an approval checklist for any later full-card batch run.
+The batch plan and execution review do not run AI, do not fetch neighboring card descriptions or comments, and do not write to Trello. AI handoff stays blocked until approval is checked. Trello posting stays off even after approval, because each exact comment draft still requires separate review.
 
 ### What Remains Future Work
 
-Full batch execution for selected cards, an entire list, or an entire board is still future work. That future version should build on the reviewed queue, add visible rate-limit controls, and require explicit AI handoff consent before processing many full card bodies.
+Automatic batch execution for selected cards, an entire list, or an entire board is still future work. The current execution review is the safety layer that future execution should build on.
 
 ---
 

@@ -914,6 +914,74 @@
     };
   }
 
+  function clampWholeNumber(value, min, max, fallback) {
+    var number = Math.floor(toNumber(value));
+    if (!Number.isFinite(number) || number < min) number = fallback;
+    if (!Number.isFinite(number)) number = min;
+    return Math.max(min, Math.min(max, number));
+  }
+
+  function createBatchExecutionReview(plan, options) {
+    var source = plan || {};
+    var queue = toArray(source.queue);
+    var maxSelectable = Math.max(1, Math.min(12, queue.length || 1));
+    var selectedCount = clampWholeNumber(options && options.maxCards, 1, maxSelectable, Math.min(3, maxSelectable));
+    var concurrency = clampWholeNumber(options && options.concurrency, 1, 3, source.recommendedConcurrency || 1);
+    var delaySeconds = clampWholeNumber(options && options.delaySeconds, 0, 30, source.recommendedDelaySeconds || 2);
+    var secondsPerCard = clampWholeNumber(options && options.estimatedSecondsPerCard, 10, 180, 35);
+    var aiHandoffApproved = Boolean(options && options.aiHandoffApproved);
+    var selectedQueue = queue.slice(0, selectedCount);
+    var blockedReasons = [];
+
+    if (!selectedQueue.length) {
+      blockedReasons.push("No reviewed queue items are available.");
+    }
+    if (!aiHandoffApproved) {
+      blockedReasons.push("AI handoff approval is not checked.");
+    }
+
+    var estimatedSeconds = selectedQueue.length
+      ? Math.ceil((selectedQueue.length * secondsPerCard) / Math.max(1, concurrency))
+        + Math.max(0, selectedQueue.length - 1) * delaySeconds
+      : 0;
+
+    return {
+      schemaVersion: "summarize-this-batch-execution-review-v1",
+      sourceSchemaVersion: source.schemaVersion || "",
+      listName: source.listName || "",
+      selectedCards: selectedQueue.length,
+      availableCards: queue.length,
+      concurrency: concurrency,
+      delaySeconds: delaySeconds,
+      estimatedSeconds: estimatedSeconds,
+      estimatedMinutes: estimatedSeconds ? Math.max(1, Math.ceil(estimatedSeconds / 60)) : 0,
+      aiHandoffApproved: aiHandoffApproved,
+      trelloWriteDefault: "off",
+      automaticExecution: false,
+      networkAction: "none",
+      executionAllowed: !blockedReasons.length,
+      blockedReasons: blockedReasons,
+      queue: selectedQueue.map(function (item, index) {
+        return {
+          queuePosition: item.queuePosition || index + 1,
+          cardId: item.cardId || "",
+          name: item.name || "Untitled card",
+          recommendedMode: item.recommendedMode || "operational-ledger",
+          signals: toArray(item.signals).slice(0, 6),
+          status: aiHandoffApproved ? "ready-for-reviewed-run" : "review-required",
+          requiredApproval: item.requiredApproval || "Review this queue item before any full-card AI analysis or Trello write."
+        };
+      }),
+      safetyChecklist: [
+        "Open each selected card and collect full evidence before analysis.",
+        "Send card bodies, comments, or attachment text to AI only after this approval.",
+        "Keep Trello posting off until each exact comment draft is reviewed.",
+        "Stop or reduce concurrency if Trello or provider rate limits appear."
+      ],
+      privacyNote: "This execution review still uses bounded list metadata only. It previews controls and queue state, but does not fetch full card bodies, call AI, or write to Trello."
+    };
+  }
+
   function markdownForBatchAnalysisPlan(plan) {
     var source = plan || {};
     var lines = [
@@ -2037,6 +2105,7 @@
     buildRuleBasedAnalysis: buildRuleBasedAnalysis,
     compareVersions: compareVersions,
     createBatchAnalysisPlan: createBatchAnalysisPlan,
+    createBatchExecutionReview: createBatchExecutionReview,
     createCostRecord: createCostRecord,
     createListPlanningBrief: createListPlanningBrief,
     createListTrendSignals: createListTrendSignals,

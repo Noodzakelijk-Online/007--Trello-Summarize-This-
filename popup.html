@@ -287,6 +287,34 @@
       margin-top: 8px;
     }
 
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .control-field {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .control-field select {
+      min-height: 36px;
+      border: 1px solid #b6c2cf;
+      border-radius: 6px;
+      padding: 6px 8px;
+      background: var(--panel);
+      color: var(--ink);
+      font: inherit;
+      font-weight: 700;
+      text-transform: none;
+    }
+
     .source-list {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -578,6 +606,7 @@
       }
 
       textarea,
+      .control-field select,
       .postback-preview {
         border-color: #4b5873;
         background: #151c27;
@@ -602,7 +631,8 @@
       .metrics,
       .digest-list,
       .source-list,
-      .evidence-list {
+      .evidence-list,
+      .control-grid {
         grid-template-columns: 1fr;
       }
 
@@ -804,6 +834,47 @@
           <button class="secondary" type="button" id="copyBatchPlanJsonButton">Copy batch JSON</button>
         </div>
         <p id="batchPlanStatus" class="feedback-status"></p>
+        <div id="batchExecutionControls" class="hidden">
+          <h3 class="trust-heading">Execution review</h3>
+          <div class="control-grid">
+            <label class="control-field" for="batchCardLimit">
+              Cards
+              <select id="batchCardLimit">
+                <option value="1">1 card</option>
+                <option value="3" selected>3 cards</option>
+                <option value="5">5 cards</option>
+                <option value="8">8 cards</option>
+                <option value="12">12 cards</option>
+              </select>
+            </label>
+            <label class="control-field" for="batchConcurrency">
+              Concurrency
+              <select id="batchConcurrency">
+                <option value="1" selected>1 at a time</option>
+                <option value="2">2 at a time</option>
+                <option value="3">3 at a time</option>
+              </select>
+            </label>
+            <label class="control-field" for="batchDelay">
+              Delay
+              <select id="batchDelay">
+                <option value="2" selected>2 seconds</option>
+                <option value="5">5 seconds</option>
+                <option value="10">10 seconds</option>
+              </select>
+            </label>
+          </div>
+          <label class="checkbox-row" for="batchAiHandoffApproval">
+            <input id="batchAiHandoffApproval" type="checkbox">
+            I reviewed the selected queue and approve AI handoff for full-card analysis. Trello posting remains off.
+          </label>
+          <div class="actions">
+            <button class="secondary" type="button" id="previewBatchExecutionButton">Preview controlled run</button>
+          </div>
+          <p id="batchExecutionSummary" class="section-body">Execution review will appear after analysis.</p>
+          <ul id="batchExecutionList" class="compact-list"></ul>
+          <p id="batchExecutionStatus" class="feedback-status"></p>
+        </div>
       </section>
 
       <section class="panel">
@@ -989,6 +1060,7 @@
       var lastReviewRecords = [];
       var lastSettings = null;
       var lastSensitiveSignals = null;
+      var lastBatchPlan = null;
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -1087,6 +1159,21 @@
       });
       document.getElementById("copyBatchPlanJsonButton").addEventListener("click", function () {
         copyBatchAnalysisPlan("json");
+      });
+      document.getElementById("batchCardLimit").addEventListener("change", function () {
+        renderBatchExecutionReview(lastBatchPlan, false);
+      });
+      document.getElementById("batchConcurrency").addEventListener("change", function () {
+        renderBatchExecutionReview(lastBatchPlan, false);
+      });
+      document.getElementById("batchDelay").addEventListener("change", function () {
+        renderBatchExecutionReview(lastBatchPlan, false);
+      });
+      document.getElementById("batchAiHandoffApproval").addEventListener("change", function () {
+        renderBatchExecutionReview(lastBatchPlan, false);
+      });
+      document.getElementById("previewBatchExecutionButton").addEventListener("click", function () {
+        renderBatchExecutionReview(lastBatchPlan, true);
       });
       document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
       document.getElementById("openReleaseNotesButton").addEventListener("click", openReleaseNotes);
@@ -1282,6 +1369,12 @@
         document.getElementById("batchPlanSummary").textContent = "Batch planning will appear when list context is available.";
         document.getElementById("batchPlanList").innerHTML = "";
         document.getElementById("batchPlanStatus").textContent = "";
+        lastBatchPlan = null;
+        document.getElementById("batchExecutionControls").classList.add("hidden");
+        document.getElementById("batchAiHandoffApproval").checked = false;
+        document.getElementById("batchExecutionSummary").textContent = "Execution review will appear after analysis.";
+        document.getElementById("batchExecutionList").innerHTML = "";
+        document.getElementById("batchExecutionStatus").textContent = "";
         document.getElementById("sourceCoverageSummary").textContent = "Source coverage will appear after analysis.";
         document.getElementById("sourceCoverageList").innerHTML = "";
         document.getElementById("trustSignalsSummary").textContent = "Trust signals will appear after analysis.";
@@ -2608,11 +2701,13 @@
         var list = document.getElementById("batchPlanList");
         var plan = SummarizeThis.createBatchAnalysisPlan(cardData);
         var visible = plan && plan.queueSize > 0;
+        lastBatchPlan = visible ? plan : null;
         panel.classList.toggle("hidden", !visible);
         list.innerHTML = "";
 
         if (!visible) {
           summary.textContent = "Batch planning will appear when list context is available.";
+          renderBatchExecutionReview(null, false);
           return;
         }
 
@@ -2625,6 +2720,58 @@
           }).join("; ")
         ];
         renderList("batchPlanList", items, "No batch queue signals were available.");
+        renderBatchExecutionReview(plan, false);
+      }
+
+      function batchExecutionOptionsFromControls() {
+        return {
+          maxCards: document.getElementById("batchCardLimit").value,
+          concurrency: document.getElementById("batchConcurrency").value,
+          delaySeconds: document.getElementById("batchDelay").value,
+          aiHandoffApproved: document.getElementById("batchAiHandoffApproval").checked
+        };
+      }
+
+      function renderBatchExecutionReview(plan, announce) {
+        var controls = document.getElementById("batchExecutionControls");
+        var summary = document.getElementById("batchExecutionSummary");
+        var list = document.getElementById("batchExecutionList");
+        var status = document.getElementById("batchExecutionStatus");
+
+        list.innerHTML = "";
+        if (!plan || !plan.queueSize) {
+          controls.classList.add("hidden");
+          summary.textContent = "Execution review will appear after analysis.";
+          status.textContent = "";
+          return;
+        }
+
+        controls.classList.remove("hidden");
+        var review = SummarizeThis.createBatchExecutionReview(plan, batchExecutionOptionsFromControls());
+        var stateText = review.executionAllowed
+          ? "Ready for a reviewed manual run preview. No AI call has been made."
+          : "Blocked: " + review.blockedReasons.join(" ");
+
+        summary.textContent = review.selectedCards + " of " + review.availableCards
+          + " queue item(s); concurrency " + review.concurrency
+          + "; delay " + review.delaySeconds + "s; estimated " + review.estimatedMinutes
+          + " minute(s). " + stateText;
+
+        var items = review.queue.map(function (item) {
+          var signalText = item.signals.length ? " Signals: " + item.signals.join(", ") + "." : "";
+          return item.queuePosition + ". " + item.name + " - " + item.status + "; mode " + item.recommendedMode + "." + signalText;
+        });
+        items.push("Trello write default: " + review.trelloWriteDefault + ".");
+        items.push("Automatic execution: " + (review.automaticExecution ? "on" : "off") + ".");
+        renderList("batchExecutionList", items, "No selected batch queue items are available.");
+
+        if (announce) {
+          status.textContent = review.executionAllowed
+            ? "Controlled run preview is ready. Open each selected card to run full analysis manually."
+            : "Controlled run preview is blocked until the approval checkbox is checked.";
+        } else {
+          status.textContent = "";
+        }
       }
 
       function renderSourceCoverage(coverage) {

@@ -167,6 +167,13 @@ assert.match(popupText, /function checkForUpdates/);
 assert.match(popupText, /credentials:\s*"omit"/);
 assert.match(popupText, /referrerPolicy:\s*"no-referrer"/);
 assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/);
+assert.match(popupText, /id="batchExecutionControls"/);
+assert.match(popupText, /id="batchAiHandoffApproval"/);
+assert.match(popupText, /id="previewBatchExecutionButton"/);
+assert.match(popupText, /function renderBatchExecutionReview/);
+assert.match(popupText, /createBatchExecutionReview\(plan/);
+assert.match(popupText, /Automatic execution:/);
+assert.doesNotMatch(popupText, /startBatch\(/);
 assert.match(popupText, /function defaultCopyFormatFor/);
 assert.match(popupText, /function updateQuickCopyButton/);
 assert.match(popupText, /id="copyChangeBriefButton"/);
@@ -454,6 +461,36 @@ assert.ok(batchPlanMarkdown.includes("Batch analysis plan"));
 assert.ok(batchPlanMarkdown.includes("AI handoff default: off"));
 assert.ok(batchPlanMarkdown.includes("Approval checklist"));
 assert.equal(batchPlanMarkdown.includes("Finalize the launch checklist"), false);
+
+const blockedBatchExecutionReview = SummarizeThis.createBatchExecutionReview(batchAnalysisPlan, {
+  maxCards: 3,
+  concurrency: 2,
+  delaySeconds: 5,
+  aiHandoffApproved: false
+});
+assert.equal(blockedBatchExecutionReview.schemaVersion, "summarize-this-batch-execution-review-v1");
+assert.equal(blockedBatchExecutionReview.selectedCards, 3);
+assert.equal(blockedBatchExecutionReview.concurrency, 2);
+assert.equal(blockedBatchExecutionReview.delaySeconds, 5);
+assert.equal(blockedBatchExecutionReview.automaticExecution, false);
+assert.equal(blockedBatchExecutionReview.networkAction, "none");
+assert.equal(blockedBatchExecutionReview.executionAllowed, false);
+assert.ok(blockedBatchExecutionReview.blockedReasons.some(item => item.includes("AI handoff approval")));
+assert.ok(blockedBatchExecutionReview.queue.every(item => item.status === "review-required"));
+assert.ok(blockedBatchExecutionReview.privacyNote.includes("does not fetch full card bodies"));
+
+const approvedBatchExecutionReview = SummarizeThis.createBatchExecutionReview(batchAnalysisPlan, {
+  maxCards: 50,
+  concurrency: 9,
+  delaySeconds: 99,
+  aiHandoffApproved: true
+});
+assert.equal(approvedBatchExecutionReview.selectedCards, 4);
+assert.equal(approvedBatchExecutionReview.concurrency, 3);
+assert.equal(approvedBatchExecutionReview.delaySeconds, 30);
+assert.equal(approvedBatchExecutionReview.executionAllowed, true);
+assert.equal(approvedBatchExecutionReview.trelloWriteDefault, "off");
+assert.ok(approvedBatchExecutionReview.queue.every(item => item.status === "ready-for-reviewed-run"));
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",

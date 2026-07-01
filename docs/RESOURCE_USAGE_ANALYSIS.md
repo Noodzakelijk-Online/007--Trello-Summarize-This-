@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 359.4 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 523.5 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.80 MB.
-- Generated Windows installer executable: 321,536 bytes.
+- Active popup initial local files: about 369.1 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 533.2 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.81 MB.
+- Generated Windows installer executable: 326,144 bytes.
 - Large-card AI prompt after caps: 19,392 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -98,6 +98,7 @@ Current results:
    - The list planning brief is generated on demand from existing bounded list context, capped to 12 sampled preview cards in the exported brief, and does not include neighboring descriptions, comments, attachments, or AI output.
    - List trend signals are generated on demand from the same bounded list metadata and add no Trello reads, AI calls, polling, or full-card content retention.
    - The batch analysis plan is generated on demand from the same bounded list context, capped to 12 queue seed cards, and does not run AI, fetch neighboring full card bodies, or start background processing.
+   - The batch execution review is also local-only and on demand. It calculates selected-card count, concurrency, delay, estimated runtime, blocked/ready state, and per-card status from the existing queue seed, with AI handoff blocked until explicit approval and Trello posting still off.
    - Custom field evidence stores compact field names and short values only, so it can support traceability without copying large card content.
    - Recent activity is capped to 25 normalized action records, with AI prompt and evidence usage capped to 12 records.
    - Attachment intelligence is metadata-first, capped to 25 normalized records and 12 AI prompt/evidence records. The Attachment facts panel renders from the same existing normalized records and caps visible facts to 8 rows.
@@ -117,11 +118,11 @@ Low. The local summarizer and ledger use simple string processing, checklist cou
 
 ### Memory
 
-Low. The active popup loads a small static HTML page and three shared JS helpers. Runtime timing keeps only the latest compact timing records and renders the latest run's stage list. List planning and batch planning use the already-normalized bounded list context and render short focus/queue bullets. Optional text/CSV extraction is user-enabled and bounded, so it does not add background memory pressure. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
+Low. The active popup loads a small static HTML page and three shared JS helpers. Runtime timing keeps only the latest compact timing records and renders the latest run's stage list. List planning, batch planning, and batch execution review use the already-normalized bounded list context and render short focus/queue/readiness bullets. Optional text/CSV extraction is user-enabled and bounded, so it does not add background memory pressure. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 523.5 KB, and the generated `SummarizeThisSetup.exe` is 321,536 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 533.2 KB, and the generated `SummarizeThisSetup.exe` is 326,144 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 
