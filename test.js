@@ -189,13 +189,18 @@ assert.match(popupText, /id="resetBatchProgressButton"/);
 assert.match(popupText, /id="batchProgressSummary"/);
 assert.match(popupText, /id="batchProgressList"/);
 assert.match(popupText, /id="batchManualChecklistFallback"/);
+assert.match(popupText, /id="copyDecisionPacketButton"/);
+assert.match(popupText, /id="exportManualCopyFallback"/);
 assert.match(popupText, /function renderBatchExecutionReview/);
 assert.match(popupText, /function openFirstBatchCard/);
 assert.match(popupText, /function copyBatchManualChecklist/);
 assert.match(popupText, /function copyBatchHandoffReport/);
+assert.match(popupText, /copyLedgerExport\("decision-handoff-packet"\)/);
+assert.match(popupText, /decisionHandoffPacketForLedgerRun/);
 assert.match(popupText, /function renderBatchProgress/);
 assert.match(popupText, /function updateBatchProgressFromControl/);
 assert.match(popupText, /Batch progress saved privately/);
+assert.match(popupText, /approved .* export is shown below for manual copy/);
 assert.match(popupText, /approved batch handoff report is shown below/);
 assert.match(popupText, /approved manual batch checklist is shown below/);
 assert.match(popupText, /createBatchExecutionReview\(plan/);
@@ -1203,6 +1208,13 @@ const batchOpenRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch
   now: "2026-06-29T12:06:59.000Z",
   cardId: run.cardId
 });
+const decisionPacketRecord = CardIntelligenceLedger.createExportRecord(run.id, "decision-handoff-packet", "manual-copy-panel", {
+  now: "2026-06-29T12:06:59.500Z",
+  cardId: run.cardId
+});
+const summarizedDecisionPacketRecords = CardIntelligenceLedger.summarizeExportRecords([decisionPacketRecord], [run.id], 1);
+assert.equal(summarizedDecisionPacketRecords[0].exportLabel, "Decision handoff packet");
+assert.equal(summarizedDecisionPacketRecords[0].destinationLabel, "prepared for manual copy");
 const summarizedManualBatchRecords = CardIntelligenceLedger.summarizeExportRecords([
   manualBatchExportRecord,
   manualBatchPanelRecord,
@@ -1328,6 +1340,23 @@ assert.ok(vaHandoffBrief.includes("Robert decisions not delegated:"));
 assert.ok(vaHandoffBrief.includes("Evidence-backed claims:"));
 assert.ok(vaHandoffBrief.includes("Source coverage:"));
 assert.equal(vaHandoffBrief.includes("Prefer Yes/No decisions"), false);
+
+const decisionHandoffPacket = CardIntelligenceLedger.decisionHandoffPacketForLedgerRun(run, {
+  batchProgress: trackedBatchProgress
+});
+assert.ok(decisionHandoffPacket.includes("Decision handoff packet:"));
+assert.ok(decisionHandoffPacket.includes("Robert decision:"));
+assert.ok(decisionHandoffPacket.includes("Yes/No framing:"));
+assert.ok(decisionHandoffPacket.includes("VA/team-ready actions:"));
+assert.ok(decisionHandoffPacket.includes("Blockers / waiting:"));
+assert.ok(decisionHandoffPacket.includes("Batch progress:"));
+assert.ok(decisionHandoffPacket.includes("2 of 4 card(s) done; 2 need attention."));
+assert.ok(decisionHandoffPacket.includes("2. Prepare launch checklist: analyzed; mode"));
+assert.ok(decisionHandoffPacket.includes("Handoff rules:"));
+assert.ok(decisionHandoffPacket.includes("Evidence-backed claims:"));
+assert.ok(decisionHandoffPacket.includes("Source coverage:"));
+assert.equal(decisionHandoffPacket.includes("Prefer Yes/No decisions"), false);
+assert.equal(decisionHandoffPacket.includes("Finalize the launch checklist"), false);
 
 const meetingBrief = CardIntelligenceLedger.modeBriefForLedgerRun(run);
 assert.ok(meetingBrief.includes("Meeting brief:"));

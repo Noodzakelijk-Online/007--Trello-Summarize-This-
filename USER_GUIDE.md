@@ -491,11 +491,13 @@ Prompt templates are stored in member-private Power-Up settings. Ledger exports 
 - **Copy selected mode brief**: uses the saved output mode, such as meeting brief, risk review, status update, next-action checklist, or client-friendly summary.
 - **Copy Robert decisions**: creates a focused Robert decision brief with Yes/No framing, blockers, waiting states, unclear points, unresolved questions, confidence, evidence claims, and source coverage.
 - **Copy VA handoff**: creates a VA/team handoff brief that separates delegated work, waiting states, unclear points, and unresolved questions from Robert-only decisions.
+- **Copy decision packet**: creates one review handoff that combines the current card status, Robert decision framing, VA/team-ready actions, blockers/waiting states, next actions, evidence, source coverage, and the current manual batch progress snapshot when available.
 - **Copy change brief**: creates a previous-run comparison with operational changes, confidence trend, current top blocker, next action, Robert decision, VA/team handoff, and source coverage.
 - **Copy status update**: creates a compact status message for email, chat, or Trello.
 - **Copy JSON / Download JSON**: exports the compact card intelligence ledger for Sneup, HAI, or another structured workflow.
 
 Sensitive-card exports still require visible approval before copy or download.
+If browser clipboard access is blocked, the approved export appears in a manual-copy panel and the export history records it as prepared for manual copy.
 
 ### Default Quick Copy
 

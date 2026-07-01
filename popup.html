@@ -985,6 +985,7 @@
           <button class="secondary" type="button" id="copyStatusUpdateButton">Copy status update</button>
           <button class="secondary" type="button" id="copyRobertDecisionButton">Copy Robert decisions</button>
           <button class="secondary" type="button" id="copyVaHandoffButton">Copy VA handoff</button>
+          <button class="secondary" type="button" id="copyDecisionPacketButton">Copy decision packet</button>
           <button class="secondary" type="button" id="copyChangeBriefButton">Copy change brief</button>
           <button class="secondary" type="button" id="copyJsonButton">Copy JSON</button>
           <button class="secondary" type="button" id="downloadJsonButton">Download JSON</button>
@@ -995,6 +996,7 @@
           <span>I reviewed this sensitive export and approve copying or downloading it.</span>
         </label>
         <p id="exportStatus" class="feedback-status"></p>
+        <textarea id="exportManualCopyFallback" class="postback-preview hidden" readonly></textarea>
       </section>
 
       <section class="panel">
@@ -1177,6 +1179,9 @@
       });
       document.getElementById("copyVaHandoffButton").addEventListener("click", function () {
         copyLedgerExport("va-handoff-brief");
+      });
+      document.getElementById("copyDecisionPacketButton").addEventListener("click", function () {
+        copyLedgerExport("decision-handoff-packet");
       });
       document.getElementById("copyChangeBriefButton").addEventListener("click", function () {
         copyLedgerExport("change-brief");
@@ -1393,6 +1398,7 @@
         document.getElementById("correctionText").value = "";
         clearCorrectionSections();
         document.getElementById("exportStatus").textContent = "";
+        hideExportManualFallback();
         document.getElementById("exportSensitivityText").textContent = "";
         document.getElementById("exportSensitivityText").classList.add("hidden");
         document.getElementById("exportSensitiveApprovalRow").classList.add("hidden");
@@ -3291,32 +3297,19 @@
         }
       }
 
-      function copyLedgerExport(format, statusId) {
+      async function copyLedgerExport(format, statusId) {
         var statusElement = document.getElementById(statusId || "exportStatus");
         if (!lastLedgerRun) {
           statusElement.textContent = "Analyze the card first to create an export.";
           return;
         }
 
-        var text = getLedgerExportText(format);
-        var label = format === "ledger-json"
-          ? "JSON"
-          : format === "operational-digest"
-            ? "Operational digest"
-            : format === "status-update"
-              ? "Status update"
-              : format === "robert-decision-brief"
-                ? "Robert decision brief"
-                : format === "va-handoff-brief"
-                  ? "VA handoff brief"
-                  : format === "change-brief"
-                    ? "Change brief"
-                    : format === "mode-brief"
-                      ? "Selected mode brief"
-                      : "Plain text";
+        var text = await getLedgerExportText(format);
+        var label = ledgerExportLabel(format);
 
         if (requireSensitiveExportApproval(format, statusElement.id, label + " export")) return;
 
+        hideExportManualFallback();
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             elements.confidencePill.textContent = label + " copied";
@@ -3339,14 +3332,49 @@
         textarea.style.left = "-9999px";
         document.body.appendChild(textarea);
         textarea.select();
-        document.execCommand("copy");
+        var copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (error) {
+          copied = false;
+        }
         document.body.removeChild(textarea);
+        if (!copied) {
+          var fallback = document.getElementById("exportManualCopyFallback");
+          fallback.value = text;
+          fallback.classList.remove("hidden");
+          fallback.focus();
+          fallback.select();
+          statusElement.textContent = "Clipboard copy was blocked. The approved " + label.toLowerCase() + " export is shown below for manual copy.";
+          recordExport(format, "manual-copy-panel", null, true);
+          return;
+        }
+        hideExportManualFallback();
         elements.confidencePill.textContent = label + " copied";
         statusElement.textContent = label + " export copied.";
         recordExport(format, "clipboard", null, true);
       }
 
-      function getLedgerExportText(format) {
+      function hideExportManualFallback() {
+        var fallback = document.getElementById("exportManualCopyFallback");
+        if (!fallback) return;
+        fallback.value = "";
+        fallback.classList.add("hidden");
+      }
+
+      function ledgerExportLabel(format) {
+        if (format === "ledger-json") return "JSON";
+        if (format === "operational-digest") return "Operational digest";
+        if (format === "status-update") return "Status update";
+        if (format === "robert-decision-brief") return "Robert decision brief";
+        if (format === "va-handoff-brief") return "VA handoff brief";
+        if (format === "decision-handoff-packet") return "Decision packet";
+        if (format === "change-brief") return "Change brief";
+        if (format === "mode-brief") return "Selected mode brief";
+        return "Plain text";
+      }
+
+      async function getLedgerExportText(format) {
         if (format === "ledger-json") {
           return CardIntelligenceLedger.jsonForLedgerRun(lastLedgerRun);
         }
@@ -3362,6 +3390,11 @@
         if (format === "va-handoff-brief") {
           return CardIntelligenceLedger.vaHandoffBriefForLedgerRun(lastLedgerRun);
         }
+        if (format === "decision-handoff-packet") {
+          return CardIntelligenceLedger.decisionHandoffPacketForLedgerRun(lastLedgerRun, {
+            batchProgress: await loadBatchProgressForDecisionPacket()
+          });
+        }
         if (format === "mode-brief") {
           return CardIntelligenceLedger.modeBriefForLedgerRun(lastLedgerRun, lastLedgerRun.outputMode);
         }
@@ -3369,6 +3402,17 @@
           return CardIntelligenceLedger.changeBriefForLedgerRuns(lastLedgerRun, lastHistoryRuns[1]);
         }
         return CardIntelligenceLedger.plainTextForLedgerRun(lastLedgerRun);
+      }
+
+      async function loadBatchProgressForDecisionPacket() {
+        var review = currentBatchExecutionReview();
+        if (!review || !review.queue || !review.queue.length) return null;
+        try {
+          var loaded = await loadBatchProgress(review);
+          return SummarizeThis.createBatchProgressSnapshot(review, loaded.progress);
+        } catch (error) {
+          return null;
+        }
       }
 
       function copyListPlanningBrief(format) {

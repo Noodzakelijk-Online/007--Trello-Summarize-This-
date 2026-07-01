@@ -352,7 +352,7 @@ Impact: Medium. Improves confidence without adding heavy features.
 
 Problem: Copying markdown is useful, but some workflows need issue comments, email text, or meeting notes.
 
-Status: Mostly implemented for the active popup. It now copies markdown, plain text, selected mode briefs, Robert decision briefs, VA/team handoff briefs, status/email text, and structured ledger JSON; downloads compact JSON; generates a Trello comment draft; and gates Trello comment copying/posting behind explicit review. Trello posting also requires a second confirmation. Sensitive-card exports and comment drafts require a visible approval step before copy, download, or Trello postback.
+Status: Mostly implemented for the active popup. It now copies markdown, plain text, selected mode briefs, Robert decision briefs, VA/team handoff briefs, decision handoff packets, status/email text, and structured ledger JSON; downloads compact JSON; generates a Trello comment draft; and gates Trello comment copying/posting behind explicit review. Trello posting also requires a second confirmation. Sensitive-card exports and comment drafts require a visible approval step before copy, download, or Trello postback. If clipboard access is blocked, approved ledger exports can fall back to a visible manual-copy panel with export history recorded.
 
 Recommendation:
 
@@ -364,6 +364,7 @@ Recommendation:
   - Email/status update. Implemented as a copy-ready status format with compact source coverage.
   - Robert decision brief. Implemented as a copy-ready brief with Yes/No framing, blockers, waiting states, unclear points, confidence, evidence claims, and source coverage.
   - VA/team handoff brief. Implemented as a copy-ready handoff separating delegated actions, waiting states, unclear points, and unresolved questions from Robert-only decisions.
+  - Decision handoff packet. Implemented as a combined reviewer packet that merges the current card intelligence, Robert Yes/No framing, VA/team-ready work, blockers/waiting states, evidence/source coverage, and the current manual batch progress snapshot when one is selected.
 - Let users choose a default quick-copy format. Implemented in member-private settings for Markdown, operational digest, status update, Robert decision brief, VA/team handoff, plain text, Ledger JSON, or reviewed Trello comment draft.
 - Show recent export/postback records. Implemented as a private per-card popup panel filtered to the current card's analysis run ids.
 

@@ -1778,6 +1778,7 @@
       "status-update": "Status update",
       "robert-decision-brief": "Robert decision brief",
       "va-handoff-brief": "VA/team handoff brief",
+      "decision-handoff-packet": "Decision handoff packet",
       "change-brief": "Change brief",
       "ledger-json": "Ledger JSON",
       "list-planning-markdown": "List planning brief",
@@ -2033,6 +2034,89 @@
     appendEvidenceClaimSummary(lines, result, "Evidence-backed claims:", 5);
     appendSourceCoverageSummary(lines, run, "Source coverage:", 5);
     return lines.join("\n");
+  }
+
+  function decisionHandoffPacketForLedgerRun(run, options) {
+    var result = run && run.result ? run.result : {};
+    var snapshot = run && run.cardSnapshot ? run.cardSnapshot : {};
+    var title = snapshot.title || "Trello card";
+    var confidence = result.confidence
+      ? result.confidence.overall + "% " + result.confidence.level
+      : "Unknown";
+    var blockersAndWaiting = toArray(result.blockers).concat(toArray(result.waitingOn));
+    var progress = options && options.batchProgress ? options.batchProgress : null;
+    var counts = progress && progress.counts ? progress.counts : {};
+    var lines = [
+      "Decision handoff packet: " + title,
+      "",
+      "Card status:",
+      cleanText(result.currentStatus || result.about || "No current status available."),
+      "",
+      "Confidence: " + confidence + ".",
+      "Review needed: " + (result.confidence && result.confidence.reviewNeeded ? "yes" : "no") + ".",
+      "",
+      "Robert decision:",
+    ];
+
+    appendItems(lines, result.robertDecisions, "No Robert-specific decision detected.");
+    lines.push("", "Yes/No framing:");
+    appendDecisionFraming(lines, result.robertDecisions);
+    lines.push("", "VA/team-ready actions:");
+    appendItems(lines, result.vaReadyActions, "No VA/team-ready actions detected.");
+    lines.push("", "Blockers / waiting:");
+    appendItems(lines, blockersAndWaiting, "No blockers or waiting states detected.");
+    lines.push("", "Next actions:");
+    appendItems(lines, result.nextActions, "No next actions detected.");
+    lines.push("", "Unclear / unresolved:");
+    appendItems(
+      lines,
+      toArray(result.unclearPoints).concat(toArray(result.unresolvedQuestions)),
+      "No unclear points or unresolved questions detected."
+    );
+    lines.push("", "Missing information:");
+    appendItems(lines, result.missingInfo, "No missing information detected.");
+    appendBatchProgressForDecisionPacket(lines, progress, counts);
+    lines.push(
+      "",
+      "Handoff rules:",
+      "- Use this packet as a review handoff, not as proof that Trello work is complete.",
+      "- Do not post, edit, label, assign, or change due dates in Trello without reviewing the exact action first.",
+      "- Keep Robert-only decisions separate from VA/team-ready work.",
+      "- Treat unsupported or partial source coverage as a reason to review the card before acting."
+    );
+    appendEvidenceClaimSummary(lines, result, "Evidence-backed claims:", 6);
+    appendSourceCoverageSummary(lines, run, "Source coverage:", 7);
+    return lines.join("\n");
+  }
+
+  function appendBatchProgressForDecisionPacket(lines, progress, counts) {
+    lines.push("", "Batch progress:");
+    if (!progress) {
+      lines.push("- No batch progress context is selected for this packet.");
+      return;
+    }
+
+    lines.push("- " + cleanText(progress.summary || "No batch progress summary available."));
+    lines.push("- Counts: pending " + toNumber(counts.pending)
+      + ", opened " + toNumber(counts.opened)
+      + ", analyzed " + toNumber(counts.analyzed)
+      + ", copied/exported " + toNumber(counts.copied)
+      + ", skipped " + toNumber(counts.skipped)
+      + ", blocked " + toNumber(counts.blocked) + ".");
+
+    var queue = toArray(progress.queue).slice(0, 8);
+    if (!queue.length) {
+      lines.push("- No selected queue items are available.");
+      return;
+    }
+
+    lines.push("", "Batch queue:");
+    queue.forEach(function (item) {
+      var label = (item.queuePosition ? item.queuePosition + ". " : "") + cleanText(item.name || "Untitled card");
+      var mode = cleanText(item.recommendedMode || "operational-ledger");
+      var status = cleanText(item.status || "pending");
+      lines.push("- " + label + ": " + status + "; mode " + mode + ".");
+    });
   }
 
   function modeBriefForLedgerRun(run, mode) {
@@ -2429,6 +2513,7 @@
     createOperationalDigest: createOperationalDigest,
     createTrustSignals: createTrustSignals,
     changeBriefForLedgerRuns: changeBriefForLedgerRuns,
+    decisionHandoffPacketForLedgerRun: decisionHandoffPacketForLedgerRun,
     jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,

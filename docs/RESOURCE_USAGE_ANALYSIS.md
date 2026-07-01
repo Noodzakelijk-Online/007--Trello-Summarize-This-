@@ -1,6 +1,6 @@
 # Resource Usage Analysis
 
-Date: 2026-06-30
+Date: 2026-07-01
 
 ## Summary
 
@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 395.8 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 559.9 KB.
+- Active popup initial local files: about 401.6 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 565.7 KB.
 - Whole repository source footprint, excluding `.git` and `dist`: about 1.85 MB.
-- Generated Windows installer executable: 338,432 bytes.
+- Generated Windows installer executable: 340,992 bytes.
 - Large-card AI prompt after caps: 19,446 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -81,7 +81,7 @@ Current results:
    - Review-state history is filtered to current-card analysis run ids and capped to 8 visible records.
    - The Trello comment draft is generated from the existing ledger result and capped at 4,000 characters.
    - Export/postback history is filtered to current-card analysis run ids and capped to 8 visible records.
-   - Plain text, status update, Robert decision, VA/team handoff, and JSON exports are generated on demand from the existing compact ledger result.
+   - Plain text, status update, Robert decision, VA/team handoff, decision handoff packet, and JSON exports are generated on demand from the existing compact ledger result.
    - Mode-specific briefs are generated on demand from the existing compact ledger result.
    - Unresolved questions are compact derived records capped to 10 items and reuse existing evidence/source ids instead of storing full card text.
    - Runtime diagnostic logs are bounded and redact key-like strings, tokens, and URLs instead of printing raw Error objects or generated report payloads.
@@ -95,6 +95,7 @@ Current results:
    - Source coverage, trust signals, and list context store compact source statuses, warning labels, neighboring-card names, label counts, and confidence factors instead of duplicating full card bodies.
    - The operational digest and its copy-ready text export are generated on demand from the existing compact ledger result, so they add a first-screen triage and handoff view without storing another summary copy.
    - The change brief is generated on demand from the two existing private ledger runs and does not store another summary copy, reread Trello, or call an AI provider.
+   - The decision handoff packet is generated only when clicked, reuses the current ledger result, and loads private batch progress only when a batch execution review is selected.
    - The list planning brief is generated on demand from existing bounded list context, capped to 12 sampled preview cards in the exported brief, and does not include neighboring descriptions, comments, attachments, or AI output.
    - List trend signals are generated on demand from the same bounded list metadata and add no Trello reads, AI calls, polling, or full-card content retention.
    - The batch analysis plan is generated on demand from the same bounded list context, capped to 12 queue seed cards, and does not run AI, fetch neighboring full card bodies, or start background processing.
