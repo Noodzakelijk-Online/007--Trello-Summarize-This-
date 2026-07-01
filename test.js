@@ -184,6 +184,7 @@ assert.match(popupText, /id="batchAiHandoffApproval"/);
 assert.match(popupText, /id="previewBatchExecutionButton"/);
 assert.match(popupText, /id="openFirstBatchCardButton"/);
 assert.match(popupText, /id="copyBatchManualChecklistButton"/);
+assert.match(popupText, /id="copyBatchHandoffReportButton"/);
 assert.match(popupText, /id="resetBatchProgressButton"/);
 assert.match(popupText, /id="batchProgressSummary"/);
 assert.match(popupText, /id="batchProgressList"/);
@@ -191,9 +192,11 @@ assert.match(popupText, /id="batchManualChecklistFallback"/);
 assert.match(popupText, /function renderBatchExecutionReview/);
 assert.match(popupText, /function openFirstBatchCard/);
 assert.match(popupText, /function copyBatchManualChecklist/);
+assert.match(popupText, /function copyBatchHandoffReport/);
 assert.match(popupText, /function renderBatchProgress/);
 assert.match(popupText, /function updateBatchProgressFromControl/);
 assert.match(popupText, /Batch progress saved privately/);
+assert.match(popupText, /approved batch handoff report is shown below/);
 assert.match(popupText, /approved manual batch checklist is shown below/);
 assert.match(popupText, /createBatchExecutionReview\(plan/);
 assert.match(popupText, /Automatic execution:/);
@@ -544,6 +547,14 @@ assert.equal(trackedBatchProgress.counts.pending, 1);
 assert.equal(trackedBatchProgress.doneCards, 2);
 assert.equal(trackedBatchProgress.needsAttentionCards, 2);
 assert.ok(trackedBatchProgress.summary.includes("2 of 4 card(s) done"));
+
+const batchHandoffReport = SummarizeThis.markdownForBatchHandoffReport(approvedBatchExecutionReview, trackedBatchProgress);
+assert.ok(batchHandoffReport.includes("Batch handoff report"));
+assert.ok(batchHandoffReport.includes("Progress: 2 of 4 card(s) done; 2 need attention."));
+assert.ok(batchHandoffReport.includes("[2. Prepare launch checklist](https://trello.com/c/samplecard/prepare-launch-checklist): analyzed"));
+assert.ok(batchHandoffReport.includes("Trello write default: off"));
+assert.ok(batchHandoffReport.includes("Card links are limited to sanitized Trello card URLs."));
+assert.equal(batchHandoffReport.includes("Finalize the launch checklist"), false);
 
 const riskPromptPayload = parsePromptPayload(SummarizeThis.buildAIPrompt(sample, {
   outputMode: "risk-review",
@@ -1184,6 +1195,10 @@ const manualBatchPanelRecord = CardIntelligenceLedger.createExportRecord(run.id,
   now: "2026-06-29T12:06:58.500Z",
   cardId: run.cardId
 });
+const batchHandoffPanelRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch-handoff-report", "manual-copy-panel", {
+  now: "2026-06-29T12:06:58.700Z",
+  cardId: run.cardId
+});
 const batchOpenRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch-open-card", "browser-tab", {
   now: "2026-06-29T12:06:59.000Z",
   cardId: run.cardId
@@ -1191,13 +1206,15 @@ const batchOpenRecord = CardIntelligenceLedger.createExportRecord(run.id, "batch
 const summarizedManualBatchRecords = CardIntelligenceLedger.summarizeExportRecords([
   manualBatchExportRecord,
   manualBatchPanelRecord,
+  batchHandoffPanelRecord,
   batchOpenRecord
-], [run.id], 3);
+], [run.id], 4);
 assert.equal(summarizedManualBatchRecords[0].exportLabel, "Batch card opened");
 assert.equal(summarizedManualBatchRecords[0].destinationLabel, "opened in browser");
-assert.equal(summarizedManualBatchRecords[1].exportLabel, "Manual batch checklist");
+assert.equal(summarizedManualBatchRecords[1].exportLabel, "Batch handoff report");
 assert.equal(summarizedManualBatchRecords[1].destinationLabel, "prepared for manual copy");
 assert.equal(summarizedManualBatchRecords[2].exportLabel, "Manual batch checklist");
+assert.equal(summarizedManualBatchRecords[3].exportLabel, "Manual batch checklist");
 
 const summarizedExports = CardIntelligenceLedger.summarizeExportRecords([
   sensitiveExportRecord,

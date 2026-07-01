@@ -1145,6 +1145,54 @@
     };
   }
 
+  function markdownForBatchHandoffReport(review, progressSnapshot) {
+    var source = review || {};
+    var progress = progressSnapshot || createBatchProgressSnapshot(source, {});
+    var lines = [
+      "# Batch handoff report",
+      "",
+      "List: " + (source.listName || progress.listName || "current list"),
+      "Selected cards: " + (source.selectedCards || progress.totalCards || 0) + " of " + (source.availableCards || progress.totalCards || 0),
+      "Progress: " + cleanText(progress.summary),
+      "Pending: " + (progress.counts && progress.counts.pending || 0),
+      "Opened: " + (progress.counts && progress.counts.opened || 0),
+      "Analyzed: " + (progress.counts && progress.counts.analyzed || 0),
+      "Copied/exported: " + (progress.counts && progress.counts.copied || 0),
+      "Skipped: " + (progress.counts && progress.counts.skipped || 0),
+      "Blocked: " + (progress.counts && progress.counts.blocked || 0),
+      "AI handoff approved: " + (source.aiHandoffApproved ? "yes" : "no"),
+      "Trello write default: " + (source.trelloWriteDefault || "off"),
+      "Automatic execution: " + (source.automaticExecution ? "on" : "off"),
+      "",
+      "## Per-card status"
+    ];
+
+    if (toArray(progress.queue).length) {
+      toArray(progress.queue).forEach(function (item) {
+        var label = (item.queuePosition || "") + ". " + cleanText(item.name || "Untitled card");
+        var url = safeTrelloCardUrl(item.cardUrl || item.url);
+        var linkedLabel = url ? "[" + label + "](" + url + ")" : label;
+        lines.push("- " + linkedLabel
+          + ": " + normalizeBatchProgressStatus(item.status)
+          + "; mode " + cleanText(item.recommendedMode || "operational-ledger") + ".");
+      });
+    } else {
+      lines.push("- No selected queue items are available.");
+    }
+
+    lines.push(
+      "",
+      "## Handoff rules",
+      "- Use this report as a VA/Sneup handoff snapshot, not as proof that card analysis is complete.",
+      "- Open each pending or blocked card and run full evidence-backed analysis before posting anything to Trello.",
+      "- Keep Trello posting off until each exact comment draft is reviewed and approved.",
+      "- Card links are limited to sanitized Trello card URLs.",
+      "",
+      "Privacy: " + cleanText(source.privacyNote || "This handoff report uses bounded list metadata and private manual progress only. It does not include card descriptions, comments, attachments, or AI output.")
+    );
+    return lines.join("\n");
+  }
+
   function markdownForBatchAnalysisPlan(plan) {
     var source = plan || {};
     var lines = [
@@ -2298,6 +2346,7 @@
     normalizeUpdateManifest: normalizeUpdateManifest,
     stripApiKeysForLocalPreview: stripApiKeysForLocalPreview,
     markdownForBatchAnalysisPlan: markdownForBatchAnalysisPlan,
+    markdownForBatchHandoffReport: markdownForBatchHandoffReport,
     markdownForBatchManualRunChecklist: markdownForBatchManualRunChecklist,
     markdownForAnalysis: markdownForAnalysis,
     normalizeAIAnalysis: normalizeAIAnalysis,

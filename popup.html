@@ -899,6 +899,7 @@
             <button class="secondary" type="button" id="previewBatchExecutionButton">Preview controlled run</button>
             <button class="secondary" type="button" id="openFirstBatchCardButton">Open next selected card</button>
             <button class="secondary" type="button" id="copyBatchManualChecklistButton">Copy manual checklist</button>
+            <button class="secondary" type="button" id="copyBatchHandoffReportButton">Copy handoff report</button>
             <button class="secondary" type="button" id="resetBatchProgressButton">Reset progress</button>
           </div>
           <p id="batchExecutionSummary" class="section-body">Execution review will appear after analysis.</p>
@@ -1213,6 +1214,7 @@
       });
       document.getElementById("openFirstBatchCardButton").addEventListener("click", openFirstBatchCard);
       document.getElementById("copyBatchManualChecklistButton").addEventListener("click", copyBatchManualChecklist);
+      document.getElementById("copyBatchHandoffReportButton").addEventListener("click", copyBatchHandoffReport);
       document.getElementById("batchProgressList").addEventListener("change", updateBatchProgressFromControl);
       document.getElementById("resetBatchProgressButton").addEventListener("click", resetBatchProgress);
       document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
@@ -1417,6 +1419,7 @@
         document.getElementById("batchAiHandoffApproval").checked = false;
         document.getElementById("openFirstBatchCardButton").disabled = true;
         document.getElementById("copyBatchManualChecklistButton").disabled = true;
+        document.getElementById("copyBatchHandoffReportButton").disabled = true;
         document.getElementById("resetBatchProgressButton").disabled = true;
         document.getElementById("batchExecutionSummary").textContent = "Execution review will appear after analysis.";
         document.getElementById("batchExecutionList").innerHTML = "";
@@ -2790,6 +2793,7 @@
         var status = document.getElementById("batchExecutionStatus");
         var openButton = document.getElementById("openFirstBatchCardButton");
         var copyButton = document.getElementById("copyBatchManualChecklistButton");
+        var handoffButton = document.getElementById("copyBatchHandoffReportButton");
         var resetButton = document.getElementById("resetBatchProgressButton");
         var checklistFallback = document.getElementById("batchManualChecklistFallback");
 
@@ -2801,6 +2805,7 @@
           lastBatchExecutionReview = null;
           openButton.disabled = true;
           copyButton.disabled = true;
+          handoffButton.disabled = true;
           resetButton.disabled = true;
           summary.textContent = "Execution review will appear after analysis.";
           document.getElementById("batchProgressSummary").textContent = "Batch progress will appear after preview.";
@@ -2855,6 +2860,7 @@
 
         openButton.disabled = !review.executionAllowed || !review.openableCards;
         copyButton.disabled = !review.queue.length;
+        handoffButton.disabled = !review.queue.length;
         resetButton.disabled = !review.queue.length;
         renderBatchProgress(review);
 
@@ -3521,6 +3527,69 @@
         } else {
           fallbackBatchManualChecklistCopy(text);
         }
+      }
+
+      async function copyBatchHandoffReport() {
+        var review = currentBatchExecutionReview();
+        if (!review || !review.queue.length) {
+          document.getElementById("batchExecutionStatus").textContent = "Build a batch execution review before copying a handoff report.";
+          return;
+        }
+
+        if (requireSensitiveExportApproval("batch-handoff-report", "batchExecutionStatus", "Batch handoff report")) return;
+
+        var loaded = await loadBatchProgress(review);
+        var progress = SummarizeThis.createBatchProgressSnapshot(review, loaded.progress);
+        var text = SummarizeThis.markdownForBatchHandoffReport(review, progress);
+        var fallback = document.getElementById("batchManualChecklistFallback");
+        fallback.value = "";
+        fallback.classList.add("hidden");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            fallback.value = "";
+            fallback.classList.add("hidden");
+            elements.confidencePill.textContent = "Handoff copied";
+            document.getElementById("batchExecutionStatus").textContent = "Batch handoff report copied. No batch analysis was run and no Trello card was changed.";
+            recordExport("batch-handoff-report", "clipboard", null, true);
+          }).catch(function () {
+            fallbackBatchHandoffReportCopy(text);
+          });
+        } else {
+          fallbackBatchHandoffReportCopy(text);
+        }
+      }
+
+      function fallbackBatchHandoffReportCopy(text) {
+        var textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        var copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (error) {
+          copied = false;
+        }
+        document.body.removeChild(textarea);
+        if (!copied) {
+          var fallback = document.getElementById("batchManualChecklistFallback");
+          fallback.value = text;
+          fallback.classList.remove("hidden");
+          fallback.focus();
+          fallback.select();
+          document.getElementById("batchExecutionStatus").textContent = "Clipboard copy was blocked. The approved batch handoff report is shown below for manual copy.";
+          recordExport("batch-handoff-report", "manual-copy-panel", null, true);
+          return;
+        }
+        var checklistFallback = document.getElementById("batchManualChecklistFallback");
+        checklistFallback.value = "";
+        checklistFallback.classList.add("hidden");
+        elements.confidencePill.textContent = "Handoff copied";
+        document.getElementById("batchExecutionStatus").textContent = "Batch handoff report copied. No batch analysis was run and no Trello card was changed.";
+        recordExport("batch-handoff-report", "clipboard", null, true);
       }
 
       function fallbackBatchManualChecklistCopy(text) {

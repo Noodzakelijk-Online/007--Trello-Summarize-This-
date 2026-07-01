@@ -16,10 +16,10 @@ npm run analyze:resources
 
 Current results:
 
-- Active popup initial local files: about 389.7 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 553.9 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.84 MB.
-- Generated Windows installer executable: 336,384 bytes.
+- Active popup initial local files: about 395.8 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
+- Windows installer runtime payload: about 559.9 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.85 MB.
+- Generated Windows installer executable: 338,432 bytes.
 - Large-card AI prompt after caps: 19,446 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -119,11 +119,11 @@ Low. The local summarizer and ledger use simple string processing, checklist cou
 
 ### Memory
 
-Low. The active popup loads a small static HTML page and three shared JS helpers. Runtime timing keeps only the latest compact timing records and renders the latest run's stage list. List planning, batch planning, batch execution review, manual batch progress, and the manual batch checklist use the already-normalized bounded list context and render short focus/queue/readiness bullets. Manual batch progress stores only a small private status map for the current user's reviewed queues. Optional text/CSV extraction is user-enabled and bounded, so it does not add background memory pressure. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
+Low. The active popup loads a small static HTML page and three shared JS helpers. Runtime timing keeps only the latest compact timing records and renders the latest run's stage list. List planning, batch planning, batch execution review, manual batch progress, manual batch checklist, and handoff report use the already-normalized bounded list context and render short focus/queue/readiness bullets. Manual batch progress stores only a small private status map for the current user's reviewed queues. Optional text/CSV extraction is user-enabled and bounded, so it does not add background memory pressure. The local Windows launcher holds one lightweight PowerShell process while the local app is open.
 
 ### Disk
 
-Low for installed users. The installer runtime payload is about 553.9 KB, and the generated `SummarizeThisSetup.exe` is 336,384 bytes because the payload is compressed into a self-extracting .NET Framework executable.
+Low for installed users. The installer runtime payload is about 559.9 KB, and the generated `SummarizeThisSetup.exe` is 338,432 bytes because the payload is compressed into a self-extracting .NET Framework executable.
 
 ### Network
 

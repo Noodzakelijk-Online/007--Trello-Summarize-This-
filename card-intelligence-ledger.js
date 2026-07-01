@@ -1785,6 +1785,7 @@
       "batch-plan-markdown": "Batch analysis plan",
       "batch-plan-json": "Batch analysis JSON",
       "batch-manual-checklist": "Manual batch checklist",
+      "batch-handoff-report": "Batch handoff report",
       "batch-open-card": "Batch card opened",
       "trello-comment-draft": "Trello comment draft",
       "trello-comment": "Trello comment"

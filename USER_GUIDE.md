@@ -396,10 +396,11 @@ The batch analysis plan creates a review queue from the same bounded list metada
 10. Use **Open next selected card** when a Trello card link is available, then run Summarize This on that card manually.
 11. Update the private progress selector for each selected card: pending, opened, analyzed, copied/exported, skipped, or blocked.
 12. Use **Copy manual checklist** to hand off the reviewed card-by-card run order. If the browser blocks clipboard access, the approved checklist appears in a manual-copy field instead.
+13. Use **Copy handoff report** for a VA/Sneup-ready progress snapshot with sanitized card links and the current private progress state.
 
-The batch plan, execution review, and progress tracker do not run AI, do not fetch neighboring card descriptions or comments, and do not write to Trello. AI handoff stays blocked until approval is checked. Trello posting stays off even after approval, because each exact comment draft still requires separate review. Batch progress is stored privately for the current user and reviewed queue.
+The batch plan, execution review, progress tracker, checklist, and handoff report do not run AI, do not fetch neighboring card descriptions or comments, and do not write to Trello. AI handoff stays blocked until approval is checked. Trello posting stays off even after approval, because each exact comment draft still requires separate review. Batch progress is stored privately for the current user and reviewed queue.
 
-Card links in the manual checklist are limited to Trello card URLs. Neighboring-card URLs are not included in AI prompts.
+Card links in the manual checklist and handoff report are limited to Trello card URLs. Neighboring-card URLs are not included in AI prompts.
 
 ### What Remains Future Work
 
