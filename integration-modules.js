@@ -8,6 +8,21 @@ class ExternalIntegrations {
         this.slack = credentials.slack;
         this.jira = credentials.jira;
     }
+
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'External integration failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .slice(0, 240);
+    }
+
+    logSafeWarning(message, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${message}: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
     
     async enrichCardData(card) {
         const enrichedData = {
@@ -88,7 +103,7 @@ class ExternalIntegrations {
                 summary: this.generateGitHubSummary(data)
             };
         } catch (error) {
-            console.error('GitHub fetch error:', error);
+            this.logSafeWarning('GitHub fetch error', error);
             return null;
         }
     }
@@ -397,6 +412,20 @@ class ScheduledAnalysisEngine {
         this.aiFunction = aiFunction;
         this.schedules = [];
     }
+
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Scheduled analysis failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
+    logSafeWarning(message, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${message}: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
     
     async createSchedule(boardId, config) {
         const schedule = {
@@ -448,10 +477,10 @@ class ScheduledAnalysisEngine {
                 report
             };
         } catch (error) {
-            console.error('Scheduled analysis error:', error);
+            this.logSafeWarning('Scheduled analysis error', error);
             return {
                 success: false,
-                error: error.message
+                error: this.sanitizeErrorMessage(error)
             };
         }
     }
@@ -547,13 +576,17 @@ class ScheduledAnalysisEngine {
     
     async sendEmailReport(report) {
         // Placeholder for email sending
-        console.log('Email report would be sent:', report);
+        if (typeof console !== 'undefined' && console.info) {
+            console.info(`Email report placeholder prepared for ${report && report.summary ? report.summary.totalCards : 0} card(s).`);
+        }
         return { sent: true };
     }
     
     async sendSlackReport(report) {
         // Placeholder for Slack notification
-        console.log('Slack report would be sent:', report);
+        if (typeof console !== 'undefined' && console.info) {
+            console.info(`Slack report placeholder prepared for ${report && report.summary ? report.summary.totalCards : 0} card(s).`);
+        }
         return { sent: true };
     }
 }

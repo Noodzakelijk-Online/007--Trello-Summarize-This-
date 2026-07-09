@@ -30,6 +30,8 @@ class AIProviders {
             'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest', costPer1kTokens: 0.0027 },
             'mistral-small': { provider: 'mistral', model: 'mistral-small-latest', costPer1kTokens: 0.001 }
         };
+        this.fetchTimeoutMs = 30000;
+        this.maxOutputTokens = 900;
     }
 
     setApiKey(provider, key) {
@@ -40,6 +42,204 @@ class AIProviders {
         return this.apiKeys[provider];
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Provider request failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .replace(/(x-api-key|x-goog-api-key|api[_-]?key|token)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .replace(/sk-[A-Za-z0-9_-]{12,}/g, 'sk-[redacted]')
+            .slice(0, 240);
+    }
+
+    logProviderFailure(provider, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${provider} API call failed: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
+
+    truncateText(value, maxLength = 700) {
+        const text = value === undefined || value === null ? '' : String(value).replace(/\s+/g, ' ').trim();
+        return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+    }
+
+    normalizeList(value) {
+        if (!value) return [];
+        return Array.isArray(value) ? value : [value];
+    }
+
+    labelForItem(item) {
+        if (typeof item === 'string') return item;
+        if (!item) return '';
+        return item.name || item.fullName || item.username || item.text || item.value || item.id || '';
+    }
+
+    formatComments(comments) {
+        return this.normalizeList(comments).slice(0, 8).map((comment, index) => {
+            if (typeof comment === 'string') {
+                return `${index + 1}. ${this.truncateText(comment, 500)}`;
+            }
+
+            const member = comment.memberCreator || comment.member || comment.author || '';
+            const memberName = typeof member === 'string' ? member : this.labelForItem(member);
+            const date = comment.date ? ` (${comment.date})` : '';
+            const text = this.truncateText(comment.text || comment.data?.text || comment.comment || '', 500);
+            return `${index + 1}. ${memberName ? `${memberName}${date}: ` : ''}${text}`;
+        }).filter(Boolean);
+    }
+
+    formatChecklists(checklists) {
+        return this.normalizeList(checklists).slice(0, 8).map((checklist) => {
+            const items = this.normalizeList(checklist && checklist.checkItems);
+            const open = items.filter((item) => item && item.state !== 'complete').slice(0, 8)
+                .map((item) => this.truncateText(item.name || item.text || item.id || '', 120))
+                .filter(Boolean);
+            const complete = items.filter((item) => item && item.state === 'complete').length;
+            const name = this.truncateText((checklist && (checklist.name || checklist.id)) || 'Checklist', 80);
+            return `${name}: ${complete}/${items.length} complete${open.length ? `; open: ${open.join('; ')}` : ''}`;
+        }).filter(Boolean);
+    }
+
+    formatAttachments(attachments) {
+        return this.normalizeList(attachments).slice(0, 12).map((attachment) => {
+            const name = this.truncateText(this.labelForItem(attachment) || 'Attachment', 120);
+            const status = attachment && (attachment.extractionStatus || attachment.status || (attachment.extractedText ? 'text-extracted' : 'metadata-only'));
+            const type = attachment && (attachment.mimeType || attachment.category || attachment.type || '');
+            const preview = attachment && (attachment.extractedTextPreview || attachment.textPreview || attachment.extractedText);
+            return `${name}${type ? ` (${type})` : ''}: ${status || 'metadata-only'}${preview ? `; preview: ${this.truncateText(preview, 250)}` : ''}`;
+        }).filter(Boolean);
+    }
+
+    buildOperationalPrompt(cardData = {}) {
+        const labels = this.normalizeList(cardData.labels).map((item) => this.labelForItem(item)).filter(Boolean);
+        const members = this.normalizeList(cardData.members).map((item) => this.labelForItem(item)).filter(Boolean);
+        const comments = this.formatComments(cardData.comments || cardData.actions);
+        const checklists = this.formatChecklists(cardData.checklists);
+        const attachments = this.formatAttachments(cardData.attachments);
+        const sourceStatus = cardData.__sourceStatus ? JSON.stringify(cardData.__sourceStatus) : 'No explicit source-status metadata.';
+        const sourceCounts = cardData.__sourceCounts || cardData.badges ? JSON.stringify(cardData.__sourceCounts || cardData.badges) : 'No reported source counts.';
+
+        return `Analyze this Trello card as an evidence-backed operational intelligence ledger for Robert's workflow.
+
+Return only valid JSON with this schema:
+{
+  "about": "what this card is about and why it exists",
+  "history": "what has happened so far, grounded in card data",
+  "status": "current operational status",
+  "completedWork": ["specific completed work"],
+  "blockers": ["specific blocker, missing information, or waiting state"],
+  "waitingOn": ["who or what the card is waiting on"],
+  "unclearPoints": ["contradiction, ambiguity, or unverified assumption"],
+  "nextSteps": ["specific next action with owner if detectable"],
+  "robertDecisions": ["Yes/No decision that requires Robert, including why"],
+  "vaReadyActions": ["delegable VA/team action that does not need Robert approval"],
+  "risks": ["deadline, client, quality, financial, legal, or communication risk"],
+  "missingInfo": ["missing data needed before acting"],
+  "unresolvedQuestions": ["question that should be answered"],
+  "insights": ["important operational insight"],
+  "evidenceClaims": [{"claim":"factual claim","source":"title|description|comment|activity|checklist|label|member|due|attachment|custom-field","confidence":"supported|uncertain"}],
+  "validationFindings": ["unsupported, conflicting, incomplete, or attachment-extraction issue"],
+  "confidenceReason": "brief explanation based on data completeness and evidence coverage"
+}
+
+Rules:
+- Do not invent dates, people, amounts, attachment contents, or history.
+- If comments, activity, custom fields, or attachments failed to load, say so in validationFindings.
+- If attachments are metadata-only, do not claim their contents were read.
+- Prefer concrete Robert decisions and VA-ready actions over vague follow-up advice.
+- Do not suggest posting to Trello as already done; only draft safe next actions.
+
+Card:
+Title: ${this.truncateText(cardData.name || cardData.title || 'Untitled Trello card', 180)}
+Board: ${this.truncateText(cardData.board || cardData.boardName || 'Unknown', 120)}
+List: ${this.truncateText(cardData.list || cardData.listName || 'Unknown', 120)}
+Description: ${this.truncateText(cardData.desc || cardData.description || 'No description', 2500)}
+Labels: ${labels.length ? labels.join(', ') : 'None'}
+Members: ${members.length ? members.join(', ') : 'None'}
+Due Date: ${cardData.due || 'Not set'}
+Due Complete: ${cardData.dueComplete ? 'yes' : 'no'}
+Checklist Progress: ${cardData.checklistProgress || 'No checklist progress'}
+Reported source counts: ${sourceCounts}
+Source status: ${sourceStatus}
+Checklists:
+${checklists.length ? checklists.join('\n') : 'No checklist details loaded.'}
+Recent comments:
+${comments.length ? comments.join('\n') : 'No comment details loaded.'}
+Attachments:
+${attachments.length ? attachments.join('\n') : 'No attachment metadata loaded.'}`;
+    }
+
+    parseProviderJson(text) {
+        const raw = typeof text === 'string' ? text : JSON.stringify(text || {});
+        const cleaned = raw.replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+        try {
+            return JSON.parse(cleaned);
+        } catch (_error) {
+            const start = cleaned.indexOf('{');
+            const end = cleaned.lastIndexOf('}');
+            if (start >= 0 && end > start) {
+                return JSON.parse(cleaned.slice(start, end + 1));
+            }
+            throw new Error('AI provider returned invalid JSON.');
+        }
+    }
+
+    async readProviderError(response) {
+        const fallback = `${response.status} ${response.statusText}`.trim();
+        try {
+            const errorBody = await response.clone().json();
+            const rawMessage = errorBody?.error?.message || errorBody?.message || errorBody?.error || '';
+            if (rawMessage) {
+                return String(rawMessage);
+            }
+        } catch (_error) {
+            // best-effort: JSON may be unavailable or malformed
+        }
+
+        try {
+            const text = await response.text();
+            if (text) {
+                return text.slice(0, 200);
+            }
+        } catch (_error) {
+            // best-effort: text response may be unavailable
+        }
+
+        return fallback;
+    }
+
+    async fetchWithTimeout(url, options = {}, timeoutMs = this.fetchTimeoutMs) {
+        const existingSignal = options.signal;
+        const controller = new AbortController();
+        const mergedOptions = Object.assign({}, options);
+
+        if (existingSignal) {
+            if (existingSignal.aborted) {
+                controller.abort(existingSignal.reason);
+            } else {
+                existingSignal.addEventListener("abort", function handleExistingAbort() {
+                    controller.abort(existingSignal.reason);
+                }, { once: true });
+            }
+        }
+
+        const timeout = setTimeout(() => {
+            controller.abort();
+        }, timeoutMs);
+
+        try {
+            mergedOptions.signal = controller.signal;
+            return await fetch(url, mergedOptions);
+        } catch (error) {
+            if (error && error.name === "AbortError") {
+                throw new Error("AI provider request timed out");
+            }
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
     // OpenAI API Integration
     async callOpenAI(model, prompt, cardData) {
         const apiKey = this.apiKeys.openai;
@@ -47,36 +247,11 @@ class AIProviders {
             throw new Error('OpenAI API key not configured');
         }
 
-        const systemPrompt = `You are an expert Trello card analyzer. Analyze the provided card data and generate a comprehensive four-part summary:
-1. What this card is about (overview and purpose)
-2. What has happened (history and progress)
-3. Current status (where things stand now)
-4. What's needed to complete (next steps and requirements)
-
-Provide detailed, high-quality analysis. Do not sacrifice clarity for brevity.`;
-
-        const userPrompt = `Analyze this Trello card:
-
-Title: ${cardData.name}
-Description: ${cardData.desc || 'No description'}
-Labels: ${cardData.labels?.join(', ') || 'None'}
-Due Date: ${cardData.due || 'Not set'}
-Members: ${cardData.members?.join(', ') || 'None'}
-Checklist Progress: ${cardData.checklistProgress || 'No checklists'}
-Comments: ${cardData.comments?.length || 0} comments
-${cardData.comments ? 'Recent comments:\n' + cardData.comments.slice(0, 3).join('\n') : ''}
-
-Provide your analysis in this JSON format:
-{
-  "about": "detailed overview",
-  "history": "what has happened",
-  "status": "current status",
-  "nextSteps": "what's needed to complete",
-  "insights": ["key insight 1", "key insight 2", "key insight 3"]
-}`;
+        const systemPrompt = 'You analyze Trello cards as evidence-backed operational ledgers. Return only valid JSON and do not invent unsupported facts.';
+        const userPrompt = this.buildOperationalPrompt(cardData);
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await this.fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -89,18 +264,18 @@ Provide your analysis in this JSON format:
                         { role: 'user', content: userPrompt }
                     ],
                     temperature: 0.7,
-                    max_tokens: 2000,
+                    max_tokens: this.maxOutputTokens,
                     response_format: { type: 'json_object' }
                 })
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`OpenAI API error: ${error.error?.message || response.statusText}`);
+                const errorMessage = await this.readProviderError(response);
+                throw new Error(`OpenAI API error: ${this.sanitizeErrorMessage(errorMessage)}`);
             }
 
             const data = await response.json();
-            const content = JSON.parse(data.choices[0].message.content);
+            const content = this.parseProviderJson(data.choices[0].message.content);
             
             return {
                 result: content,
@@ -110,7 +285,7 @@ Provide your analysis in this JSON format:
                 provider: 'OpenAI'
             };
         } catch (error) {
-            console.error('OpenAI API call failed:', error);
+            this.logProviderFailure('OpenAI', error);
             throw error;
         }
     }
@@ -122,22 +297,11 @@ Provide your analysis in this JSON format:
             throw new Error('Anthropic API key not configured');
         }
 
-        const systemPrompt = `You are an expert Trello card analyzer. Analyze the provided card data and generate a comprehensive four-part summary in JSON format.`;
-
-        const userPrompt = `Analyze this Trello card:
-
-Title: ${cardData.name}
-Description: ${cardData.desc || 'No description'}
-Labels: ${cardData.labels?.join(', ') || 'None'}
-Due Date: ${cardData.due || 'Not set'}
-Members: ${cardData.members?.join(', ') || 'None'}
-Checklist Progress: ${cardData.checklistProgress || 'No checklists'}
-Comments: ${cardData.comments?.length || 0} comments
-
-Provide analysis in JSON format with: about, history, status, nextSteps, and insights (array).`;
+        const systemPrompt = 'You analyze Trello cards as evidence-backed operational ledgers. Return only valid JSON and do not invent unsupported facts.';
+        const userPrompt = this.buildOperationalPrompt(cardData);
 
         try {
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            const response = await this.fetchWithTimeout('https://api.anthropic.com/v1/messages', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -146,21 +310,21 @@ Provide analysis in JSON format with: about, history, status, nextSteps, and ins
                 },
                 body: JSON.stringify({
                     model: model,
-                    max_tokens: 2000,
+                    max_tokens: this.maxOutputTokens,
                     system: systemPrompt,
                     messages: [
                         { role: 'user', content: userPrompt }
                     ]
                 })
-            });
+            }, this.fetchTimeoutMs);
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`Anthropic API error: ${error.error?.message || response.statusText}`);
+                const errorMessage = await this.readProviderError(response);
+                throw new Error(`Anthropic API error: ${this.sanitizeErrorMessage(errorMessage)}`);
             }
 
             const data = await response.json();
-            const content = JSON.parse(data.content[0].text);
+            const content = this.parseProviderJson(data.content[0].text);
             
             return {
                 result: content,
@@ -170,7 +334,7 @@ Provide analysis in JSON format with: about, history, status, nextSteps, and ins
                 provider: 'Anthropic'
             };
         } catch (error) {
-            console.error('Anthropic API call failed:', error);
+            this.logProviderFailure('Anthropic', error);
             throw error;
         }
     }
@@ -182,24 +346,14 @@ Provide analysis in JSON format with: about, history, status, nextSteps, and ins
             throw new Error('Google AI API key not configured');
         }
 
-        const prompt_text = `You are an expert Trello card analyzer. Analyze this card and provide a JSON response with: about, history, status, nextSteps, and insights.
-
-Card Details:
-Title: ${cardData.name}
-Description: ${cardData.desc || 'No description'}
-Labels: ${cardData.labels?.join(', ') || 'None'}
-Due Date: ${cardData.due || 'Not set'}
-Members: ${cardData.members?.join(', ') || 'None'}
-Checklist Progress: ${cardData.checklistProgress || 'No checklists'}
-Comments: ${cardData.comments?.length || 0} comments
-
-Respond with valid JSON only.`;
+        const prompt_text = this.buildOperationalPrompt(cardData);
 
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            const response = await this.fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey
                 },
                 body: JSON.stringify({
                     contents: [{
@@ -207,19 +361,19 @@ Respond with valid JSON only.`;
                     }],
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 2000
+                        maxOutputTokens: this.maxOutputTokens
                     }
                 })
-            });
+            }, this.fetchTimeoutMs);
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`Google AI API error: ${error.error?.message || response.statusText}`);
+                const errorMessage = await this.readProviderError(response);
+                throw new Error(`Google AI API error: ${this.sanitizeErrorMessage(errorMessage)}`);
             }
 
             const data = await response.json();
             const text = data.candidates[0].content.parts[0].text;
-            const content = JSON.parse(text.replace(/```json\n?/g, '').replace(/```\n?/g, ''));
+            const content = this.parseProviderJson(text);
             
             return {
                 result: content,
@@ -229,7 +383,7 @@ Respond with valid JSON only.`;
                 provider: 'Google'
             };
         } catch (error) {
-            console.error('Google AI API call failed:', error);
+            this.logProviderFailure('Google AI', error);
             throw error;
         }
     }
@@ -241,17 +395,10 @@ Respond with valid JSON only.`;
             throw new Error('Cohere API key not configured');
         }
 
-        const prompt_text = `Analyze this Trello card and provide a JSON response:
-
-Title: ${cardData.name}
-Description: ${cardData.desc || 'No description'}
-Labels: ${cardData.labels?.join(', ') || 'None'}
-Due Date: ${cardData.due || 'Not set'}
-
-Provide: about, history, status, nextSteps, insights (as JSON).`;
+        const prompt_text = this.buildOperationalPrompt(cardData);
 
         try {
-            const response = await fetch('https://api.cohere.ai/v1/generate', {
+            const response = await this.fetchWithTimeout('https://api.cohere.ai/v1/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -260,18 +407,18 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                 body: JSON.stringify({
                     model: model,
                     prompt: prompt_text,
-                    max_tokens: 2000,
+                    max_tokens: this.maxOutputTokens,
                     temperature: 0.7
                 })
-            });
+            }, this.fetchTimeoutMs);
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`Cohere API error: ${error.message || response.statusText}`);
+                const errorMessage = await this.readProviderError(response);
+                throw new Error(`Cohere API error: ${this.sanitizeErrorMessage(errorMessage)}`);
             }
 
             const data = await response.json();
-            const content = JSON.parse(data.generations[0].text);
+            const content = this.parseProviderJson(data.generations[0].text);
             
             return {
                 result: content,
@@ -281,7 +428,7 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                 provider: 'Cohere'
             };
         } catch (error) {
-            console.error('Cohere API call failed:', error);
+            this.logProviderFailure('Cohere', error);
             throw error;
         }
     }
@@ -293,11 +440,11 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
             throw new Error('Perplexity API key not configured');
         }
 
-        const systemPrompt = `You are an expert Trello card analyzer. Provide JSON analysis with: about, history, status, nextSteps, insights.`;
-        const userPrompt = `Analyze: ${cardData.name}\n${cardData.desc || ''}\nLabels: ${cardData.labels?.join(', ') || 'None'}`;
+        const systemPrompt = 'You analyze Trello cards as evidence-backed operational ledgers. Return only valid JSON and do not invent unsupported facts.';
+        const userPrompt = this.buildOperationalPrompt(cardData);
 
         try {
-            const response = await fetch('https://api.perplexity.ai/chat/completions', {
+            const response = await this.fetchWithTimeout('https://api.perplexity.ai/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -305,6 +452,7 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                 },
                 body: JSON.stringify({
                     model: model,
+                    max_tokens: this.maxOutputTokens,
                     messages: [
                         { role: 'system', content: systemPrompt },
                         { role: 'user', content: userPrompt }
@@ -313,12 +461,12 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(`Perplexity API error: ${error.error?.message || response.statusText}`);
+                const errorMessage = await this.readProviderError(response);
+                throw new Error(`Perplexity API error: ${this.sanitizeErrorMessage(errorMessage)}`);
             }
 
             const data = await response.json();
-            const content = JSON.parse(data.choices[0].message.content);
+            const content = this.parseProviderJson(data.choices[0].message.content);
             
             return {
                 result: content,
@@ -328,7 +476,7 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                 provider: 'Perplexity'
             };
         } catch (error) {
-            console.error('Perplexity API call failed:', error);
+            this.logProviderFailure('Perplexity', error);
             throw error;
         }
     }
@@ -376,14 +524,19 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
         try {
             // Make a minimal test call to validate the key
             switch (provider) {
-                case 'openai':
-                    const openaiResponse = await fetch('https://api.openai.com/v1/models', {
+                case 'openai': {
+                    const openaiResponse = await this.fetchWithTimeout('https://api.openai.com/v1/models', {
                         headers: { 'Authorization': `Bearer ${apiKey}` }
-                    });
-                    return { valid: openaiResponse.ok, error: openaiResponse.ok ? null : 'Invalid API key' };
-                
-                case 'anthropic':
-                    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+                    }, 10000);
+                    if (!openaiResponse.ok) {
+                        const openaiError = await this.readProviderError(openaiResponse);
+                        return { valid: false, error: this.sanitizeErrorMessage(openaiError) };
+                    }
+                    return { valid: true, error: null };
+                }
+
+                case 'anthropic': {
+                    const anthropicResponse = await this.fetchWithTimeout('https://api.anthropic.com/v1/messages', {
                         method: 'POST',
                         headers: {
                             'x-api-key': apiKey,
@@ -392,17 +545,22 @@ Provide: about, history, status, nextSteps, insights (as JSON).`;
                         },
                         body: JSON.stringify({
                             model: 'claude-3-haiku-20240307',
-                            max_tokens: 1,
+                            max_tokens: Math.min(this.maxOutputTokens, 64),
                             messages: [{ role: 'user', content: 'test' }]
                         })
-                    });
-                    return { valid: anthropicResponse.ok, error: anthropicResponse.ok ? null : 'Invalid API key' };
-                
+                    }, 10000);
+                    if (!anthropicResponse.ok) {
+                        const anthropicError = await this.readProviderError(anthropicResponse);
+                        return { valid: false, error: this.sanitizeErrorMessage(anthropicError) };
+                    }
+                    return { valid: true, error: null };
+                }
+
                 default:
                     return { valid: true, error: null }; // Assume valid for other providers
             }
         } catch (error) {
-            return { valid: false, error: error.message };
+            return { valid: false, error: this.sanitizeErrorMessage(error) };
         }
     }
 }

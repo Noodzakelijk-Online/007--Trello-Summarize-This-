@@ -6,6 +6,13 @@ class ExportManager {
         this.supportedFormats = ['markdown', 'pdf', 'json', 'text'];
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Export operation failed');
+        return message
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
     // Export analysis results
     async exportResults(analysisData, format = 'markdown') {
         if (!this.supportedFormats.includes(format)) {
@@ -108,6 +115,10 @@ class ExportManager {
         // In a production environment, you might want to use a library like jsPDF or pdfmake
         
         const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            throw new Error('Popup blocked. Please allow popups to print as PDF.');
+        }
+        printWindow.opener = null;
         printWindow.document.write(html);
         printWindow.document.close();
         
@@ -123,13 +134,22 @@ class ExportManager {
     generateHTML(analysisData) {
         const { summary, metadata, cardData } = analysisData;
         const timestamp = new Date().toLocaleString();
+        const cardName = this.escapeHTML(cardData.name || 'Trello Card');
+        const cardUrl = this.safeDisplayUrl(cardData.url);
+        const strategy = this.escapeHTML(metadata.strategy || '');
+        const modelList = this.escapeHTML((metadata.modelsUsed || []).join(', '));
+        const about = this.escapeHTML(summary.about || '');
+        const history = this.escapeHTML(summary.history || '');
+        const status = this.escapeHTML(summary.status || '');
+        const nextSteps = this.escapeHTML(summary.nextSteps || '');
+        const insights = Array.isArray(summary.insights) ? summary.insights : [];
 
         return `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Trello Card Analysis - ${cardData.name}</title>
+    <title>Trello Card Analysis - ${cardName}</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -197,43 +217,43 @@ class ExportManager {
     <h1>📊 Trello Card Analysis</h1>
     
     <div class="metadata">
-        <p><strong>Card:</strong> ${cardData.name}</p>
-        <p><strong>Generated:</strong> ${timestamp}</p>
-        ${cardData.url ? `<p><strong>Link:</strong> <a href="${cardData.url}">${cardData.url}</a></p>` : ''}
+        <p><strong>Card:</strong> ${cardName}</p>
+        <p><strong>Generated:</strong> ${this.escapeHTML(timestamp)}</p>
+        ${cardUrl ? `<p><strong>Link:</strong> <a href="${cardUrl}" rel="noopener noreferrer">${cardUrl}</a></p>` : ''}
     </div>
 
     <div class="metadata">
-        <p><strong>Strategy:</strong> ${metadata.strategy}</p>
-        <p><strong>AI Models:</strong> ${metadata.modelsUsed.join(', ')}</p>
+        <p><strong>Strategy:</strong> ${strategy}</p>
+        <p><strong>AI Models:</strong> ${modelList}</p>
         <p><strong>Confidence:</strong> ${Math.round(metadata.confidence * 100)}%</p>
         <p><strong>Cost:</strong> $${metadata.totalCost.toFixed(4)}</p>
     </div>
 
     <div class="section">
         <h2>📝 What this card is about</h2>
-        <p>${summary.about}</p>
+        <p>${about}</p>
     </div>
 
     <div class="section">
         <h2>📈 What has happened</h2>
-        <p>${summary.history}</p>
+        <p>${history}</p>
     </div>
 
     <div class="section">
         <h2>🎯 Current status</h2>
-        <p>${summary.status}</p>
+        <p>${status}</p>
     </div>
 
     <div class="section">
         <h2>✅ What's needed to complete</h2>
-        <p>${summary.nextSteps}</p>
+        <p>${nextSteps}</p>
     </div>
 
-    ${summary.insights && summary.insights.length > 0 ? `
+    ${insights.length > 0 ? `
     <div class="insights">
         <h2>💡 Key Insights</h2>
         <ul>
-            ${summary.insights.map(insight => `<li>${insight}</li>`).join('')}
+            ${insights.map(insight => `<li>${this.escapeHTML(insight)}</li>`).join('')}
         </ul>
     </div>
     ` : ''}
@@ -244,6 +264,27 @@ class ExportManager {
 </body>
 </html>
         `;
+    }
+
+    escapeHTML(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    safeDisplayUrl(value) {
+        if (!value) return '';
+
+        try {
+            const parsed = new URL(value);
+            if (parsed.protocol !== 'https:') return '';
+            return this.escapeHTML(parsed.href);
+        } catch (error) {
+            return '';
+        }
     }
 
     // Export to JSON
@@ -334,7 +375,9 @@ class ExportManager {
             await navigator.clipboard.writeText(content);
             return true;
         } catch (error) {
-            console.error('Failed to copy to clipboard:', error);
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`Failed to copy to clipboard: ${this.sanitizeErrorMessage(error)}`);
+            }
             return false;
         }
     }

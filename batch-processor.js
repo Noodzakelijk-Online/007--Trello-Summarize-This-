@@ -13,6 +13,20 @@ class BatchProcessor {
         this.onError = null;
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Batch operation failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
+    logSafeWarning(message, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${message}: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
+
     // Add cards to batch queue
     addCards(cardIds) {
         if (!Array.isArray(cardIds)) {
@@ -40,7 +54,7 @@ class BatchProcessor {
             const cardIds = cards.map(card => card.id);
             return this.addCards(cardIds);
         } catch (error) {
-            console.error('Failed to fetch list cards:', error);
+            this.logSafeWarning('Failed to fetch list cards', error);
             throw error;
         }
     }
@@ -52,7 +66,7 @@ class BatchProcessor {
             const cardIds = cards.map(card => card.id);
             return this.addCards(cardIds);
         } catch (error) {
-            console.error('Failed to fetch board cards:', error);
+            this.logSafeWarning('Failed to fetch board cards', error);
             throw error;
         }
     }

@@ -1,0 +1,200 @@
+param(
+  [switch]$NoLaunch,
+  [switch]$Setup,
+  [int]$Port = 17117
+)
+
+$ErrorActionPreference = "Stop"
+
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRootCandidate = [System.IO.Path]::GetFullPath((Join-Path $ScriptRoot "..\.."))
+
+if (Test-Path -LiteralPath (Join-Path $ScriptRoot "popup.html") -PathType Leaf) {
+  $AppRoot = $ScriptRoot
+} elseif (Test-Path -LiteralPath (Join-Path $RepoRootCandidate "popup.html") -PathType Leaf) {
+  $AppRoot = $RepoRootCandidate
+} else {
+  $AppRoot = $ScriptRoot
+}
+$DefaultPort = $Port
+$HostAddress = [System.Net.IPAddress]::Parse("127.0.0.1")
+
+function Test-SummarizeThisServer {
+  param([int]$Port)
+
+  try {
+    $response = Invoke-WebRequest -UseBasicParsing -TimeoutSec 1 "http://127.0.0.1:$Port/__summarize_this_health"
+    return $response.StatusCode -eq 200 -and $response.Content -eq "ok"
+  } catch {
+    return $false
+  }
+}
+
+function Test-PortAvailable {
+  param([int]$Port)
+
+  $probe = $null
+  try {
+    $probe = [System.Net.Sockets.TcpListener]::new($HostAddress, $Port)
+    $probe.Start()
+    return $true
+  } catch {
+    return $false
+  } finally {
+    if ($probe) {
+      $probe.Stop()
+    }
+  }
+}
+
+function Get-AvailablePort {
+  for ($port = $DefaultPort; $port -lt ($DefaultPort + 20); $port++) {
+    if (Test-SummarizeThisServer -Port $port) {
+      return @{ Port = $port; AlreadyRunning = $true }
+    }
+    if (Test-PortAvailable -Port $port) {
+      return @{ Port = $port; AlreadyRunning = $false }
+    }
+  }
+
+  throw "No local port was available for Summarize This."
+}
+
+function Get-MimeType {
+  param([string]$Path)
+
+  switch ([System.IO.Path]::GetExtension($Path).ToLowerInvariant()) {
+    ".html" { "text/html; charset=utf-8" }
+    ".js" { "text/javascript; charset=utf-8" }
+    ".json" { "application/json; charset=utf-8" }
+    ".svg" { "image/svg+xml" }
+    ".css" { "text/css; charset=utf-8" }
+    ".png" { "image/png" }
+    default { "application/octet-stream" }
+  }
+}
+
+function Write-HttpResponse {
+  param(
+    [System.Net.Sockets.NetworkStream]$Stream,
+    [int]$StatusCode,
+    [string]$Reason,
+    [byte[]]$Body,
+    [string]$ContentType
+  )
+
+  $headers = @(
+    "HTTP/1.1 $StatusCode $Reason",
+    "Content-Type: $ContentType",
+    "Content-Length: $($Body.Length)",
+    "Cache-Control: no-store",
+    "X-Content-Type-Options: nosniff",
+    "Connection: close",
+    "",
+    ""
+  ) -join "`r`n"
+
+  $headerBytes = [System.Text.Encoding]::ASCII.GetBytes($headers)
+  $Stream.Write($headerBytes, 0, $headerBytes.Length)
+  if ($Body.Length -gt 0) {
+    $Stream.Write($Body, 0, $Body.Length)
+  }
+}
+
+function Resolve-RequestPath {
+  param([string]$RequestPath)
+
+  $pathOnly = ($RequestPath -split "\?")[0]
+  if ([string]::IsNullOrWhiteSpace($pathOnly) -or $pathOnly -eq "/") {
+    $pathOnly = "/popup.html"
+  }
+
+  $relative = [Uri]::UnescapeDataString($pathOnly.TrimStart("/")).Replace("/", [System.IO.Path]::DirectorySeparatorChar)
+  $root = [System.IO.Path]::GetFullPath($AppRoot).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+  $fullPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($root, $relative))
+
+  if (-not $fullPath.StartsWith($root, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $null
+  }
+
+  return $fullPath
+}
+
+$portInfo = Get-AvailablePort
+$port = [int]$portInfo.Port
+$targetPage = if ($Setup) { "trello-setup.html" } else { "popup.html" }
+$url = "http://127.0.0.1:$port/$($targetPage)?installed=1"
+
+if ($portInfo.AlreadyRunning) {
+  if (-not $NoLaunch) {
+    Start-Process $url
+  }
+  return
+}
+
+$listener = [System.Net.Sockets.TcpListener]::new($HostAddress, $port)
+$listener.Start()
+
+if (-not $NoLaunch) {
+  Start-Process $url
+}
+Write-Host "Summarize This is running at $url"
+Write-Host "Close this window to stop the local launcher."
+
+try {
+  while ($true) {
+    $client = $listener.AcceptTcpClient()
+    try {
+      $stream = $client.GetStream()
+      $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::ASCII, $false, 1024, $true)
+      $requestLine = $reader.ReadLine()
+
+      while ($true) {
+        $line = $reader.ReadLine()
+        if ($null -eq $line -or $line.Length -eq 0) {
+          break
+        }
+      }
+
+      if ([string]::IsNullOrWhiteSpace($requestLine)) {
+        continue
+      }
+
+      $parts = $requestLine -split " "
+      $method = $parts[0]
+      $requestPath = if ($parts.Length -gt 1) { $parts[1] } else { "/" }
+
+      if ($method -ne "GET" -and $method -ne "HEAD") {
+        $body = [System.Text.Encoding]::UTF8.GetBytes("Method not allowed")
+        Write-HttpResponse -Stream $stream -StatusCode 405 -Reason "Method Not Allowed" -Body $body -ContentType "text/plain; charset=utf-8"
+        continue
+      }
+
+      if (($requestPath -split "\?")[0] -eq "/__summarize_this_health") {
+        $body = [System.Text.Encoding]::UTF8.GetBytes("ok")
+        Write-HttpResponse -Stream $stream -StatusCode 200 -Reason "OK" -Body $body -ContentType "text/plain; charset=utf-8"
+        continue
+      }
+
+      $filePath = Resolve-RequestPath -RequestPath $requestPath
+      if ($null -eq $filePath -or -not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+        $body = [System.Text.Encoding]::UTF8.GetBytes("Not found")
+        Write-HttpResponse -Stream $stream -StatusCode 404 -Reason "Not Found" -Body $body -ContentType "text/plain; charset=utf-8"
+        continue
+      }
+
+      $bytes = if ($method -eq "HEAD") { [byte[]]::new(0) } else { [System.IO.File]::ReadAllBytes($filePath) }
+      Write-HttpResponse -Stream $stream -StatusCode 200 -Reason "OK" -Body $bytes -ContentType (Get-MimeType -Path $filePath)
+    } catch {
+      try {
+        $body = [System.Text.Encoding]::UTF8.GetBytes("Server error")
+        Write-HttpResponse -Stream $stream -StatusCode 500 -Reason "Server Error" -Body $body -ContentType "text/plain; charset=utf-8"
+      } catch {
+      }
+    } finally {
+      $client.Close()
+    }
+  }
+} finally {
+  $listener.Stop()
+}

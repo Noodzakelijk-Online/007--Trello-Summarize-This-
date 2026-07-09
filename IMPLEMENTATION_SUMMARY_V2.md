@@ -377,7 +377,8 @@ Body:
 
 #### Google:
 ```javascript
-POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}
+POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+x-goog-api-key: {api_key}
 Headers:
   - Content-Type: application/json
 Body:

@@ -1,5 +1,5 @@
-// 99.9% Accuracy System
-// Comprehensive accuracy framework with confidence scoring, validation, error detection, and learning
+// Confidence and validation system.
+// This provides review signals, not guaranteed model accuracy.
 
 // Module 1: Confidence Scoring System
 class ConfidenceScorer {

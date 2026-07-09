@@ -1,0 +1,12 @@
+{
+  "name": "summarize-this-trello-powerup",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static Trello Power-Up for AI-assisted card summarization.",
+  "scripts": {
+    "test": "node test.js",
+    "analyze:resources": "node tools/resource-analysis.js",
+    "build:windows-installer": "powershell -NoProfile -ExecutionPolicy Bypass -File installer/windows/build-installer.ps1"
+  },
+  "license": "MIT"
+}

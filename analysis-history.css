@@ -300,6 +300,128 @@
     box-shadow: 0 5px 15px rgba(100, 255, 218, 0.3);
 }
 
+.history-dialog,
+.prompt-dialog {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 17, 35, 0.75);
+    z-index: 9999;
+    padding: 20px;
+}
+
+.history-dialog-content,
+.prompt-dialog-content {
+    background: #1d1f2c;
+    border: 1px solid rgba(100, 255, 218, 0.3);
+    color: #ecf0f1;
+    width: min(960px, 100%);
+    max-height: 85vh;
+    overflow: auto;
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.45);
+}
+
+.history-dialog-header,
+.prompt-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.history-dialog-header h3,
+.prompt-dialog-header h3 {
+    margin: 0;
+    color: #64ffda;
+    font-size: 22px;
+}
+
+.history-dialog-header button,
+.prompt-dialog-close {
+    appearance: none;
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ecf0f1;
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.history-item-metadata,
+.history-analysis-text {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid rgba(100, 255, 218, 0.15);
+    margin-bottom: 12px;
+}
+
+.history-analysis-text {
+    white-space: pre-wrap;
+    min-height: 50px;
+    overflow-wrap: anywhere;
+}
+
+.history-insight-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.history-insight-list li {
+    margin-bottom: 8px;
+}
+
+.prompt-static-field {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(100, 255, 218, 0.15);
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 6px;
+    color: #ecf0f1;
+}
+
+.prompt-pre-wrap {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.prompt-dialog-body,
+.history-dialog-content .form-actions {
+    margin-bottom: 10px;
+}
+
+.prompt-dialog .form-actions,
+.history-dialog-content .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.prompt-dialog .form-actions button,
+.history-dialog-content button {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(100, 255, 218, 0.4);
+    background: #64ffda;
+    color: #111;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.prompt-dialog .form-actions button:last-child,
+.history-dialog-content button:last-child {
+    background: rgba(255, 107, 107, 0.18);
+    color: #ff6b6b;
+    border-color: #ff6b6b;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .history-container {

@@ -9,11 +9,40 @@ class AnalysisHistory {
         this.budget = this.loadBudget();
     }
 
+    escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;')
+            .replace(/`/g, '&#96;');
+    }
+
+    asArray(value) {
+        return Array.isArray(value) ? value : [];
+    }
+
+    asNumber(value, fallback = 0) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    formatCsvCell(value) {
+        const raw = String(value == null ? '' : value);
+        const escaped = raw.replace(/"/g, '""');
+        if (/[",\n\r]/.test(escaped)) {
+            return `"${escaped}"`;
+        }
+        return escaped;
+    }
+
     // Load history from storage
     loadHistory() {
         try {
             const stored = localStorage.getItem(this.storageKey);
-            return stored ? JSON.parse(stored) : [];
+            const parsed = stored ? JSON.parse(stored) : [];
+            return Array.isArray(parsed) ? parsed : [];
         } catch (error) {
             console.error('Failed to load history:', error);
             return [];
@@ -33,7 +62,13 @@ class AnalysisHistory {
     loadBudget() {
         try {
             const stored = localStorage.getItem(this.budgetKey);
-            return stored ? JSON.parse(stored) : {
+            const parsed = stored ? JSON.parse(stored) : null;
+            return parsed && typeof parsed === 'object' ? {
+                enabled: !!parsed.enabled,
+                limit: this.asNumber(parsed.limit, 10),
+                period: ['day', 'week', 'month'].includes(parsed.period) ? parsed.period : 'month',
+                alertThreshold: this.asNumber(parsed.alertThreshold, 0.8)
+            } : {
                 enabled: false,
                 limit: 10.00,
                 period: 'month', // 'day', 'week', 'month'
@@ -64,16 +99,16 @@ class AnalysisHistory {
         const entry = {
             id: this.generateId(),
             timestamp: new Date().toISOString(),
-            cardId: analysis.cardId,
-            cardName: analysis.cardName,
-            cardUrl: analysis.cardUrl,
-            boardName: analysis.boardName,
-            strategy: analysis.strategy,
-            modelsUsed: analysis.modelsUsed || [],
-            totalCost: analysis.totalCost || 0,
-            tokensUsed: analysis.tokensUsed || 0,
+            cardId: analysis && analysis.cardId ? analysis.cardId : '',
+            cardName: analysis && analysis.cardName ? analysis.cardName : '',
+            cardUrl: analysis && analysis.cardUrl ? analysis.cardUrl : '',
+            boardName: analysis && analysis.boardName ? analysis.boardName : '',
+            strategy: analysis && analysis.strategy ? analysis.strategy : 'Unknown',
+            modelsUsed: this.asArray(analysis && analysis.modelsUsed),
+            totalCost: this.asNumber(analysis && analysis.totalCost, 0),
+            tokensUsed: this.asNumber(analysis && analysis.tokensUsed, 0),
             summary: analysis.summary,
-            metadata: analysis.metadata || {}
+            metadata: analysis && analysis.metadata ? analysis.metadata : {}
         };
 
         this.history.unshift(entry); // Add to beginning
@@ -101,6 +136,9 @@ class AnalysisHistory {
     getHistoryByDateRange(startDate, endDate) {
         const start = new Date(startDate);
         const end = new Date(endDate);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+            return [];
+        }
         
         return this.history.filter(entry => {
             const date = new Date(entry.timestamp);
@@ -142,8 +180,8 @@ class AnalysisHistory {
             };
         }
 
-        const totalCost = this.history.reduce((sum, entry) => sum + (entry.totalCost || 0), 0);
-        const totalTokens = this.history.reduce((sum, entry) => sum + (entry.tokensUsed || 0), 0);
+        const totalCost = this.history.reduce((sum, entry) => sum + this.asNumber(entry && entry.totalCost, 0), 0);
+        const totalTokens = this.history.reduce((sum, entry) => sum + this.asNumber(entry && entry.tokensUsed, 0), 0);
         
         // Most used strategy
         const strategies = {};
@@ -156,7 +194,7 @@ class AnalysisHistory {
         // Most analyzed board
         const boards = {};
         this.history.forEach(entry => {
-            if (entry.boardName) {
+            if (entry && entry.boardName) {
                 boards[entry.boardName] = (boards[entry.boardName] || 0) + 1;
             }
         });
@@ -196,7 +234,7 @@ class AnalysisHistory {
         }
 
         const periodHistory = this.getHistoryByDateRange(startDate, now);
-        return periodHistory.reduce((sum, entry) => sum + (entry.totalCost || 0), 0);
+        return periodHistory.reduce((sum, entry) => sum + this.asNumber(entry && entry.totalCost, 0), 0);
     }
 
     // Check if budget allows new analysis
@@ -208,12 +246,13 @@ class AnalysisHistory {
         const currentCost = this.getCurrentPeriodCost();
         const projectedCost = currentCost + estimatedCost;
         const remaining = this.budget.limit - currentCost;
-        const percentUsed = (currentCost / this.budget.limit) * 100;
+        const budgetLimit = this.asNumber(this.budget.limit, 10) || 0.01;
+        const percentUsed = (currentCost / budgetLimit) * 100;
 
         if (projectedCost > this.budget.limit) {
             return {
                 allowed: false,
-                message: `Budget limit exceeded. Current: $${currentCost.toFixed(4)}, Limit: $${this.budget.limit.toFixed(2)}`,
+                message: `Budget limit exceeded. Current: $${currentCost.toFixed(4)}, Limit: $${this.asNumber(this.budget.limit, 0).toFixed(2)}`,
                 currentCost: currentCost,
                 remaining: remaining,
                 percentUsed: percentUsed
@@ -224,7 +263,7 @@ class AnalysisHistory {
             return {
                 allowed: true,
                 warning: true,
-                message: `Budget alert: ${percentUsed.toFixed(0)}% used ($${currentCost.toFixed(4)} of $${this.budget.limit.toFixed(2)})`,
+                message: `Budget alert: ${percentUsed.toFixed(0)}% used ($${currentCost.toFixed(4)} of $${this.asNumber(this.budget.limit, 0).toFixed(2)})`,
                 currentCost: currentCost,
                 remaining: remaining,
                 percentUsed: percentUsed
@@ -276,16 +315,16 @@ class AnalysisHistory {
     exportHistoryCSV() {
         const headers = ['Date', 'Card Name', 'Board', 'Strategy', 'Models', 'Cost', 'Tokens'];
         const rows = this.history.map(entry => [
-            new Date(entry.timestamp).toLocaleString(),
-            entry.cardName,
-            entry.boardName,
-            entry.strategy,
-            entry.modelsUsed.join(', '),
-            entry.totalCost.toFixed(6),
-            entry.tokensUsed
+            this.formatCsvCell(new Date(entry.timestamp).toLocaleString()),
+            this.formatCsvCell(entry.cardName),
+            this.formatCsvCell(entry.boardName),
+            this.formatCsvCell(entry.strategy),
+            this.asArray(entry.modelsUsed).join(', '),
+            this.asNumber(entry.totalCost, 0).toFixed(6),
+            this.asNumber(entry.tokensUsed, 0)
         ]);
 
-        const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+        const csv = [headers, ...rows].map(row => row.map(cell => this.formatCsvCell(cell)).join(',')).join('\n');
         
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -365,8 +404,9 @@ class AnalysisHistory {
     // Render budget settings
     renderBudgetSettings() {
         const currentCost = this.getCurrentPeriodCost();
-        const percentUsed = this.budget.enabled ? 
-            (currentCost / this.budget.limit) * 100 : 0;
+        const budgetLimit = this.asNumber(this.budget.limit, 10);
+        const percentUsed = this.budget.enabled ?
+            (budgetLimit > 0 ? (currentCost / budgetLimit) * 100 : 0) : 0;
 
         return `
             <div class="budget-settings">
@@ -384,7 +424,7 @@ class AnalysisHistory {
                         <div class="budget-input">
                             <label>Budget Limit: $</label>
                             <input type="number" id="budgetLimit" 
-                                value="${this.budget.limit}" 
+                                value="${budgetLimit}" 
                                 step="0.01" min="0.01"
                                 onchange="window.analysisHistory.updateBudget({limit: parseFloat(this.value)})">
                         </div>
@@ -402,7 +442,7 @@ class AnalysisHistory {
                                 <div class="budget-fill" style="width: ${Math.min(percentUsed, 100)}%"></div>
                             </div>
                             <div class="budget-text">
-                                $${currentCost.toFixed(4)} / $${this.budget.limit.toFixed(2)} 
+                                $${currentCost.toFixed(4)} / $${budgetLimit.toFixed(2)} 
                                 (${percentUsed.toFixed(0)}% used)
                             </div>
                         </div>
@@ -422,22 +462,22 @@ class AnalysisHistory {
             <div class="history-item" data-id="${entry.id}">
                 <div class="history-item-header">
                     <div class="history-item-title">
-                        <strong>${entry.cardName}</strong>
-                        <span class="history-item-board">${entry.boardName}</span>
+                        <strong>${this.escapeHtml(entry.cardName || 'Unnamed card')}</strong>
+                        <span class="history-item-board">${this.escapeHtml(entry.boardName || 'Unnamed board')}</span>
                     </div>
                     <div class="history-item-date">
                         ${new Date(entry.timestamp).toLocaleString()}
                     </div>
                 </div>
                 <div class="history-item-details">
-                    <span class="history-badge">${entry.strategy}</span>
-                    <span class="history-badge">${entry.modelsUsed.length} models</span>
-                    <span class="history-badge">$${entry.totalCost.toFixed(6)}</span>
-                    <span class="history-badge">${entry.tokensUsed} tokens</span>
+                    <span class="history-badge">${this.escapeHtml(entry.strategy || 'Unknown')}</span>
+                    <span class="history-badge">${this.asArray(entry.modelsUsed).length} models</span>
+                    <span class="history-badge">$${this.asNumber(entry.totalCost, 0).toFixed(6)}</span>
+                    <span class="history-badge">${this.asNumber(entry.tokensUsed, 0)} tokens</span>
                 </div>
                 <div class="history-item-actions">
-                    <button onclick="window.analysisHistory.viewAnalysis('${entry.id}')">View</button>
-                    <button onclick="window.analysisHistory.deleteAnalysis('${entry.id}')">Delete</button>
+                    <button onclick="window.analysisHistory.viewAnalysis('${this.escapeHtml(entry.id || '')}')">View</button>
+                    <button onclick="window.analysisHistory.deleteAnalysis('${this.escapeHtml(entry.id || '')}')">Delete</button>
                 </div>
             </div>
         `).join('');
@@ -448,9 +488,72 @@ class AnalysisHistory {
         const entry = this.getAnalysis(id);
         if (!entry) return;
 
-        // Create modal or navigate to card
-        alert(`Analysis for: ${entry.cardName}\n\nAbout: ${entry.summary.about.substring(0, 200)}...`);
-        // TODO: Implement full modal view
+        const summary = entry.summary || {};
+        const about = typeof summary.about === 'string' ? summary.about : '';
+        const history = typeof summary.history === 'string' ? summary.history : '';
+        const status = typeof summary.status === 'string' ? summary.status : '';
+        const nextSteps = typeof summary.nextSteps === 'string' ? summary.nextSteps : '';
+        const insights = Array.isArray(summary.insights) ? summary.insights : [];
+
+        const existing = document.querySelector('.history-dialog');
+        if (existing) {
+            existing.remove();
+        }
+
+        const dialog = document.createElement('div');
+        dialog.className = 'history-dialog';
+        dialog.innerHTML = `
+            <div class="history-dialog-content">
+                <div class="history-dialog-header">
+                    <h3>Analysis Details</h3>
+                    <button type="button" data-close="historyView">×</button>
+                </div>
+                <div class="history-item-metadata">
+                    <div><strong>Card:</strong> ${this.escapeHtml(entry.cardName || 'Unnamed card')}</div>
+                    <div><strong>Board:</strong> ${this.escapeHtml(entry.boardName || 'Unnamed board')}</div>
+                    <div><strong>Strategy:</strong> ${this.escapeHtml(entry.strategy || 'Unknown')}</div>
+                    <div><strong>Cost:</strong> $${this.asNumber(entry.totalCost, 0).toFixed(6)}</div>
+                    <div><strong>Tokens:</strong> ${this.asNumber(entry.tokensUsed, 0)}</div>
+                    <div><strong>Models:</strong> ${this.escapeHtml(this.asArray(entry.modelsUsed).join(', '))}</div>
+                    <div><strong>Date:</strong> ${new Date(entry.timestamp).toLocaleString()}</div>
+                </div>
+                <div class="history-item-metadata">
+                    <h4>About</h4>
+                    <pre class="history-analysis-text">${this.escapeHtml(about)}</pre>
+                </div>
+                <div class="history-item-metadata">
+                    <h4>History</h4>
+                    <pre class="history-analysis-text">${this.escapeHtml(history)}</pre>
+                </div>
+                <div class="history-item-metadata">
+                    <h4>Status</h4>
+                    <pre class="history-analysis-text">${this.escapeHtml(status)}</pre>
+                </div>
+                <div class="history-item-metadata">
+                    <h4>Next Steps</h4>
+                    <pre class="history-analysis-text">${this.escapeHtml(nextSteps)}</pre>
+                </div>
+                <div class="history-item-metadata">
+                    <h4>Insights</h4>
+                    <ul class="history-insight-list">
+                        ${insights.map(item => `<li>${this.escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="history-item-actions">
+                    <button type="button" data-close="historyView">Close</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+        const closeDialog = () => dialog.remove();
+        const closeButtons = dialog.querySelectorAll('[data-close="historyView"]');
+        closeButtons.forEach(button => button.addEventListener('click', closeDialog));
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) {
+                closeDialog();
+            }
+        });
     }
 }
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "summarize-this-ai-proxy",
+  "main": "./cloudflare-worker.mjs",
+  "compatibility_date": "2026-06-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "https://your-powerup-host.example",
+    "DEFAULT_PROVIDER": "openai",
+    "RATE_LIMIT_PER_MINUTE": "30"
+  }
+}

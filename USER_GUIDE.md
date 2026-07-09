@@ -12,10 +12,11 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 6. [Attachment Processing](#attachment-processing)
 7. [Analysis History](#analysis-history)
 8. [Budget Management](#budget-management)
-9. [Batch Processing](#batch-processing)
-10. [Custom Prompts](#custom-prompts)
-11. [Export Options](#export-options)
-12. [Troubleshooting](#troubleshooting)
+9. [Runtime Timing](#runtime-timing)
+10. [Batch and List Planning](#batch-and-list-planning)
+11. [Custom Prompts](#custom-prompts)
+12. [Export Options](#export-options)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -33,12 +34,19 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 1. Open the application URL in your browser
 2. The app works independently without Trello integration
 
+**Windows Setup Assistant:**
+1. Open **Configure Trello Power-Up** from the Start Menu after installing.
+2. Choose the hosting preset or enter the public HTTPS URL where the static files are deployed.
+3. Use the deployment guide to copy host-specific steps and verify `connector.js` and `manifest.json` load publicly.
+4. Copy the connector URL, admin checklist, or setup package JSON.
+5. Use the autofill helper only on Trello's Power-Up admin page to populate matching fields; review its filled/missing report and save manually in Trello.
+
 ### First-Time Setup
 
-1. **API Keys**: Enter at least one AI provider API key in Settings
+1. **AI Access**: choose local mode, enter a backend proxy endpoint, or save at least one provider API key in Settings
 2. **Trello Credentials** (optional): Add Trello API key and token for standalone mode
 3. **Choose Strategy**: Select your preferred analysis strategy
-4. **Start Analyzing**: Click "Start Analysis" on any card
+4. **Start Analyzing**: Click "Summarize This" on any Trello card
 
 ---
 
@@ -49,11 +57,17 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 1. **Open a Card**: In Trello, open any card you want to analyze
 2. **Click Power-Up Button**: Look for the "Summarize This" button
 3. **Wait for Analysis**: The AI will analyze the card (10-30 seconds)
-4. **View Results**: See the four-part summary:
-   - **About**: What the card is about
-   - **History**: What has happened
-   - **Status**: Current state
-   - **Next Steps**: What needs to be done
+4. **View Results**: See the operational card intelligence panel:
+   - **Operational digest**: current status, main blocker, top next action, Robert decision, VA/team handoff, and confidence
+   - **Detailed summary**: about, history, current status, completed work, risks, and missing information
+   - **Evidence and validation**: source coverage, evidence claims, attachment facts, and review warnings
+   - **Actions and decisions**: blockers, waiting states, next actions, Robert decisions, VA-ready actions, and unresolved questions
+
+Cards with no visible Trello activity for 14+ days are flagged as aging. Cards with no visible activity for 30+ days are also surfaced as stale-activity risks, blockers, validation findings, trust warnings, and review questions.
+
+The Trello card badge starts as **Setup needed** until local mode, direct provider keys, or proxy mode is configured. After a card has private ledger history, the badge can show **Review needed**, **Analysis failed**, or the latest confidence percentage.
+
+The popup and settings page automatically follow your system light or dark appearance preference.
 
 ### Understanding the Summary
 
@@ -97,6 +111,10 @@ Each analysis includes a confidence score (0-100%):
 - **70-89%**: Good confidence, sufficient data
 - **50-69%**: Moderate confidence, limited data
 - **Below 50%**: Low confidence, minimal data
+
+### Review and Corrections
+
+The Review / correction panel stores feedback privately for the same card. When marking an analysis wrong, select the specific section that was wrong or incomplete, such as blockers, waiting-on items, unclear points, next actions, Robert decisions, VA/team-ready actions, evidence/validation, or unresolved questions. The next analysis receives those compact section-specific corrections as guidance, but they are still treated as user feedback rather than verified Trello facts.
 
 ---
 
@@ -142,6 +160,28 @@ Each analysis includes a confidence score (0-100%):
 4. Click "Save" or "Validate"
 5. Green checkmark = API key is valid
 
+In the Trello Power-Up runtime, provider API keys are saved in Trello member-private storage for the current member. In local preview or standalone Windows mode, the settings page saves only non-key settings to `localStorage`; API key fields are cleared and AI-only mode requires either Trello member-private storage or a valid backend proxy endpoint. If older local preview data contains keys, the popup/settings page strips them on load.
+
+### Optional Backend Proxy
+
+Settings can route AI calls through a backend proxy endpoint. When enabled, the browser sends the bounded AI prompt to your proxy and does not send OpenAI, Google, or Anthropic API keys from the Power-Up iframe. The proxy endpoint must add provider credentials server-side and return the same structured JSON summary fields used by direct provider mode.
+
+- Use HTTPS endpoints for Trello Power-Up mode.
+- Local development may use `http://localhost` or `http://127.0.0.1`.
+- Query strings, fragments, and embedded credentials are not saved as part of the proxy endpoint.
+- If proxy mode fails in Auto mode, the popup falls back to the local summarizer rather than silently switching back to browser-held provider keys.
+
+The repository includes an optional Cloudflare Worker reference implementation in `proxy/`. It validates request size, schema, prompt length, provider choice, allowed origins, and a configurable per-client request rate before calling a provider with server-side secrets.
+
+### AI Response Budget
+
+Settings include an **AI response budget** control for direct provider mode and proxy mode.
+
+- Use **Short** for lower latency and lower provider cost.
+- Use **Balanced** for the default operational ledger.
+- Use **Detailed** or **Large-card review** when blockers, evidence, and decision notes need more room.
+- Saved values are normalized before provider calls, and the proxy clamps requests server-side as well.
+
 ---
 
 ## Analysis Strategies
@@ -173,10 +213,19 @@ Each analysis includes a confidence score (0-100%):
 ### Comprehensive
 
 **Best for**: Complex projects, thorough analysis
-- Uses: Multiple models in parallel
+- Uses: Multiple configured providers when **Provider mode** is set to consensus
 - Cost: ~$0.10-0.30 per analysis
 - Speed: Slower (20-40 seconds)
 - Quality: Multiple perspectives, consensus insights
+
+### Provider Mode
+
+Settings include a **Provider mode** control:
+
+- **Single provider with fallback**: default mode. Uses the preferred provider, or tries configured providers in order when provider is set to Auto.
+- **Consensus review**: opt-in mode. Tries multiple configured providers, merges structured sections such as blockers, next actions, Robert decisions, VA handoff items, evidence, and validation findings, and records the provider count in the ledger metadata.
+
+Consensus mode can increase latency and provider cost. If fewer than two providers return results, the popup shows a warning and keeps the available single-provider result for review.
 
 ### Privacy-Focused
 
@@ -192,37 +241,34 @@ Each analysis includes a confidence score (0-100%):
 
 ### Supported File Types
 
-**Documents:**
-- PDF (with PDF.js)
-- Word (.docx, .doc) (with mammoth.js)
-- Excel (.xlsx, .xls) (with xlsx.js)
-- CSV files
-- Text files (.txt, .md)
+The active Power-Up always reads attachment metadata such as name, type, size, and category when Trello exposes it.
 
-**Images:**
-- JPEG, PNG, GIF, WebP
-- OCR text extraction (with Tesseract.js)
+Optional content extraction is available for small HTTPS text-like attachments only:
 
-**Web Links:**
-- External URLs
-- Web page content extraction
+- Text files: `.txt`, `.md`
+- Spreadsheet text: `.csv`, `.tsv`
+
+Other files remain metadata-only in the active popup:
+
+- PDF, Word, Excel, PowerPoint, and similar binary documents.
+- Images and recordings.
+- External web links.
 
 ### How It Works
 
-1. **Automatic Detection**: Files are automatically detected
-2. **Content Extraction**: Text is extracted from each file
-3. **AI Integration**: Extracted content is included in analysis
-4. **Preview Available**: See extracted content in results
+1. **Metadata detection**: Attachment names, MIME types, extensions, and categories are included as evidence.
+2. **Optional text extraction**: Enable **Extract small text/CSV attachment contents** in settings to fetch only small HTTPS text-like files.
+3. **Bounded previews**: Extracted text is capped before it appears in evidence, JSON exports, or AI prompt context.
+4. **Attachment facts panel**: The popup separates attachment facts from generic evidence, showing category counts, extraction status, metadata-only files, failures, and bounded text previews when available.
+5. **Honest fallback**: Unsupported or disabled extraction is shown as metadata-only, not as verified attachment content.
 
 ### Library Status
 
-Check which libraries are loaded:
-- ✓ PDF.js: Full PDF text extraction
-- ✓ mammoth.js: Word document parsing
-- ✓ xlsx.js: Excel file parsing
-- ✓ Tesseract.js: Image OCR
+The active popup does not perform browser-side PDF, Word, Excel, image OCR, audio, or video extraction. Those files stay metadata-only until a safer extraction path is added.
 
-If a library is missing, you'll see metadata-only processing.
+### Attachment Privacy
+
+Text/CSV extraction is off by default. When enabled, only HTTPS attachment URLs are fetched, private/local URLs are refused, large files are skipped, and excerpts are capped before AI handoff. If the card metadata already contains sensitive client, financial, legal, or personal signals, text/CSV extraction is skipped until you approve the sensitive run. Sensitive-card approval rules still apply before sending extracted excerpts to a configured AI provider.
 
 ---
 
@@ -234,6 +280,10 @@ If a library is missing, you'll see metadata-only processing.
 2. See all past analyses
 3. Filter by date, board, or strategy
 4. Click any analysis to view details
+
+The active popup also shows a compact change summary against the previous saved analysis. Use **Copy change brief** when you need a handoff that explains what changed, the confidence trend, the current top blocker, the current next action, the current Robert decision, and the current VA/team handoff.
+
+When the card snapshot, analysis settings, and usable AI connector state have not changed, the popup can reuse the latest matching private ledger run instead of calling an AI provider again. Use **Analyze again** when you intentionally want a fresh run. Adding or removing a provider key or proxy endpoint invalidates reuse without storing the key value.
 
 ### Statistics Dashboard
 
@@ -263,25 +313,25 @@ Track your usage:
 
 ### Setting Up Budget Limits
 
-1. Go to History section
-2. Enable "Budget Tracking"
-3. Set your budget limit (e.g., $10.00)
-4. Choose period: Daily, Weekly, or Monthly
-5. Set alert threshold (default: 80%)
+1. Open Power-Up settings.
+2. Set monthly limits for OpenAI, Google AI, and/or Anthropic.
+3. Leave a provider limit blank or `0` to disable alerts for that provider.
+4. Choose the warning threshold: 50%, 75%, 80%, 90%, or 100%.
+5. Save settings.
 
 ### Budget Alerts
 
-**Green**: Within budget, safe to continue
-**Yellow**: Approaching limit (80%+ used)
-**Red**: Budget exceeded, analysis blocked
+Budget alerts are advisory. They do not block analysis.
+
+**No alert**: No provider limit is configured, the run is local-only, or the monthly estimate is below the warning threshold.
+
+**Warning**: The current run brings the provider's estimated monthly usage above the configured threshold.
+
+**Exceeded**: The current run brings the provider's estimated monthly usage above the configured monthly limit.
 
 ### Budget Dashboard
 
-Monitor in real-time:
-- Current spending vs. limit
-- Percentage used
-- Remaining budget
-- Projected monthly cost
+The popup records compact member-private cost records for completed AI runs and shows a budget alert when a configured provider threshold is reached. Cost records include provider, model, token count, estimated cost, card id/title, run id, and timestamp. They do not include API keys or full card content.
 
 ### Tips for Managing Costs
 
@@ -289,66 +339,72 @@ Monitor in real-time:
 2. Reserve "Best Quality" for important cards
 3. Set realistic monthly budgets
 4. Review history to identify patterns
-5. Use batch processing for efficiency
+5. Use batch planning before any future multi-card AI run
 
 ---
 
-## Batch Processing
+## Runtime Timing
 
-### What is Batch Processing?
+After each analysis, the popup shows a Runtime timing panel with the latest total duration, recent average, slowest stored run, and stage breakdown.
 
-Analyze multiple cards at once instead of one by one.
+The timing panel helps diagnose whether time is spent reading Trello context, building the local summary, waiting for an AI provider, building the ledger, or rendering history/review panels. Timing records are compact and member-private. They store run id, card id, provider/source, durations, and timestamp only; they do not store card content, prompts, API keys, or attachment text.
 
-### Adding Cards to Batch
+If the latest matching ledger run is reused, timing will show a cached ledger match rather than an AI provider wait. That means no new provider cost was recorded for the reused view.
 
-**Method 1: Manual Entry**
-1. Click "Batch Processing"
-2. Enter card IDs (comma-separated)
-3. Click "Add Cards"
+---
 
-**Method 2: From List**
-1. Enter list ID
-2. Click "Add List"
-3. All cards from that list are added
+## Batch and List Planning
 
-**Method 3: From Board**
-1. Enter board ID
-2. Click "Add Board"
-3. All cards from that board are added
+### What is List Planning?
 
-### Processing Options
+List planning creates a compact planning brief from the current card's surrounding Trello list context. It helps spot nearby work, repeated labels, due-date signals, and the current card's position in the list without running AI across every card.
 
-**Sequential Processing:**
-- Analyzes cards one after another
-- Slower but more reliable
-- Respects rate limits
-- Recommended for large batches
+The active popup uses bounded list metadata only:
 
-**Parallel Processing:**
-- Analyzes multiple cards simultaneously
-- Faster completion
-- Higher API usage
-- Recommended for small batches (< 20 cards)
+- Card names.
+- Labels.
+- Due state.
+- Current card position.
+- Nearby card names.
 
-### Batch Settings
+It does not include neighboring card descriptions, comments, attachments, or AI output.
 
-- **Delay Between Requests**: 1-5 seconds (prevents rate limiting)
-- **Concurrency**: 1-5 cards at once
-- **Stop on Error**: Continue or stop if a card fails
+### Using the List Planning Brief
 
-### Monitoring Progress
+1. Open a Trello card.
+2. Click **Summarize This**.
+3. Make sure list context is enabled in settings.
+4. Run the analysis.
+5. Use **Copy list brief** for a Markdown planning note.
+6. Use **Copy list JSON** for structured handoff to another tool.
 
-- Real-time progress bar
-- Card-by-card status updates
-- Error notifications
-- Estimated completion time
+Detailed list exports require the same sensitive-export approval flow used by the other evidence-backed exports. Copying a list brief never posts to Trello and never changes card data.
 
-### Exporting Batch Results
+### Using the Batch Analysis Plan
 
-1. Wait for batch to complete
-2. Click "Export Results"
-3. Choose format (JSON or CSV)
-4. Download comprehensive report
+The batch analysis plan creates a review queue from the same bounded list metadata. It is designed as a safe first step before future full-card batch processing.
+
+1. Open a Trello card.
+2. Click **Summarize This**.
+3. Make sure list context is enabled in settings.
+4. Run the analysis.
+5. Use **Copy batch plan** for a Markdown queue review.
+6. Use **Copy batch JSON** for a structured queue seed.
+7. Use the execution review controls to choose the reviewed card count, concurrency, and delay.
+8. Tick AI handoff approval only after reviewing the selected queue.
+9. Use **Preview controlled run** to confirm readiness before opening selected cards for full analysis.
+10. Use **Open next selected card** when a Trello card link is available, then run Summarize This on that card manually.
+11. Update the private progress selector for each selected card: pending, opened, analyzed, copied/exported, skipped, or blocked.
+12. Use **Copy manual checklist** to hand off the reviewed card-by-card run order. If the browser blocks clipboard access, the approved checklist appears in a manual-copy field instead.
+13. Use **Copy handoff report** for a VA/Sneup-ready progress snapshot with sanitized card links and the current private progress state.
+
+The batch plan, execution review, progress tracker, checklist, and handoff report do not run AI, do not fetch neighboring card descriptions or comments, and do not write to Trello. AI handoff stays blocked until approval is checked. Trello posting stays off even after approval, because each exact comment draft still requires separate review. Batch progress is stored privately for the current user and reviewed queue.
+
+Card links in the manual checklist and handoff report are limited to Trello card URLs. Neighboring-card URLs are not included in AI prompts.
+
+### What Remains Future Work
+
+Automatic batch execution for selected cards, an entire list, or an entire board is still future work. The current execution review is the safety layer that future execution should build on.
 
 ---
 
@@ -356,70 +412,43 @@ Analyze multiple cards at once instead of one by one.
 
 ### What are Custom Prompts?
 
-Tailor the AI analysis to your specific needs by creating custom prompt templates.
-
-### Default Prompt Templates
-
-**Default Analysis:**
-- Standard four-part summary
-- General-purpose analysis
-- Suitable for all card types
-
-**Technical Focus:**
-- Emphasis on implementation details
-- Code and architecture insights
-- Best for development teams
-
-**Business Focus:**
-- ROI and business value analysis
-- Strategic recommendations
-- Best for product managers
-
-**Agile/Sprint Focus:**
-- User story analysis
-- Sprint planning insights
-- Velocity and burndown tracking
-
-**Creative/Marketing Focus:**
-- Creative execution analysis
-- Marketing strategy insights
-- Audience engagement metrics
+Tailor AI analysis by saving reusable Robert workflow guidance templates. Guidance is added to AI prompts only when AI mode is used, and it cannot override evidence requirements, privacy safeguards, or Trello write-approval rules.
 
 ### Creating Custom Prompts
 
-1. Click "Custom Prompts"
-2. Click "Add Custom Prompt"
-3. Fill in details:
-   - **Name**: Descriptive title
-   - **Description**: What it's used for
-   - **System Message**: AI role and context
-   - **Template**: Analysis structure (use `{{CARD_DATA}}` placeholder)
-4. Click "Add Prompt"
+1. Open Power-Up settings.
+2. Enter a template name.
+3. Add active Robert workflow guidance, such as "Prefer Yes/No decisions for Robert and keep VA-ready work separate."
+4. Click "Save template".
+5. Click "Save settings" if you want the selected template to be the active default.
 
 ### Using Custom Prompts
 
-1. Select card to analyze
-2. Choose "Custom Prompt" strategy
-3. Select your template from dropdown
-4. Start analysis
+1. Open Power-Up settings.
+2. Choose a saved guidance template from the dropdown.
+3. Review or edit the active guidance text.
+4. Save settings.
+5. Run analysis from a Trello card.
+
+### Output Language
+
+1. Open Power-Up settings.
+2. Choose **English** or **Dutch** in Output language.
+3. Save settings.
+4. Run analysis from a Trello card.
+
+The selected language is used by the built-in local summarizer and is sent as an AI prompt instruction for provider-generated user-facing summary text. JSON field names remain stable so exports can still be consumed by Sneup, HAI, or other tools.
 
 ### Managing Prompts
 
-- **View**: See full prompt details
-- **Edit**: Modify custom prompts
-- **Duplicate**: Create variations
-- **Delete**: Remove unused prompts
-- **Export**: Save prompts as JSON
-- **Import**: Load prompts from file
+- **Save template**: Creates a new member-private template or updates the selected one.
+- **Delete template**: Removes the selected saved template.
+- **Active guidance**: The text currently used for AI prompt guidance.
+- **Template cap**: The app keeps up to 10 saved templates, each with guidance capped to 600 characters.
 
-### Prompt Variables
+### Privacy Notes
 
-Use these placeholders in templates:
-- `{{CARD_DATA}}`: Complete card information
-- `{{CARD_NAME}}`: Card title only
-- `{{CARD_DESC}}`: Card description only
-- `{{BOARD_NAME}}`: Board name
-- `{{LIST_NAME}}`: List name
+Prompt templates are stored in member-private Power-Up settings. Ledger exports include only template id/name plus a hash and character count for the active guidance. They do not include the full guidance text.
 
 ---
 
@@ -457,6 +486,27 @@ Use these placeholders in templates:
 - No file download
 - Best for quick use
 
+### Active Popup Handoff Formats
+
+- **Copy selected mode brief**: uses the saved output mode, such as meeting brief, risk review, status update, next-action checklist, or client-friendly summary.
+- **Copy Robert decisions**: creates a focused Robert decision brief with Yes/No framing, blockers, waiting states, unclear points, unresolved questions, confidence, evidence claims, and source coverage.
+- **Copy VA handoff**: creates a VA/team handoff brief that separates delegated work, waiting states, unclear points, and unresolved questions from Robert-only decisions.
+- **Copy decision packet**: creates one review handoff that combines the current card status, Robert decision framing, VA/team-ready actions, blockers/waiting states, next actions, evidence, source coverage, and the current manual batch progress snapshot when available.
+- **Copy change brief**: creates a previous-run comparison with operational changes, confidence trend, current top blocker, next action, Robert decision, VA/team handoff, and source coverage.
+- **Copy status update**: creates a compact status message for email, chat, or Trello.
+- **Copy JSON / Download JSON**: exports the compact card intelligence ledger for Sneup, HAI, or another structured workflow.
+
+Sensitive-card exports still require visible approval before copy or download.
+If browser clipboard access is blocked, the approved export appears in a manual-copy panel and the export history records it as prepared for manual copy.
+
+### Default Quick Copy
+
+Power-Up settings include a **Default quick copy** preference for the main popup copy button.
+
+- Choose Markdown, operational digest, status update, Robert decision brief, VA/team handoff, change brief, plain text, Ledger JSON, or Trello comment draft.
+- The preference is stored in member-private settings and does not copy, post, or export anything by itself.
+- If Trello comment draft is selected, the exact draft must still be reviewed and the approval checkbox must be ticked before it can be copied or posted.
+
 ### Exporting Analysis Results
 
 1. Complete an analysis
@@ -486,7 +536,7 @@ Use these placeholders in templates:
 
 **Issue: "Rate Limit Exceeded"**
 - **Solution**: Wait 1 minute and try again
-- Use batch processing with delays
+- Use batch planning with delays before any future full-card batch run
 - Upgrade API plan if frequent
 
 **Issue: "Analysis Failed"**
@@ -503,6 +553,8 @@ Use these placeholders in templates:
 
 **Issue: "Slow Performance"**
 - **Solution**: Use "Speed-Optimized" strategy
+- Check the Runtime timing panel to see whether the delay is Trello context, local processing, AI provider wait time, or UI/history rendering
+- If the card and settings are unchanged, let the popup reuse the saved ledger run; use "Analyze again" only when a fresh provider call is needed
 - Reduce number of attachments
 - Clear browser cache
 - Check internet connection
@@ -552,7 +604,7 @@ Use these placeholders in templates:
 
 ### For Large Projects
 
-1. **Batch Processing**: Analyze multiple cards
+1. **Batch Planning**: Build a reviewed queue before analyzing multiple cards
 2. **Comprehensive Strategy**: Use for critical cards
 3. **History Tracking**: Review trends
 4. **Export Reports**: Generate summaries
@@ -574,24 +626,34 @@ Use these placeholders in templates:
 
 ### Data Handling
 
-- **API Keys**: Stored locally in browser only
-- **Card Data**: Sent to AI providers for analysis
-- **History**: Stored locally, not on servers
+- **API Keys**: Stored in Trello member-private Power-Up storage when running inside Trello; local preview strips API keys instead of persisting them in `localStorage`; proxy mode avoids sending provider keys from the browser
+- **Card Data**: Sent to AI providers or a configured backend proxy only when AI mode is used and sensitive handoff approval allows it
+- **History**: Stored in member-private Power-Up storage, with local preview using `localStorage` for non-secret preview data
 - **Exports**: Generated client-side
 
 ### Security Best Practices
 
 1. Never share API keys
-2. Use HTTPS connections only
-3. Review provider privacy policies
-4. Clear history periodically
-5. Use private boards for sensitive data
+2. Configure API keys from the Trello Power-Up settings page, or use a backend proxy for provider keys
+3. Use HTTPS connections only
+4. Review provider privacy policies
+5. Clear history periodically
+6. Use private boards for sensitive data
 
 ---
 
 ## Updates and Changelog
 
-Check for updates regularly:
+In standalone Windows mode, the popup includes **Installed app updates**. Use **Check for updates** when you want to compare the installed version against the GitHub update manifest.
+
+The update check:
+
+- Runs only when you press the button.
+- Uses no API keys, Trello data, card content, or background polling.
+- Does not download, install, or run anything automatically.
+- Opens GitHub releases only when you choose the release link.
+
+Check release notes for:
 - New AI providers
 - Enhanced features
 - Bug fixes

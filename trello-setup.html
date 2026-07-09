@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configure Trello Power-Up</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <style>
+    :root {
+      color-scheme: light;
+      --blue: #0c66e4;
+      --blue-dark: #0747a6;
+      --green: #1f845a;
+      --ink: #172b4d;
+      --muted: #626f86;
+      --line: #dcdfe4;
+      --panel: #ffffff;
+      --surface: #f7f8f9;
+      --yellow-bg: #fff7d6;
+      --yellow-line: #f5cd47;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--surface);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .shell {
+      width: min(960px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0;
+    }
+
+    header {
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--blue-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.15;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 1px rgba(9, 30, 66, 0.08);
+    }
+
+    .panel + .panel {
+      margin-top: 12px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid #b6c2cf;
+      border-radius: 6px;
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    input:focus,
+    textarea:focus {
+      outline: 2px solid #85b8ff;
+      border-color: var(--blue);
+    }
+
+    .field {
+      margin-bottom: 12px;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .preset-button {
+      min-height: 44px;
+      border-color: var(--line);
+      background: #fff;
+      color: var(--ink);
+      text-align: center;
+    }
+
+    .preset-button.active {
+      border-color: var(--blue);
+      background: #e9f2ff;
+      color: var(--blue-dark);
+    }
+
+    .help {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .notice {
+      margin-bottom: 12px;
+      border-left: 4px solid var(--yellow-line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: var(--yellow-bg);
+    }
+
+    .notice strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button,
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 800;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .primary:hover {
+      background: var(--blue-dark);
+    }
+
+    .secondary {
+      background: #fff;
+      border-color: var(--line);
+      color: var(--ink);
+    }
+
+    .status {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      margin-top: 6px;
+      border-radius: 999px;
+      background: var(--muted);
+      flex: 0 0 auto;
+    }
+
+    .dot.ok {
+      background: var(--green);
+    }
+
+    .dot.warn {
+      background: var(--yellow-line);
+    }
+
+    .copybox {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 8px;
+      align-items: start;
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .copybox:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .copybox code {
+      overflow-wrap: anywhere;
+      color: var(--ink);
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .message {
+      min-height: 20px;
+      margin-top: 8px;
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .bookmarklet {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      border-radius: 6px;
+      padding: 8px 12px;
+      background: var(--green);
+      color: #fff;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .checklist {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .checklist li.ok {
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .checklist li.warn {
+      color: #946f00;
+      font-weight: 700;
+    }
+
+    .field-map {
+      display: grid;
+      gap: 8px;
+      margin: 8px 0 0;
+    }
+
+    .field-map-item {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .field-map-item:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .field-map-item strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .field-map-item code {
+      overflow-wrap: anywhere;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    @media (max-width: 780px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .copybox {
+        grid-template-columns: 1fr;
+      }
+
+      .preset-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">Summarize This</p>
+      <h1>Configure Trello Power-Up</h1>
+    </header>
+
+    <div id="localNotice" class="notice">
+      <strong>Hosted URL needed for Trello</strong>
+      Trello loads Power-Ups from its website, so the connector URL must be an HTTPS address that Trello can reach. The Windows app can run the standalone tool locally, but Trello cannot use a private local address as the Power-Up connector.
+    </div>
+
+    <div class="grid">
+      <section>
+        <div class="panel">
+          <h2>Connector URL</h2>
+          <div class="field">
+            <label>Deployment preset</label>
+            <div id="deploymentPresets" class="preset-grid"></div>
+            <p id="presetHelp" class="help">Choose where the static Power-Up files are hosted.</p>
+          </div>
+          <div class="field">
+            <label for="hostedBaseUrl">Hosted site URL</label>
+            <input id="hostedBaseUrl" type="url" autocomplete="url" placeholder="https://your-site.example">
+            <p class="help">Use the public HTTPS URL where these static files are hosted.</p>
+          </div>
+          <div class="field">
+            <label for="connectorUrl">iframe Connector URL</label>
+            <input id="connectorUrl" type="text" readonly>
+          </div>
+          <div class="actions">
+            <button id="copyConnectorButton" class="primary" type="button">Copy connector URL</button>
+            <a class="button secondary" id="testConnectorLink" href="#" target="_blank" rel="noopener noreferrer">Open connector</a>
+          </div>
+          <p class="message" id="message"></p>
+        </div>
+
+        <div class="panel">
+          <h2>Admin values</h2>
+          <div class="copybox">
+            <strong>App name</strong>
+            <code id="appName"></code>
+          </div>
+          <div class="copybox">
+            <strong>Author</strong>
+            <code id="author"></code>
+          </div>
+          <div class="copybox">
+            <strong>Details</strong>
+            <code id="details"></code>
+          </div>
+          <div class="copybox">
+            <strong>Manifest URL</strong>
+            <code id="manifestUrl"></code>
+          </div>
+          <div class="copybox">
+            <strong>Privacy URL</strong>
+            <code id="privacyUrl"></code>
+          </div>
+          <div class="copybox">
+            <strong>Terms URL</strong>
+            <code id="termsUrl"></code>
+          </div>
+          <div class="copybox">
+            <strong>Icon URL</strong>
+            <code id="iconUrl"></code>
+          </div>
+          <div class="copybox">
+            <strong>Capabilities</strong>
+            <code id="capabilities"></code>
+          </div>
+          <div class="actions">
+            <button id="copyAllButton" class="secondary" type="button">Copy all values</button>
+            <a class="button primary" href="https://trello.com/power-ups/admin" target="_blank" rel="noopener noreferrer">Open Trello admin</a>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Deployment guide</h2>
+          <p id="deploymentGuideIntro" class="help">Choose a deployment preset to see host-specific static hosting steps.</p>
+          <ul id="deploymentStepList" class="checklist"></ul>
+          <p class="help">Verify these before saving in Trello:</p>
+          <ul id="deploymentVerificationList" class="checklist"></ul>
+          <div class="actions">
+            <a id="deploymentActionLink" class="button primary" href="#" target="_blank" rel="noopener noreferrer">Open deployment page</a>
+            <button id="copyDeploymentGuideButton" class="secondary" type="button">Copy deployment guide</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Admin autofill helper</h2>
+          <p class="help">Drag the helper to your bookmarks bar, open Trello Power-Up admin, then click the bookmark. It runs only on Trello's Power-Up admin page, fills matching fields and capability checkboxes, reports any missing fields, and does not save or submit the page.</p>
+          <div class="actions">
+            <a id="adminBookmarkletLink" class="bookmarklet" href="#">Summarize This admin autofill</a>
+            <button id="copyAutofillButton" class="secondary" type="button">Copy helper bookmarklet</button>
+          </div>
+          <ul class="checklist">
+            <li>Review every populated Trello admin field before saving.</li>
+            <li>If the helper reports missing fields, copy those values manually from the admin values section.</li>
+            <li>Use the generated HTTPS connector URL, not a local Windows address.</li>
+            <li>If Trello changes its admin page labels, use the copied admin values manually.</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h2>Admin readiness package</h2>
+          <p class="help">Copy a review checklist or JSON package with exact admin values, validation state, manual steps, safety notes, and the autofill helper.</p>
+          <ul id="readinessChecklist" class="checklist"></ul>
+          <div id="adminFieldMap" class="field-map"></div>
+          <div class="actions">
+            <button id="copyRunbookButton" class="secondary" type="button">Copy admin checklist</button>
+            <button id="copyFieldMapButton" class="secondary" type="button">Copy field map</button>
+            <button id="copySetupPackageButton" class="secondary" type="button">Copy setup package JSON</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h2>Setup status</h2>
+        <div class="status">
+          <span id="urlStatusDot" class="dot warn"></span>
+          <div>
+            <strong id="urlStatusTitle">Waiting for hosted URL</strong>
+            <div id="urlStatusText" class="help">Enter your public hosted site URL to generate the connector URL.</div>
+          </div>
+        </div>
+        <div class="status">
+          <span class="dot ok"></span>
+          <div>
+            <strong>Runtime files ready</strong>
+            <div class="help">The connector, popup, settings page, manifest, and icon are included.</div>
+          </div>
+        </div>
+        <div class="status">
+          <span class="dot ok"></span>
+          <div>
+            <strong>Capabilities selected</strong>
+            <div class="help">Use the capabilities shown in the admin values section.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="./trello-admin-config.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      var manifest = {
+        name: "Summarize This",
+        details: "AI-assisted Trello card summarization with a local fallback summary when no AI provider is configured.",
+        author: "Summarize This Team",
+        privacy_url: "./privacy.html",
+        terms_url: "./terms.html",
+        icon: { url: "./icon.svg" },
+        capabilities: [
+          "card-buttons",
+          "card-detail-badges",
+          "show-settings",
+          "authorization-status",
+          "show-authorization"
+        ]
+      };
+
+      var deploymentPresets = TrelloAdminConfig.createDeploymentPresets({
+        githubOwner: "Noodzakelijk-Online",
+        githubRepo: "007--Trello-Summarize-This-"
+      });
+      var activePresetId = "github-pages";
+
+      var fields = {
+        deploymentPresets: document.getElementById("deploymentPresets"),
+        presetHelp: document.getElementById("presetHelp"),
+        hostedBaseUrl: document.getElementById("hostedBaseUrl"),
+        connectorUrl: document.getElementById("connectorUrl"),
+        testConnectorLink: document.getElementById("testConnectorLink"),
+        adminBookmarkletLink: document.getElementById("adminBookmarkletLink"),
+        message: document.getElementById("message"),
+        localNotice: document.getElementById("localNotice"),
+        urlStatusDot: document.getElementById("urlStatusDot"),
+        urlStatusTitle: document.getElementById("urlStatusTitle"),
+        urlStatusText: document.getElementById("urlStatusText"),
+        readinessChecklist: document.getElementById("readinessChecklist"),
+        adminFieldMap: document.getElementById("adminFieldMap"),
+        deploymentGuideIntro: document.getElementById("deploymentGuideIntro"),
+        deploymentStepList: document.getElementById("deploymentStepList"),
+        deploymentVerificationList: document.getElementById("deploymentVerificationList"),
+        deploymentActionLink: document.getElementById("deploymentActionLink")
+      };
+
+      renderDeploymentPresets();
+      applyPreset(activePresetId);
+      document.getElementById("copyConnectorButton").addEventListener("click", function () {
+        copyText(fields.connectorUrl.value, "Connector URL copied.");
+      });
+      document.getElementById("copyAllButton").addEventListener("click", copyAllValues);
+      document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
+      document.getElementById("copyRunbookButton").addEventListener("click", copyAdminRunbook);
+      document.getElementById("copyFieldMapButton").addEventListener("click", copyAdminFieldMap);
+      document.getElementById("copySetupPackageButton").addEventListener("click", copySetupPackage);
+      document.getElementById("copyDeploymentGuideButton").addEventListener("click", copyDeploymentGuide);
+      fields.hostedBaseUrl.addEventListener("input", function () {
+        activePresetId = detectPresetId(fields.hostedBaseUrl.value) || "custom";
+        updatePresetButtons();
+        updateComputedValues();
+      });
+
+      loadManifest().then(updateComputedValues);
+
+      function renderDeploymentPresets() {
+        fields.deploymentPresets.innerHTML = "";
+        deploymentPresets.forEach(function (preset) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "preset-button";
+          button.dataset.presetId = preset.id;
+          button.setAttribute("aria-pressed", "false");
+          button.textContent = preset.label;
+          button.addEventListener("click", function () {
+            applyPreset(preset.id);
+          });
+          fields.deploymentPresets.appendChild(button);
+        });
+        updatePresetButtons();
+      }
+
+      function applyPreset(presetId) {
+        var preset = deploymentPresets.find(function (item) {
+          return item.id === presetId;
+        }) || deploymentPresets[0];
+        activePresetId = preset.id;
+        fields.hostedBaseUrl.value = preset.baseUrl;
+        fields.presetHelp.textContent = preset.help;
+        updatePresetButtons();
+        updateComputedValues();
+      }
+
+      function detectPresetId(value) {
+        var normalized = TrelloAdminConfig.normalizeBaseUrl(value);
+        var match = deploymentPresets.find(function (preset) {
+          return normalized === TrelloAdminConfig.normalizeBaseUrl(preset.baseUrl);
+        });
+        return match && match.id;
+      }
+
+      function updatePresetButtons() {
+        Array.prototype.forEach.call(fields.deploymentPresets.querySelectorAll("button"), function (button) {
+          var isActive = button.dataset.presetId === activePresetId;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
+        var preset = deploymentPresets.find(function (item) {
+          return item.id === activePresetId;
+        });
+        if (preset) {
+          fields.presetHelp.textContent = preset.help;
+        }
+      }
+
+      async function loadManifest() {
+        try {
+          var response = await fetch("./manifest.json", { cache: "no-store" });
+          if (response.ok) {
+            manifest = await response.json();
+          }
+        } catch (error) {
+        }
+
+        document.getElementById("appName").textContent = manifest.name || "Summarize This";
+        document.getElementById("author").textContent = manifest.author || "Summarize This Team";
+        document.getElementById("details").textContent = manifest.details || "";
+        document.getElementById("capabilities").textContent = (manifest.capabilities || []).join(", ");
+      }
+
+      function updateComputedValues() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
+        var connectorUrl = adminConfig.connectorUrl;
+        var iconUrl = adminConfig.iconUrl;
+
+        fields.connectorUrl.value = connectorUrl;
+        fields.testConnectorLink.href = connectorUrl || "#";
+        fields.adminBookmarkletLink.href = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
+        document.getElementById("manifestUrl").textContent = adminConfig.manifestUrl;
+        document.getElementById("privacyUrl").textContent = adminConfig.privacyUrl;
+        document.getElementById("termsUrl").textContent = adminConfig.termsUrl;
+        document.getElementById("iconUrl").textContent = iconUrl;
+        fields.localNotice.style.display = validation.isReadyForTrello ? "none" : "block";
+        renderReadinessChecklist(adminConfig, validation);
+        renderAdminFieldMap(adminConfig);
+        renderDeploymentGuide(baseUrl);
+
+        if (validation.isReadyForTrello) {
+          fields.urlStatusDot.className = "dot ok";
+          fields.urlStatusTitle.textContent = "Ready for Trello admin";
+          fields.urlStatusText.textContent = validation.message + " Copy the iframe Connector URL into Trello admin.";
+        } else {
+          fields.urlStatusDot.className = "dot warn";
+          fields.urlStatusTitle.textContent = "Hosted HTTPS URL required";
+          fields.urlStatusText.textContent = validation.message;
+        }
+      }
+
+      function renderReadinessChecklist(adminConfig, validation) {
+        var items = TrelloAdminConfig.createAdminReadinessChecklist(adminConfig, validation);
+        fields.readinessChecklist.innerHTML = "";
+        items.forEach(function (item) {
+          var li = document.createElement("li");
+          li.className = item.ok ? "ok" : "warn";
+          li.textContent = (item.ok ? "Ready: " : "Review: ") + item.label + " - " + item.detail;
+          fields.readinessChecklist.appendChild(li);
+        });
+      }
+
+      function renderAdminFieldMap(adminConfig) {
+        var items = TrelloAdminConfig.createAdminFieldMap(adminConfig);
+        fields.adminFieldMap.innerHTML = "";
+        items.forEach(function (item) {
+          var row = document.createElement("div");
+          row.className = "field-map-item";
+          var title = document.createElement("strong");
+          title.textContent = item.type === "capability" ? "Capability: " + item.label : "Field: " + item.label;
+          var value = document.createElement("code");
+          value.textContent = item.value;
+          var help = document.createElement("p");
+          help.className = "help";
+          help.textContent = "Helper matches: " + item.aliases.join(", ");
+          row.appendChild(title);
+          row.appendChild(value);
+          row.appendChild(help);
+          fields.adminFieldMap.appendChild(row);
+        });
+      }
+
+      function renderDeploymentGuide(baseUrl) {
+        var guide = TrelloAdminConfig.createDeploymentGuide(activePresetId, baseUrl, deploymentPresets);
+        fields.deploymentGuideIntro.textContent = guide.label + " target: " + guide.targetBaseUrl + ". " + guide.resourceNote;
+        renderSimpleList(fields.deploymentStepList, guide.steps, "No deployment steps available.");
+        renderSimpleList(fields.deploymentVerificationList, guide.verification, "No verification checks available.");
+        fields.deploymentActionLink.href = guide.actionUrl || "#";
+        fields.deploymentActionLink.textContent = guide.actionLabel || "Open deployment page";
+        fields.deploymentActionLink.style.display = guide.actionUrl ? "inline-flex" : "none";
+      }
+
+      function renderSimpleList(element, items, emptyText) {
+        element.innerHTML = "";
+        var values = Array.isArray(items) && items.length ? items : [emptyText];
+        values.forEach(function (text) {
+          var li = document.createElement("li");
+          li.textContent = text;
+          element.appendChild(li);
+        });
+      }
+
+      function guessBaseUrl() {
+        if (window.location.protocol === "https:") {
+          return window.location.origin;
+        }
+        return "https://your-hosted-site.example";
+      }
+
+      function copyAllValues() {
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        copyText(TrelloAdminConfig.makeAdminValuesText(adminConfig), "Setup values copied.");
+      }
+
+      function copyAutofillBookmarklet() {
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        copyText(TrelloAdminConfig.createAdminBookmarklet(adminConfig), "Admin autofill helper copied.");
+      }
+
+      function copyAdminRunbook() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
+        copyText(TrelloAdminConfig.makeAdminRunbookText(adminConfig, validation), "Admin checklist copied.");
+      }
+
+      function copyAdminFieldMap() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        copyText(TrelloAdminConfig.makeAdminFieldMapText(adminConfig), "Admin field map copied.");
+      }
+
+      function copySetupPackage() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
+        copyText(JSON.stringify(TrelloAdminConfig.createAdminSetupPackage(adminConfig, validation, {
+          deploymentPresetId: activePresetId,
+          deploymentPresets: deploymentPresets
+        }), null, 2), "Setup package JSON copied.");
+      }
+
+      function copyDeploymentGuide() {
+        var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
+        var guide = TrelloAdminConfig.createDeploymentGuide(activePresetId, baseUrl, deploymentPresets);
+        copyText(TrelloAdminConfig.makeDeploymentGuideText(guide), "Deployment guide copied.");
+      }
+
+      async function copyText(value, successMessage) {
+        try {
+          await navigator.clipboard.writeText(value);
+          fields.message.textContent = successMessage;
+        } catch (error) {
+          fallbackCopyText(value, successMessage);
+        }
+      }
+
+      function fallbackCopyText(value, successMessage) {
+        var textarea = document.createElement("textarea");
+        textarea.value = value;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        var copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        fields.message.textContent = copied ? successMessage : "Select and copy the field manually.";
+        if (!copied) {
+          fields.connectorUrl.select();
+        }
+      }
+    }());
+  </script>
+</body>
+</html>

@@ -9,16 +9,78 @@ class TrelloIntegration {
         this.token = null;
     }
 
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'Trello request failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .replace(/sk-[A-Za-z0-9_-]{12,}/g, 'sk-[redacted]')
+            .replace(/token\s+[A-Za-z0-9._~+/=-]+/gi, 'token [redacted]')
+            .replace(/(api[_-]?key|token)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .slice(0, 240);
+    }
+
+    logSafeWarning(message, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${message}: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
+
+    sourceStatusFromRead(result) {
+        if (result && result.ok) {
+            return { ok: true };
+        }
+
+        return {
+            ok: false,
+            error: result && result.error ? result.error : 'Source read failed.'
+        };
+    }
+
+    async readTrelloSource(label, fallbackValue, reader) {
+        try {
+            return {
+                ok: true,
+                value: await reader()
+            };
+        } catch (error) {
+            this.logSafeWarning(`Could not fetch ${label}`, error);
+            return {
+                ok: false,
+                value: fallbackValue,
+                error: this.sanitizeErrorMessage(error)
+            };
+        }
+    }
+
+    toNumber(value, fallback = 0) {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : fallback;
+    }
+
+    memberNamesFrom(card, memberRead) {
+        const cardMembers = Array.isArray(card.members) ? card.members : [];
+        const contextMembers = memberRead && Array.isArray(memberRead.value) ? memberRead.value : [];
+        const members = cardMembers.length > 0 ? cardMembers : contextMembers;
+
+        return members
+            .map(member => {
+                if (typeof member === 'string') {
+                    return member;
+                }
+                return member && (member.fullName || member.username || member.name);
+            })
+            .filter(Boolean);
+    }
+
     // Initialize Trello Power-Up
     async initialize() {
         // Check if we're running inside Trello
         if (typeof window.TrelloPowerUp !== 'undefined') {
             this.isInTrello = true;
             this.t = window.TrelloPowerUp.iframe();
-            console.log('Trello Power-Up initialized');
             return true;
         }
-        console.log('Not running in Trello environment');
         return false;
     }
 
@@ -29,13 +91,19 @@ class TrelloIntegration {
         }
 
         try {
-            // Get card information using Trello Power-Up API
-            const card = await this.t.card('all');
-            
-            // Fetch additional details
-            const members = await this.t.member('all');
-            const board = await this.t.board('all');
-            const list = await this.t.list('all');
+            const cardRead = await this.readTrelloSource('card', null, () => this.t.card('all'));
+            if (!cardRead.ok || !cardRead.value) {
+                throw new Error(`Could not fetch card: ${cardRead.error || 'Source read failed.'}`);
+            }
+
+            const card = cardRead.value;
+
+            const [memberRead, boardRead, listRead, commentsRead] = await Promise.all([
+                this.readTrelloSource('members', [], () => this.t.member('all')),
+                this.readTrelloSource('board', {}, () => this.t.board('all')),
+                this.readTrelloSource('list', {}, () => this.t.list('all')),
+                this.getCardCommentsWithStatus(card.id)
+            ]);
 
             // Get attachments
             const attachments = card.attachments || [];
@@ -45,7 +113,17 @@ class TrelloIntegration {
             const checklistProgress = this.calculateChecklistProgress(checklists);
 
             // Get comments (actions)
-            const comments = await this.getCardComments(card.id);
+            const comments = commentsRead.value;
+            const sourceStatus = {
+                card: { ok: true },
+                members: this.sourceStatusFromRead(memberRead),
+                board: this.sourceStatusFromRead(boardRead),
+                list: this.sourceStatusFromRead(listRead),
+                comments: this.sourceStatusFromRead(commentsRead),
+                attachments: { ok: true },
+                checklists: { ok: true },
+                customFields: { ok: true }
+            };
 
             // Structure the data
             const cardData = {
@@ -55,11 +133,12 @@ class TrelloIntegration {
                 due: card.due,
                 dueComplete: card.dueComplete,
                 labels: card.labels?.map(l => l.name) || [],
-                members: card.members?.map(m => m.fullName) || [],
-                list: list.name,
-                board: board.name,
+                members: this.memberNamesFrom(card, memberRead),
+                list: listRead.value?.name || '',
+                board: boardRead.value?.name || '',
                 url: card.url,
                 shortUrl: card.shortUrl,
+                badges: card.badges || {},
                 attachments: attachments.map(a => ({
                     id: a.id,
                     name: a.name,
@@ -70,12 +149,20 @@ class TrelloIntegration {
                 checklists: checklists,
                 checklistProgress: checklistProgress,
                 comments: comments,
-                customFields: card.customFieldItems || []
+                customFields: card.customFieldItems || [],
+                __sourceCounts: {
+                    comments: this.toNumber(card.badges?.comments, comments.length),
+                    attachments: this.toNumber(card.badges?.attachments, attachments.length),
+                    checklists: checklists.length,
+                    checklistItems: this.toNumber(card.badges?.checkItems),
+                    customFields: Array.isArray(card.customFieldItems) ? card.customFieldItems.length : 0
+                },
+                __sourceStatus: sourceStatus
             };
 
             return cardData;
         } catch (error) {
-            console.error('Error fetching Trello card data:', error);
+            this.logSafeWarning('Error fetching Trello card data', error);
             throw error;
         }
     }
@@ -105,22 +192,40 @@ class TrelloIntegration {
 
     // Get card comments using Trello API
     async getCardComments(cardId) {
+        const result = await this.getCardCommentsWithStatus(cardId);
+        return result.value;
+    }
+
+    async getCardCommentsWithStatus(cardId) {
         try {
             // Use Trello's REST API to get card actions (comments)
-            const response = await this.t.getRestApi().getCardActions(cardId, {
+            const restApi = await this.t.getRestApi();
+            if (!restApi || typeof restApi.getCardActions !== 'function') {
+                throw new Error('Comment action API was not available in this Power-Up runtime.');
+            }
+
+            const response = await restApi.getCardActions(cardId, {
                 filter: 'commentCard',
                 limit: 100
             });
 
-            return response.map(action => ({
-                id: action.id,
-                text: action.data.text,
-                date: action.date,
-                memberCreator: action.memberCreator?.fullName || 'Unknown'
-            }));
+            const actions = Array.isArray(response) ? response : [];
+            return {
+                ok: true,
+                value: actions.map(action => ({
+                    id: action.id,
+                    text: action.data?.text || '',
+                    date: action.date,
+                    memberCreator: action.memberCreator?.fullName || 'Unknown'
+                }))
+            };
         } catch (error) {
-            console.warn('Could not fetch comments:', error);
-            return [];
+            this.logSafeWarning('Could not fetch comments', error);
+            return {
+                ok: false,
+                value: [],
+                error: this.sanitizeErrorMessage(error)
+            };
         }
     }
 
@@ -133,11 +238,11 @@ class TrelloIntegration {
                 const processed = await this.processAttachment(attachment);
                 processedAttachments.push(processed);
             } catch (error) {
-                console.warn(`Failed to process attachment ${attachment.name}:`, error);
+                this.logSafeWarning('Failed to process attachment metadata', error);
                 processedAttachments.push({
                     ...attachment,
                     processed: false,
-                    error: error.message
+                    error: this.sanitizeErrorMessage(error)
                 });
             }
         }
@@ -176,7 +281,7 @@ class TrelloIntegration {
     async processPDF(attachment) {
         try {
             // Fetch PDF content
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const blob = await response.blob();
             
             // For now, return metadata (actual PDF parsing would require pdf.js or similar)
@@ -224,7 +329,7 @@ class TrelloIntegration {
     // Process text file
     async processText(attachment) {
         try {
-            const response = await fetch(attachment.url);
+            const response = await this.safeFetchAttachment(attachment.url);
             const text = await response.text();
             return {
                 ...attachment,
@@ -239,12 +344,47 @@ class TrelloIntegration {
 
     // Process web link
     async processWebLink(attachment) {
+        const parsed = this.validateAttachmentUrl(attachment.url);
         return {
             ...attachment,
+            url: parsed.href,
             processed: true,
             type: 'link',
-            content: `Web link: ${attachment.name} - ${attachment.url}`
+            content: `Web link: ${attachment.name} - ${parsed.href}`
         };
+    }
+
+    async safeFetchAttachment(url, options = {}) {
+        const parsed = this.validateAttachmentUrl(url);
+        return fetch(parsed.href, {
+            ...options,
+            credentials: 'omit',
+            referrerPolicy: 'no-referrer'
+        });
+    }
+
+    validateAttachmentUrl(url) {
+        const parsed = new URL(url);
+        const hostname = parsed.hostname.toLowerCase();
+        const isPrivateHost = (
+            hostname === 'localhost' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname === '127.0.0.1' ||
+            hostname === '0.0.0.0' ||
+            hostname === '[::1]' ||
+            hostname === '::1' ||
+            hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname) ||
+            hostname.startsWith('169.254.')
+        );
+
+        if (parsed.protocol !== 'https:' || isPrivateHost) {
+            throw new Error('Attachment URL must be HTTPS and publicly reachable');
+        }
+
+        return parsed;
     }
 
     // Format bytes to human-readable size

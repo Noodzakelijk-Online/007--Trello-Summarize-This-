@@ -1,324 +1,1092 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Summarize This - Settings</title>
-    <link rel="stylesheet" href="https://p.trellocdn.com/power-up.min.css">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            padding: 20px;
-            margin: 0;
-            background: #f4f5f7;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Summarize This Settings</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <script src="https://p.trellocdn.com/power-up.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --blue: #0c66e4;
+      --blue-dark: #0747a6;
+      --green: #1f845a;
+      --red: #c9372c;
+      --ink: #172b4d;
+      --muted: #626f86;
+      --line: #dcdfe4;
+      --panel: #ffffff;
+      --surface: #f7f8f9;
+    }
 
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        h2 {
-            margin: 0 0 20px 0;
-            color: #172b4d;
-            font-size: 20px;
-        }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--surface);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
 
-        .settings-section {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-        }
+    .shell {
+      max-width: 560px;
+      margin: 0 auto;
+    }
 
-        .settings-section h3 {
-            margin: 0 0 15px 0;
-            color: #172b4d;
-            font-size: 16px;
-            font-weight: 600;
-        }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.2;
+    }
 
-        .form-group {
-            margin-bottom: 15px;
-        }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 1px rgba(9, 30, 66, 0.08);
+    }
 
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: #172b4d;
-            font-size: 14px;
-        }
+    .group {
+      margin-bottom: 14px;
+    }
 
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 2px solid #dfe1e6;
-            border-radius: 6px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-weight: 700;
+    }
 
-        .form-group input:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #0079bf;
-        }
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #b6c2cf;
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: white;
+      color: var(--ink);
+      font: inherit;
+    }
 
-        .form-group small {
-            display: block;
-            margin-top: 4px;
-            color: #5e6c84;
-            font-size: 12px;
-        }
+    textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
 
-        .btn {
-            background: #0079bf;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            width: 100%;
-        }
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid #85b8ff;
+      border-color: var(--blue);
+    }
 
-        .btn:hover {
-            background: #026aa7;
-        }
+    .help {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
 
-        .btn:disabled {
-            background: #dfe1e6;
-            color: #a5adba;
-            cursor: not-allowed;
-        }
+    .warning {
+      margin: 8px 0 0;
+      color: #974f0c;
+      font-size: 12px;
+      font-weight: 700;
+    }
 
-        .success-message {
-            background: #61bd4f;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            display: none;
-        }
+    .checkbox-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin: 0;
+      color: var(--ink);
+      font-weight: 700;
+      line-height: 1.4;
+    }
 
-        .error-message {
-            background: #eb5a46;
-            color: white;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            display: none;
-        }
+    .checkbox-row input {
+      width: auto;
+      min-height: auto;
+      margin-top: 3px;
+      flex: 0 0 auto;
+    }
 
-        .info-box {
-            background: #e4f7fb;
-            border-left: 4px solid #0079bf;
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            font-size: 13px;
-            color: #172b4d;
-        }
+    .field-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
 
-        .provider-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 8px;
-            font-size: 13px;
-        }
+    .status {
+      min-height: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
 
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
+    .status.success {
+      color: var(--green);
+    }
 
-        .status-active {
-            background: #61bd4f;
-        }
+    .status.error {
+      color: var(--red);
+    }
 
-        .status-inactive {
-            background: #dfe1e6;
-        }
-    </style>
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--blue);
+      color: white;
+    }
+
+    .primary:hover {
+      background: var(--blue-dark);
+    }
+
+    .secondary {
+      background: white;
+      border-color: var(--line);
+      color: var(--ink);
+    }
+
+    .message {
+      display: none;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .message.success {
+      display: block;
+      background: #dcfff1;
+      color: var(--green);
+      border: 1px solid #7ee2b8;
+    }
+
+    .message.error {
+      display: block;
+      background: #ffebe6;
+      color: var(--red);
+      border: 1px solid #fd9891;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --blue: #579dff;
+        --blue-dark: #85b8ff;
+        --green: #7ee2b8;
+        --red: #ff9c8f;
+        --ink: #f7f8f9;
+        --muted: #b6c2cf;
+        --line: #39465e;
+        --panel: #1f2633;
+        --surface: #10141d;
+      }
+
+      .panel,
+      input,
+      select,
+      textarea,
+      .secondary {
+        background: #1f2633;
+      }
+
+      input,
+      select,
+      textarea {
+        border-color: #4b5873;
+        color: var(--ink);
+      }
+
+      .secondary:hover {
+        background: #263244;
+      }
+
+      .warning {
+        color: #f5cd47;
+      }
+
+      .message.success {
+        background: #143224;
+        color: #baf3db;
+        border-color: #1f845a;
+      }
+
+      .message.error {
+        background: #3b1f22;
+        color: #ffd5d2;
+        border-color: #ae2e24;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>⚙️ Settings</h2>
+  <div class="shell">
+    <h1>Summarize This Settings</h1>
+    <div id="message" class="message"></div>
 
-        <div class="success-message" id="successMessage">
-            ✓ Settings saved successfully!
+    <section class="panel">
+      <div class="group">
+        <label for="analysisMode">Analysis mode</label>
+        <select id="analysisMode">
+          <option value="auto">Auto: AI when available, local fallback</option>
+          <option value="ai-only">AI only</option>
+          <option value="local">Local summary only</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label for="provider">Preferred provider</label>
+        <select id="provider">
+          <option value="openai">OpenAI</option>
+          <option value="google">Google AI</option>
+          <option value="anthropic">Anthropic</option>
+          <option value="auto">Auto-select configured provider</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label for="strategy">Strategy</label>
+        <select id="strategy">
+          <option value="cost-effective">Cost-effective</option>
+          <option value="best-quality">Best quality</option>
+          <option value="speed-optimized">Speed optimized</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label for="providerMode">Provider mode</label>
+        <select id="providerMode">
+          <option value="fallback">Single provider with fallback</option>
+          <option value="consensus">Consensus review across configured providers</option>
+        </select>
+        <p class="help">Consensus is off by default. When enabled, the popup tries multiple configured providers and merges the strongest structured sections; this can increase latency and provider cost.</p>
+      </div>
+
+      <div class="group">
+        <label for="outputMode">Default output mode</label>
+        <select id="outputMode">
+          <option value="operational-ledger">Operational ledger</option>
+          <option value="status-update">Status update</option>
+          <option value="risk-review">Risk review</option>
+          <option value="meeting-brief">Meeting brief</option>
+          <option value="next-action-checklist">Next-action checklist</option>
+          <option value="client-friendly">Client-friendly summary</option>
+        </select>
+        <p class="help">AI mode uses this to focus the analysis. Exports can copy a brief in the same format.</p>
+      </div>
+
+      <div class="group">
+        <label for="outputLanguage">Output language</label>
+        <select id="outputLanguage">
+          <option value="en">English</option>
+          <option value="nl">Dutch</option>
+        </select>
+        <p class="help">AI mode uses this for user-facing summary text. Structured JSON field names stay stable for exports and integrations.</p>
+      </div>
+
+      <div class="group">
+        <label for="defaultCopyFormat">Default quick copy</label>
+        <select id="defaultCopyFormat">
+          <option value="markdown">Markdown summary</option>
+          <option value="operational-digest">Operational digest</option>
+          <option value="status-update">Status update</option>
+          <option value="robert-decision-brief">Robert decision brief</option>
+          <option value="va-handoff-brief">VA/team handoff</option>
+          <option value="change-brief">Change brief</option>
+          <option value="plain-text">Plain text</option>
+          <option value="ledger-json">Ledger JSON</option>
+          <option value="trello-comment-draft">Trello comment draft</option>
+        </select>
+        <p class="help">Controls the main popup copy button. Trello comment drafts still require reviewing the exact draft and ticking approval before copy or post.</p>
+      </div>
+
+      <div class="group">
+        <label for="promptTemplateSelect">Saved guidance template</label>
+        <select id="promptTemplateSelect"></select>
+        <p class="help">Templates are member-private and reusable across cards. Selecting one loads its guidance into the active prompt field below.</p>
+      </div>
+
+      <div class="group">
+        <label for="promptTemplateName">Template name</label>
+        <input id="promptTemplateName" type="text" maxlength="60" autocomplete="off" placeholder="Example: Robert approval review">
+        <div class="field-actions">
+          <button id="saveTemplateButton" class="secondary" type="button">Save template</button>
+          <button id="deleteTemplateButton" class="secondary" type="button">Delete template</button>
         </div>
+      </div>
 
-        <div class="error-message" id="errorMessage">
-            ✗ <span id="errorText"></span>
+      <div class="group">
+        <label for="customInstructions">Active Robert workflow guidance</label>
+        <textarea id="customInstructions" maxlength="600" placeholder="Example: Prefer yes/no decision framing, flag what needs Robert, and keep VA actions separate."></textarea>
+        <p class="help">Optional member-private guidance added to AI prompts. It cannot override evidence, privacy, or Trello write-approval rules.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="group">
+        <label for="promptCommentLimit">AI comment context</label>
+        <select id="promptCommentLimit">
+          <option value="6">Lean: latest 6 comments</option>
+          <option value="12">Balanced: latest 12 comments</option>
+          <option value="20">Large cards: latest 20 comments</option>
+          <option value="25">Maximum: latest 25 comments</option>
+        </select>
+        <p class="help">Only applies when AI mode sends card context to the selected provider.</p>
+      </div>
+
+      <div class="group">
+        <label for="promptCommentCharacters">Comment length per item</label>
+        <select id="promptCommentCharacters">
+          <option value="400">Compact: 400 characters</option>
+          <option value="700">Balanced: 700 characters</option>
+          <option value="1200">Detailed: 1,200 characters</option>
+          <option value="1500">Maximum: 1,500 characters</option>
+        </select>
+      </div>
+
+      <div class="group">
+        <label for="promptDescriptionCharacters">Description context</label>
+        <select id="promptDescriptionCharacters">
+          <option value="1500">Compact: 1,500 characters</option>
+          <option value="2500">Balanced: 2,500 characters</option>
+          <option value="4000">Detailed: 4,000 characters</option>
+          <option value="5000">Maximum: 5,000 characters</option>
+        </select>
+        <p class="warning">Larger context can improve messy-card analysis, but sends more Trello content to the configured AI provider.</p>
+      </div>
+
+      <div class="group">
+        <label for="maxOutputTokens">AI response budget</label>
+        <select id="maxOutputTokens">
+          <option value="600">Short: up to 600 output tokens</option>
+          <option value="900">Balanced: up to 900 output tokens</option>
+          <option value="1200">Detailed: up to 1,200 output tokens</option>
+          <option value="1600">Large-card review: up to 1,600 output tokens</option>
+        </select>
+        <p class="help">Lower values reduce latency and provider cost. Higher values allow more detailed blockers, evidence, and decision notes.</p>
+      </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="includeListContext">
+          <input id="includeListContext" type="checkbox">
+          <span>Include bounded list context</span>
+        </label>
+        <p class="help">Reads a small sample of current-list card titles, labels, and due states for sprint/neighbor context. Full descriptions and comments are not included.</p>
+      </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="extractTextAttachments">
+          <input id="extractTextAttachments" type="checkbox">
+          <span>Extract small text/CSV attachment contents</span>
+        </label>
+        <p class="warning">Off by default. When enabled, the popup fetches only HTTPS text-like attachments with strict size caps and may send bounded excerpts to the configured AI provider.</p>
+      </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="requireSensitiveAiApproval">
+          <input id="requireSensitiveAiApproval" type="checkbox">
+          <span>Require approval before sensitive AI handoff</span>
+        </label>
+        <p class="help">When client, financial, legal, or personal signals are detected, the popup shows a local result first and waits for explicit approval before sending card context to an AI provider.</p>
+      </div>
+
+      <div class="group">
+        <label class="checkbox-row" for="useProxy">
+          <input id="useProxy" type="checkbox">
+          <span>Use backend proxy for AI calls</span>
+        </label>
+        <p class="help">Sends the AI prompt to your proxy endpoint instead of exposing provider API keys in the browser. The proxy must add provider credentials server-side and return the same structured JSON summary.</p>
+      </div>
+
+      <div class="group">
+        <label for="proxyEndpoint">Proxy endpoint</label>
+        <input id="proxyEndpoint" type="url" autocomplete="off" placeholder="https://your-domain.example/summarize-this/ai">
+        <p class="warning">Use HTTPS for Trello. Local development may use localhost or 127.0.0.1. Query strings and fragments are stripped before saving.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="group">
+        <label for="budgetWarningPercent">Budget warning threshold</label>
+        <select id="budgetWarningPercent">
+          <option value="50">Warn at 50%</option>
+          <option value="75">Warn at 75%</option>
+          <option value="80">Warn at 80%</option>
+          <option value="90">Warn at 90%</option>
+          <option value="100">Warn only at limit</option>
+        </select>
+        <p class="help">Budget alerts are advisory and use estimated provider cost from completed analysis runs.</p>
+      </div>
+
+      <div class="group">
+        <label for="openaiMonthlyLimit">OpenAI monthly budget in USD</label>
+        <input id="openaiMonthlyLimit" type="number" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0 disables alerts">
+      </div>
+
+      <div class="group">
+        <label for="googleMonthlyLimit">Google AI monthly budget in USD</label>
+        <input id="googleMonthlyLimit" type="number" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0 disables alerts">
+      </div>
+
+      <div class="group">
+        <label for="anthropicMonthlyLimit">Anthropic monthly budget in USD</label>
+        <input id="anthropicMonthlyLimit" type="number" inputmode="decimal" min="0" max="10000" step="0.01" placeholder="0 disables alerts">
+        <p class="help">Stored in member-private Power-Up settings. No card content or API keys are stored in the cost ledger.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="group">
+        <label for="openaiKey">OpenAI API key</label>
+        <input id="openaiKey" type="password" autocomplete="off" placeholder="sk-...">
+        <p class="help">Used directly from the Power-Up iframe when OpenAI is selected.</p>
+        <div class="field-actions">
+          <button id="testOpenAiButton" class="secondary" type="button">Test OpenAI key</button>
+          <span id="openaiStatus" class="status" aria-live="polite"></span>
         </div>
+      </div>
 
-        <div class="info-box">
-            <strong>🔐 Privacy Notice:</strong> API keys are stored securely in your Trello account and are never sent to our servers. They are only used directly with AI providers.
+      <div class="group">
+        <label for="openaiModel">OpenAI model</label>
+        <input id="openaiModel" type="text" autocomplete="off" placeholder="gpt-4o-mini">
+      </div>
+
+      <div class="group">
+        <label for="googleKey">Google AI API key</label>
+        <input id="googleKey" type="password" autocomplete="off" placeholder="AIza...">
+        <div class="field-actions">
+          <button id="testGoogleButton" class="secondary" type="button">Test Google key</button>
+          <span id="googleStatus" class="status" aria-live="polite"></span>
         </div>
+      </div>
 
-        <div class="settings-section">
-            <h3>AI Provider API Keys</h3>
-            <p style="font-size: 13px; color: #5e6c84; margin: 0 0 15px 0;">
-                Configure at least one AI provider to enable card analysis.
-            </p>
+      <div class="group">
+        <label for="googleModel">Google model</label>
+        <input id="googleModel" type="text" autocomplete="off" placeholder="gemini-1.5-flash">
+      </div>
 
-            <div class="form-group">
-                <label>OpenAI API Key</label>
-                <input type="password" id="openaiKey" placeholder="sk-..." />
-                <small>Get your key at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com/api-keys</a></small>
-                <div class="provider-status">
-                    <div class="status-indicator" id="openaiStatus"></div>
-                    <span id="openaiStatusText">Not configured</span>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Anthropic API Key</label>
-                <input type="password" id="anthropicKey" placeholder="sk-ant-..." />
-                <small>Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a></small>
-                <div class="provider-status">
-                    <div class="status-indicator" id="anthropicStatus"></div>
-                    <span id="anthropicStatusText">Not configured</span>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Google AI API Key</label>
-                <input type="password" id="googleKey" placeholder="AIza..." />
-                <small>Get your key at <a href="https://makersuite.google.com/app/apikey" target="_blank">makersuite.google.com</a></small>
-                <div class="provider-status">
-                    <div class="status-indicator" id="googleStatus"></div>
-                    <span id="googleStatusText">Not configured</span>
-                </div>
-            </div>
+      <div class="group">
+        <label for="anthropicKey">Anthropic API key</label>
+        <input id="anthropicKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+        <div class="field-actions">
+          <button id="testAnthropicButton" class="secondary" type="button">Test Anthropic key</button>
+          <span id="anthropicStatus" class="status" aria-live="polite"></span>
         </div>
+      </div>
 
-        <div class="settings-section">
-            <h3>Analysis Preferences</h3>
+      <div class="group">
+        <label for="anthropicModel">Anthropic model</label>
+        <input id="anthropicModel" type="text" autocomplete="off" placeholder="claude-3-5-haiku-20241022">
+      </div>
+    </section>
 
-            <div class="form-group">
-                <label>Default Strategy</label>
-                <select id="strategySelect">
-                    <option value="cost-effective">Cost-Effective (Recommended)</option>
-                    <option value="best-quality">Best Quality</option>
-                    <option value="speed-optimized">Speed-Optimized</option>
-                </select>
-                <small>Choose your preferred analysis strategy</small>
-            </div>
-        </div>
-
-        <button class="btn" onclick="saveSettings()">Save Settings</button>
+    <div class="actions">
+      <button id="saveButton" class="primary" type="button">Save settings</button>
+      <button id="clearButton" class="secondary" type="button">Clear keys</button>
     </div>
+  </div>
 
-    <script src="https://p.trellocdn.com/power-up.min.js"></script>
-    <script>
-        /* global TrelloPowerUp */
+  <script src="./summarizer-core.js"></script>
+  <script>
+    /* global TrelloPowerUp, SummarizeThis */
 
-        const t = TrelloPowerUp.iframe();
+    (function () {
+      "use strict";
 
-        // Load existing settings
-        window.addEventListener('load', async function() {
-            try {
-                const apiKeys = await t.get('member', 'private', 'apiKeys') || {};
-                const strategy = await t.get('member', 'private', 'preferredStrategy') || 'cost-effective';
+      var inTrello = Boolean(
+        window.TrelloPowerUp &&
+        window.TrelloPowerUp.iframe &&
+        window.self !== window.top
+      );
+      var t = inTrello ? window.TrelloPowerUp.iframe() : null;
+      var promptTemplates = [];
+      var fields = {
+        analysisMode: document.getElementById("analysisMode"),
+        provider: document.getElementById("provider"),
+        strategy: document.getElementById("strategy"),
+        providerMode: document.getElementById("providerMode"),
+        outputMode: document.getElementById("outputMode"),
+        outputLanguage: document.getElementById("outputLanguage"),
+        defaultCopyFormat: document.getElementById("defaultCopyFormat"),
+        promptTemplateSelect: document.getElementById("promptTemplateSelect"),
+        promptTemplateName: document.getElementById("promptTemplateName"),
+        customInstructions: document.getElementById("customInstructions"),
+        promptCommentLimit: document.getElementById("promptCommentLimit"),
+        promptCommentCharacters: document.getElementById("promptCommentCharacters"),
+        promptDescriptionCharacters: document.getElementById("promptDescriptionCharacters"),
+        maxOutputTokens: document.getElementById("maxOutputTokens"),
+        includeListContext: document.getElementById("includeListContext"),
+        extractTextAttachments: document.getElementById("extractTextAttachments"),
+        requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
+        useProxy: document.getElementById("useProxy"),
+        proxyEndpoint: document.getElementById("proxyEndpoint"),
+        budgetWarningPercent: document.getElementById("budgetWarningPercent"),
+        openaiMonthlyLimit: document.getElementById("openaiMonthlyLimit"),
+        googleMonthlyLimit: document.getElementById("googleMonthlyLimit"),
+        anthropicMonthlyLimit: document.getElementById("anthropicMonthlyLimit"),
+        openaiKey: document.getElementById("openaiKey"),
+        openaiModel: document.getElementById("openaiModel"),
+        googleKey: document.getElementById("googleKey"),
+        googleModel: document.getElementById("googleModel"),
+        anthropicKey: document.getElementById("anthropicKey"),
+        anthropicModel: document.getElementById("anthropicModel"),
+        openaiStatus: document.getElementById("openaiStatus"),
+        googleStatus: document.getElementById("googleStatus"),
+        anthropicStatus: document.getElementById("anthropicStatus")
+      };
 
-                // Populate fields
-                if (apiKeys.openai) {
-                    document.getElementById('openaiKey').value = apiKeys.openai;
-                    updateProviderStatus('openai', true);
-                }
-                if (apiKeys.anthropic) {
-                    document.getElementById('anthropicKey').value = apiKeys.anthropic;
-                    updateProviderStatus('anthropic', true);
-                }
-                if (apiKeys.google) {
-                    document.getElementById('googleKey').value = apiKeys.google;
-                    updateProviderStatus('google', true);
-                }
+      document.getElementById("saveButton").addEventListener("click", saveSettings);
+      document.getElementById("clearButton").addEventListener("click", clearKeys);
+      document.getElementById("saveTemplateButton").addEventListener("click", savePromptTemplate);
+      document.getElementById("deleteTemplateButton").addEventListener("click", deletePromptTemplate);
+      fields.promptTemplateSelect.addEventListener("change", applySelectedPromptTemplate);
+      document.getElementById("testOpenAiButton").addEventListener("click", function () {
+        testProvider("openai");
+      });
+      document.getElementById("testGoogleButton").addEventListener("click", function () {
+        testProvider("google");
+      });
+      document.getElementById("testAnthropicButton").addEventListener("click", function () {
+        testProvider("anthropic");
+      });
+      document.addEventListener("DOMContentLoaded", loadSettings);
 
-                document.getElementById('strategySelect').value = strategy;
+      async function loadSettings() {
+        var settings = await readSettings();
+        fields.analysisMode.value = settings.analysisMode || "auto";
+        fields.provider.value = settings.provider || "openai";
+        fields.strategy.value = settings.strategy || "cost-effective";
+        fields.providerMode.value = SummarizeThis.normalizeProviderMode(settings.providerMode);
+        fields.outputMode.value = normalizeOutputMode(settings.outputMode);
+        fields.outputLanguage.value = normalizeOutputLanguage(settings.outputLanguage);
+        fields.defaultCopyFormat.value = SummarizeThis.normalizeExportPreferences(settings.exportPreferences || settings).defaultCopyFormat;
+        var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
+        promptTemplates = promptProfile.promptTemplates;
+        renderPromptTemplateOptions(promptProfile.selectedPromptTemplateId);
+        fields.promptTemplateName.value = promptProfile.selectedPromptTemplateName;
+        fields.customInstructions.value = promptProfile.customInstructions;
+        fields.openaiKey.value = (settings.apiKeys && settings.apiKeys.openai) || "";
+        fields.googleKey.value = (settings.apiKeys && settings.apiKeys.google) || "";
+        fields.anthropicKey.value = (settings.apiKeys && settings.apiKeys.anthropic) || "";
+        fields.openaiModel.value = settings.openaiModel || "";
+        fields.googleModel.value = settings.googleModel || "";
+        fields.anthropicModel.value = settings.anthropicModel || "";
+        var promptContext = normalizePromptContext(settings.promptContext);
+        fields.promptCommentLimit.value = String(promptContext.commentLimit);
+        fields.promptCommentCharacters.value = String(promptContext.commentCharacters);
+        fields.promptDescriptionCharacters.value = String(promptContext.descriptionCharacters);
+        fields.maxOutputTokens.value = String(SummarizeThis.normalizeGenerationSettings(settings.generation || settings).maxOutputTokens);
+        fields.includeListContext.checked = settings.includeListContext !== false;
+        fields.extractTextAttachments.checked = settings.extractTextAttachments === true;
+        fields.requireSensitiveAiApproval.checked = settings.requireSensitiveAiApproval !== false;
+        var proxySettings = SummarizeThis.normalizeProxySettings(settings.proxy);
+        fields.useProxy.checked = proxySettings.enabled;
+        fields.proxyEndpoint.value = proxySettings.endpoint;
+        var budget = SummarizeThis.normalizeBudgetSettings(settings.budget);
+        fields.budgetWarningPercent.value = String(budget.warningPercent);
+        fields.openaiMonthlyLimit.value = budget.providerMonthlyLimits.openai ? String(budget.providerMonthlyLimits.openai) : "";
+        fields.googleMonthlyLimit.value = budget.providerMonthlyLimits.google ? String(budget.providerMonthlyLimits.google) : "";
+        fields.anthropicMonthlyLimit.value = budget.providerMonthlyLimits.anthropic ? String(budget.providerMonthlyLimits.anthropic) : "";
+      }
 
-            } catch (error) {
-                console.error('Failed to load settings:', error);
+      async function readSettings() {
+        var fallback = {
+          analysisMode: "auto",
+          provider: "openai",
+          strategy: "cost-effective",
+          providerMode: "fallback",
+          outputMode: "operational-ledger",
+          outputLanguage: "en",
+          exportPreferences: SummarizeThis.normalizeExportPreferences(),
+          customInstructions: "",
+          selectedPromptTemplateId: "",
+          promptTemplates: [],
+          includeListContext: true,
+          extractTextAttachments: false,
+          requireSensitiveAiApproval: true,
+          proxy: SummarizeThis.normalizeProxySettings(),
+          promptContext: {
+            descriptionCharacters: 2500,
+            commentLimit: 12,
+            commentCharacters: 700
+          },
+          generation: SummarizeThis.normalizeGenerationSettings(),
+          budget: SummarizeThis.normalizeBudgetSettings(),
+          apiKeys: {}
+        };
+
+        if (!t) {
+          try {
+            var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
+            var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
+            safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
+            if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
+              localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
             }
+            return safeLocalSettings;
+          } catch (error) {
+            return fallback;
+          }
+        }
+
+        var current = await safe(function () {
+          return t.get("member", "private", "summarizeThisSettings");
+        }, {});
+        var legacyKeys = await safe(function () {
+          return t.get("member", "private", "apiKeys");
+        }, {});
+        var strategy = await safe(function () {
+          return t.get("member", "private", "preferredStrategy");
+        }, "");
+
+        return Object.assign({}, fallback, current || {}, {
+          apiKeys: Object.assign({}, legacyKeys || {}, current && current.apiKeys ? current.apiKeys : {}),
+          strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy,
+          proxy: SummarizeThis.normalizeProxySettings(current && current.proxy)
+        });
+      }
+
+      function buildSettings() {
+        var promptProfile = SummarizeThis.normalizePromptTemplateSettings({
+          customInstructions: fields.customInstructions.value,
+          selectedPromptTemplateId: fields.promptTemplateSelect.value,
+          promptTemplates: promptTemplates
         });
 
-        async function saveSettings() {
-            try {
-                const apiKeys = {};
-                
-                const openaiKey = document.getElementById('openaiKey').value.trim();
-                const anthropicKey = document.getElementById('anthropicKey').value.trim();
-                const googleKey = document.getElementById('googleKey').value.trim();
-                const strategy = document.getElementById('strategySelect').value;
-
-                if (openaiKey) apiKeys.openai = openaiKey;
-                if (anthropicKey) apiKeys.anthropic = anthropicKey;
-                if (googleKey) apiKeys.google = googleKey;
-
-                if (Object.keys(apiKeys).length === 0) {
-                    showError('Please configure at least one API key');
-                    return;
-                }
-
-                // Save to Trello
-                await t.set('member', 'private', 'apiKeys', apiKeys);
-                await t.set('member', 'private', 'preferredStrategy', strategy);
-
-                // Update status indicators
-                updateProviderStatus('openai', !!openaiKey);
-                updateProviderStatus('anthropic', !!anthropicKey);
-                updateProviderStatus('google', !!googleKey);
-
-                showSuccess();
-
-                // Close popup after 1.5 seconds
-                setTimeout(() => {
-                    t.closePopup();
-                }, 1500);
-
-            } catch (error) {
-                console.error('Failed to save settings:', error);
-                showError('Failed to save settings: ' + error.message);
+        return {
+          analysisMode: fields.analysisMode.value,
+          provider: fields.provider.value,
+          strategy: fields.strategy.value,
+          providerMode: SummarizeThis.normalizeProviderMode(fields.providerMode.value),
+          outputMode: normalizeOutputMode(fields.outputMode.value),
+          outputLanguage: normalizeOutputLanguage(fields.outputLanguage.value),
+          exportPreferences: SummarizeThis.normalizeExportPreferences({
+            defaultCopyFormat: fields.defaultCopyFormat.value
+          }),
+          customInstructions: promptProfile.customInstructions,
+          selectedPromptTemplateId: promptProfile.selectedPromptTemplateId,
+          promptTemplates: promptProfile.promptTemplates,
+          includeListContext: fields.includeListContext.checked,
+          extractTextAttachments: fields.extractTextAttachments.checked,
+          requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
+          proxy: SummarizeThis.normalizeProxySettings({
+            enabled: fields.useProxy.checked,
+            endpoint: fields.proxyEndpoint.value
+          }),
+          promptContext: normalizePromptContext({
+            descriptionCharacters: fields.promptDescriptionCharacters.value,
+            commentLimit: fields.promptCommentLimit.value,
+            commentCharacters: fields.promptCommentCharacters.value
+          }),
+          generation: SummarizeThis.normalizeGenerationSettings({
+            maxOutputTokens: fields.maxOutputTokens.value
+          }),
+          budget: SummarizeThis.normalizeBudgetSettings({
+            warningPercent: fields.budgetWarningPercent.value,
+            providerMonthlyLimits: {
+              openai: fields.openaiMonthlyLimit.value,
+              google: fields.googleMonthlyLimit.value,
+              anthropic: fields.anthropicMonthlyLimit.value
             }
+          }),
+          apiKeys: {
+            openai: fields.openaiKey.value.trim(),
+            google: fields.googleKey.value.trim(),
+            anthropic: fields.anthropicKey.value.trim()
+          },
+          openaiModel: fields.openaiModel.value.trim(),
+          googleModel: fields.googleModel.value.trim(),
+          anthropicModel: fields.anthropicModel.value.trim(),
+          updatedAt: new Date().toISOString()
+        };
+      }
+
+      async function saveSettings(options) {
+        var settings = buildSettings();
+        var closeAfterSave = !(options && options.keepOpen);
+        var successMessage = options && options.successMessage ? options.successMessage : "Settings saved.";
+
+        Object.keys(settings.apiKeys).forEach(function (key) {
+          if (!settings.apiKeys[key]) delete settings.apiKeys[key];
+        });
+
+        if (fields.useProxy.checked && !settings.proxy.valid) {
+          showMessage(settings.proxy.error, "error");
+          return;
         }
 
-        function updateProviderStatus(provider, isActive) {
-            const statusIndicator = document.getElementById(provider + 'Status');
-            const statusText = document.getElementById(provider + 'StatusText');
+        var hasProxy = settings.proxy && settings.proxy.enabled;
+        var usableKeyCount = t ? Object.keys(settings.apiKeys).length : 0;
+        if (settings.analysisMode === "ai-only" && usableKeyCount === 0 && !hasProxy) {
+          showMessage(!t
+            ? "AI-only mode requires a valid proxy endpoint in local preview."
+            : "Add at least one API key, configure a valid proxy endpoint, or choose Auto/local mode.", "error");
+          return;
+        }
 
-            if (isActive) {
-                statusIndicator.className = 'status-indicator status-active';
-                statusText.textContent = 'Configured';
-            } else {
-                statusIndicator.className = 'status-indicator status-inactive';
-                statusText.textContent = 'Not configured';
+        if (!t) {
+          var safePreviewSettings = SummarizeThis.stripApiKeysForLocalPreview(settings);
+          localStorage.setItem("summarizeThisSettings", JSON.stringify(safePreviewSettings));
+          fields.openaiKey.value = "";
+          fields.googleKey.value = "";
+          fields.anthropicKey.value = "";
+          showMessage("Non-key settings saved for local preview. API keys are only stored in Trello member-private storage.", "success");
+          return;
+        }
+
+        await t.set("member", "private", "summarizeThisSettings", settings);
+        await t.set("member", "private", "apiKeys", settings.apiKeys);
+        await t.set("member", "private", "preferredStrategy", settings.strategy);
+        showMessage(successMessage, "success");
+
+        if (closeAfterSave) {
+          setTimeout(function () {
+            if (t && t.closePopup) t.closePopup();
+          }, 900);
+        }
+      }
+
+      async function clearKeys() {
+        fields.openaiKey.value = "";
+        fields.googleKey.value = "";
+        fields.anthropicKey.value = "";
+        setProviderStatus("openai", "", "");
+        setProviderStatus("google", "", "");
+        setProviderStatus("anthropic", "", "");
+        await saveSettings();
+      }
+
+      async function savePromptTemplate() {
+        var name = String(fields.promptTemplateName.value || "").replace(/\s+/g, " ").trim().slice(0, 60);
+        var instructions = normalizeCustomInstructions(fields.customInstructions.value);
+
+        if (!name || !instructions) {
+          showMessage("Add a template name and guidance before saving.", "error");
+          return;
+        }
+
+        var selectedId = fields.promptTemplateSelect.value;
+        var now = new Date().toISOString();
+        var existingIndex = promptTemplates.map(function (template) {
+          return template.id;
+        }).indexOf(selectedId);
+
+        if (existingIndex === -1) {
+          selectedId = createPromptTemplateId(name);
+          promptTemplates.unshift({
+            id: selectedId,
+            name: name,
+            instructions: instructions,
+            createdAt: now,
+            updatedAt: now
+          });
+        } else {
+          promptTemplates[existingIndex] = Object.assign({}, promptTemplates[existingIndex], {
+            name: name,
+            instructions: instructions,
+            updatedAt: now
+          });
+        }
+
+        promptTemplates = SummarizeThis.normalizePromptTemplates(promptTemplates);
+        renderPromptTemplateOptions(selectedId);
+        fields.promptTemplateSelect.value = selectedId;
+        await saveSettings({
+          keepOpen: true,
+          successMessage: "Prompt template saved."
+        });
+      }
+
+      async function deletePromptTemplate() {
+        var selectedId = fields.promptTemplateSelect.value;
+        if (!selectedId) {
+          showMessage("Select a saved template before deleting.", "error");
+          return;
+        }
+
+        promptTemplates = promptTemplates.filter(function (template) {
+          return template.id !== selectedId;
+        });
+        renderPromptTemplateOptions("");
+        fields.promptTemplateName.value = "";
+        await saveSettings({
+          keepOpen: true,
+          successMessage: "Prompt template deleted."
+        });
+      }
+
+      function renderPromptTemplateOptions(selectedId) {
+        var normalized = SummarizeThis.normalizePromptTemplates(promptTemplates);
+        promptTemplates = normalized;
+        fields.promptTemplateSelect.innerHTML = "";
+
+        var emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "No saved template";
+        fields.promptTemplateSelect.appendChild(emptyOption);
+
+        normalized.forEach(function (template) {
+          var option = document.createElement("option");
+          option.value = template.id;
+          option.textContent = template.name;
+          fields.promptTemplateSelect.appendChild(option);
+        });
+
+        if (normalized.some(function (template) { return template.id === selectedId; })) {
+          fields.promptTemplateSelect.value = selectedId;
+        } else {
+          fields.promptTemplateSelect.value = "";
+        }
+      }
+
+      function applySelectedPromptTemplate() {
+        var selectedId = fields.promptTemplateSelect.value;
+        var template = promptTemplates.filter(function (item) {
+          return item.id === selectedId;
+        })[0];
+        fields.promptTemplateName.value = template ? template.name : "";
+        if (template) fields.customInstructions.value = template.instructions;
+      }
+
+      function createPromptTemplateId(name) {
+        var slug = String(name || "template")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40) || "template";
+        return slug + "-" + Date.now().toString(36);
+      }
+
+      function normalizePromptContext(input) {
+        var source = input || {};
+        return {
+          descriptionCharacters: allowedNumber(source.descriptionCharacters, 2500, [1500, 2500, 4000, 5000]),
+          commentLimit: allowedNumber(source.commentLimit, 12, [6, 12, 20, 25]),
+          commentCharacters: allowedNumber(source.commentCharacters, 700, [400, 700, 1200, 1500])
+        };
+      }
+
+      function allowedNumber(value, fallback, allowed) {
+        var number = Number(value);
+        return allowed.indexOf(number) === -1 ? fallback : number;
+      }
+
+      function normalizeOutputMode(value) {
+        return SummarizeThis.normalizeOutputMode(value);
+      }
+
+      function normalizeOutputLanguage(value) {
+        return SummarizeThis.normalizeOutputLanguage(value);
+      }
+
+      function normalizeCustomInstructions(value) {
+        return SummarizeThis.normalizeCustomInstructions(value);
+      }
+
+      async function testProvider(provider) {
+        var controls = getProviderControls(provider);
+        var key = controls.key.value.trim();
+        var model = controls.model.value.trim() || controls.defaultModel;
+
+        if (!key) {
+          setProviderStatus(provider, "Add a key first.", "error");
+          return;
+        }
+
+        setProviderStatus(provider, "Testing...", "");
+
+        try {
+          if (provider === "openai") await testOpenAiKey(key);
+          if (provider === "google") await testGoogleKey(key, model);
+          if (provider === "anthropic") await testAnthropicKey(key, model);
+          setProviderStatus(provider, "Key works.", "success");
+        } catch (error) {
+          setProviderStatus(provider, formatProviderError(error), "error");
+        }
+      }
+
+      async function testOpenAiKey(key) {
+        var response = await fetchWithTimeout("https://api.openai.com/v1/models", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + key
+          }
+        }, 10000);
+
+        await ensureProviderResponse(response, "OpenAI rejected the key.");
+      }
+
+      async function testGoogleKey(key, model) {
+        var response = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": key
+          },
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [{ text: "Reply OK." }]
+            }],
+            generationConfig: {
+              maxOutputTokens: 1,
+              temperature: 0
             }
+          })
+        }, 10000);
+
+        await ensureProviderResponse(response, "Google rejected the key or model.");
+      }
+
+      async function testAnthropicKey(key, model) {
+        var response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          },
+          body: JSON.stringify({
+            model: model,
+            max_tokens: 1,
+            messages: [{
+              role: "user",
+              content: "Reply OK."
+            }]
+          })
+        }, 10000);
+
+        await ensureProviderResponse(response, "Anthropic rejected the key or model.");
+      }
+
+      async function ensureProviderResponse(response, fallbackMessage) {
+        if (response.ok) return;
+
+        var detail = await readProviderError(response);
+        throw new Error(detail || fallbackMessage);
+      }
+
+      async function readProviderError(response) {
+        try {
+          var payload = await response.json();
+          if (payload && payload.error && payload.error.message) return payload.error.message;
+          if (payload && payload.message) return payload.message;
+        } catch (error) {
+          return "";
         }
 
-        function showSuccess() {
-            const successMsg = document.getElementById('successMessage');
-            successMsg.style.display = 'block';
-            setTimeout(() => {
-                successMsg.style.display = 'none';
-            }, 3000);
+        return "";
+      }
+
+      function getProviderControls(provider) {
+        if (provider === "openai") {
+          return {
+            key: fields.openaiKey,
+            model: fields.openaiModel,
+            defaultModel: "gpt-4o-mini",
+            status: fields.openaiStatus
+          };
         }
 
-        function showError(message) {
-            const errorMsg = document.getElementById('errorMessage');
-            const errorText = document.getElementById('errorText');
-            errorText.textContent = message;
-            errorMsg.style.display = 'block';
-            setTimeout(() => {
-                errorMsg.style.display = 'none';
-            }, 5000);
+        if (provider === "google") {
+          return {
+            key: fields.googleKey,
+            model: fields.googleModel,
+            defaultModel: "gemini-1.5-flash",
+            status: fields.googleStatus
+          };
         }
-    </script>
+
+        return {
+          key: fields.anthropicKey,
+          model: fields.anthropicModel,
+          defaultModel: "claude-3-5-haiku-20241022",
+          status: fields.anthropicStatus
+        };
+      }
+
+      function setProviderStatus(provider, text, type) {
+        var status = getProviderControls(provider).status;
+        status.textContent = text;
+        status.className = type ? "status " + type : "status";
+      }
+
+      function formatProviderError(error) {
+        var message = error && error.message ? error.message : "Validation failed.";
+        if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+          return "Network request failed. Check hosting permissions and connection.";
+        }
+        if (message.length > 140) return message.slice(0, 137) + "...";
+        return message;
+      }
+
+      async function fetchWithTimeout(url, options, timeoutMs) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function () {
+          controller.abort();
+        }, timeoutMs);
+
+        try {
+          var requestOptions = Object.assign({}, options, { signal: controller.signal });
+          return await fetch(url, requestOptions);
+        } catch (error) {
+          if (error && error.name === "AbortError") {
+            throw new Error("Validation timed out.");
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      async function safe(fn, fallback) {
+        try {
+          var value = await fn();
+          return value === undefined || value === null ? fallback : value;
+        } catch (error) {
+          return fallback;
+        }
+      }
+
+      function showMessage(text, type) {
+        var node = document.getElementById("message");
+        node.textContent = text;
+        node.className = "message " + type;
+        setTimeout(function () {
+          node.className = "message";
+        }, 3000);
+      }
+    }());
+  </script>
 </body>
 </html>

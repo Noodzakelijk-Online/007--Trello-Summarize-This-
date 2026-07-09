@@ -10,6 +10,22 @@ class MultiModelConsensus {
             google: apiKeys.google
         };
     }
+
+    sanitizeErrorMessage(error) {
+        const message = error && error.message ? error.message : String(error || 'AI analysis failed');
+        return message
+            .replace(/https?:\/\/[^\s)]+/gi, '[url redacted]')
+            .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+            .replace(/(api[_-]?key|token|authorization)(\s*[:=]\s*)([A-Za-z0-9._~+/=-]+)/gi, '$1$2[redacted]')
+            .replace(/sk-[A-Za-z0-9_-]{12,}/g, 'sk-[redacted]')
+            .slice(0, 240);
+    }
+
+    logProviderFailure(provider, error) {
+        if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`${provider} analysis failed: ${this.sanitizeErrorMessage(error)}`);
+        }
+    }
     
     async analyzeWithConsensus(prompt, cardData) {
         const results = [];
@@ -20,7 +36,7 @@ class MultiModelConsensus {
                 const openaiResult = await this.analyzeWithOpenAI(prompt);
                 results.push({ provider: 'openai', model: 'gpt-4o-mini', result: openaiResult });
             } catch (error) {
-                console.error('OpenAI analysis failed:', error);
+                this.logProviderFailure('OpenAI', error);
             }
         }
         
@@ -29,7 +45,7 @@ class MultiModelConsensus {
                 const anthropicResult = await this.analyzeWithAnthropic(prompt);
                 results.push({ provider: 'anthropic', model: 'claude-3-5-sonnet', result: anthropicResult });
             } catch (error) {
-                console.error('Anthropic analysis failed:', error);
+                this.logProviderFailure('Anthropic', error);
             }
         }
         
@@ -38,7 +54,7 @@ class MultiModelConsensus {
                 const googleResult = await this.analyzeWithGoogle(prompt);
                 results.push({ provider: 'google', model: 'gemini-2.0-flash', result: googleResult });
             } catch (error) {
-                console.error('Google analysis failed:', error);
+                this.logProviderFailure('Google', error);
             }
         }
         
@@ -102,10 +118,11 @@ class MultiModelConsensus {
     }
     
     async analyzeWithGoogle(prompt) {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${this.providers.google}`, {
+        const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-goog-api-key': this.providers.google
             },
             body: JSON.stringify({
                 contents: [{
