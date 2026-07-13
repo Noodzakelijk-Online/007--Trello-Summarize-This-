@@ -12,7 +12,8 @@
     name: "Summarize This",
     details: "AI-assisted Trello card summarization with a local fallback summary when no AI provider is configured.",
     author: "Summarize This Team",
-    author_email: "support@summarizethis.com",
+    author_email: "",
+    support_contact: "",
     author_url: "https://summarizethis.com",
     overview_url: "https://summarizethis.com/trello",
     privacy_url: "./privacy.html",
@@ -83,6 +84,7 @@
       actionLabel: preset.actionLabel || "",
       actionUrl: preset.actionUrl || "",
       requiredFiles: [
+        "connector.html",
         "connector.js",
         "popup.html",
         "settings-powerup.html",
@@ -94,7 +96,7 @@
       ],
       steps: [],
       verification: [
-        "Open " + buildHostedUrl(targetBaseUrl, "connector.js") + " and confirm it loads without a 404.",
+        "Open " + buildHostedUrl(targetBaseUrl, "connector.html") + " and confirm it loads without a 404.",
         "Open " + buildHostedUrl(targetBaseUrl, "manifest.json") + " and confirm it returns JSON.",
         "Open " + buildHostedUrl(targetBaseUrl, "privacy.html") + " and " + buildHostedUrl(targetBaseUrl, "terms.html") + " and confirm both policy pages load.",
         "Copy the iframe Connector URL into Trello Power-Up admin only after the HTTPS URLs load publicly."
@@ -131,7 +133,7 @@
         "Upload the required static files to a public HTTPS host.",
         "Confirm the host serves files directly from the selected folder.",
         "Replace the placeholder URL with the public HTTPS base URL.",
-        "Verify connector.js, manifest.json, popup.html, settings-powerup.html, privacy.html, terms.html, and icon.svg load publicly.",
+        "Verify connector.html, connector.js, manifest.json, popup.html, settings-powerup.html, privacy.html, terms.html, and icon.svg load publicly.",
         "Use the generated connector URL in Trello Power-Up admin."
       ];
     }
@@ -231,16 +233,30 @@
       appName: clean(source.name || DEFAULT_MANIFEST.name),
       details: clean(source.details || DEFAULT_MANIFEST.details),
       author: clean(source.author || DEFAULT_MANIFEST.author),
-      authorEmail: clean(source.author_email || DEFAULT_MANIFEST.author_email),
+      authorEmail: clean(source.author_email),
+      supportContact: clean(source.support_contact || source.author_email),
       authorUrl: clean(source.author_url || DEFAULT_MANIFEST.author_url),
       overviewUrl: clean(source.overview_url || DEFAULT_MANIFEST.overview_url),
       privacyUrl: absoluteManifestUrl(normalizedBase, source.privacy_url || DEFAULT_MANIFEST.privacy_url, "privacy.html"),
       termsUrl: absoluteManifestUrl(normalizedBase, source.terms_url || DEFAULT_MANIFEST.terms_url, "terms.html"),
-      connectorUrl: buildHostedUrl(normalizedBase, "connector.js"),
+      connectorUrl: buildHostedUrl(normalizedBase, "connector.html"),
+      connectorScriptUrl: buildHostedUrl(normalizedBase, "connector.js"),
       manifestUrl: buildHostedUrl(normalizedBase, "manifest.json"),
       iconUrl: absoluteManifestUrl(normalizedBase, source.icon && source.icon.url, "icon.svg"),
       capabilities: toArray(source.capabilities || DEFAULT_MANIFEST.capabilities).map(clean).filter(Boolean)
     };
+  }
+
+  function createHostedFileChecks(config) {
+    var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
+    return [
+      { key: "connector", label: "Connector page", url: values.connectorUrl },
+      { key: "connector-script", label: "Connector logic", url: values.connectorScriptUrl },
+      { key: "manifest", label: "Manifest", url: values.manifestUrl },
+      { key: "privacy", label: "Privacy policy", url: values.privacyUrl },
+      { key: "terms", label: "Terms of service", url: values.termsUrl },
+      { key: "icon", label: "Icon", url: values.iconUrl }
+    ];
   }
 
   function makeAdminValuesText(config) {
@@ -270,11 +286,21 @@
         aliases: ["power up name", "power-up name", "app name", "name"]
       },
       {
+        key: "workspace",
+        label: "Workspace",
+        value: "Select the Trello Workspace that should own this Power-Up.",
+        required: true,
+        type: "manual",
+        stage: "create",
+        aliases: ["workspace"]
+      },
+      {
         key: "details",
         label: "Details",
         value: values.details,
         required: true,
         type: "textarea",
+        stage: "edit",
         aliases: ["details", "description", "short description", "summary"]
       },
       {
@@ -283,15 +309,26 @@
         value: values.author,
         required: true,
         type: "text",
+        stage: "create-and-edit",
         aliases: ["author", "author name", "company"]
       },
       {
         key: "authorEmail",
-        label: "Author email",
+        label: "Email",
         value: values.authorEmail,
         required: true,
         type: "email",
-        aliases: ["author email", "support email", "contact email"]
+        stage: "create",
+        aliases: ["email", "author email", "contact email"]
+      },
+      {
+        key: "supportContact",
+        label: "Support contact",
+        value: values.supportContact,
+        required: true,
+        type: "text",
+        stage: "create",
+        aliases: ["support contact", "support email", "support link"]
       },
       {
         key: "authorUrl",
@@ -299,6 +336,7 @@
         value: values.authorUrl,
         required: false,
         type: "url",
+        stage: "edit",
         aliases: ["author url", "author website", "website"]
       },
       {
@@ -307,6 +345,7 @@
         value: values.overviewUrl,
         required: false,
         type: "url",
+        stage: "edit",
         aliases: ["overview url", "iframe overview url", "power up overview url", "power-up overview url"]
       },
       {
@@ -315,6 +354,7 @@
         value: values.privacyUrl,
         required: false,
         type: "url",
+        stage: "edit",
         aliases: ["privacy policy url", "privacy url", "privacy policy"]
       },
       {
@@ -323,6 +363,7 @@
         value: values.termsUrl,
         required: false,
         type: "url",
+        stage: "edit",
         aliases: ["terms of service url", "terms url", "terms of use", "terms"]
       },
       {
@@ -331,6 +372,7 @@
         value: values.connectorUrl,
         required: true,
         type: "url",
+        stage: "create-and-edit",
         aliases: ["iframe connector url", "connector url", "iframe url"]
       },
       {
@@ -339,6 +381,7 @@
         value: values.manifestUrl,
         required: false,
         type: "url",
+        stage: "edit",
         aliases: ["manifest url"]
       },
       {
@@ -347,6 +390,7 @@
         value: values.iconUrl,
         required: false,
         type: "url",
+        stage: "edit",
         aliases: ["icon url", "icon"]
       }
     ];
@@ -359,6 +403,7 @@
         value: capability,
         required: capability === "card-buttons" || capability === "show-settings",
         type: "capability",
+        stage: "edit",
         aliases: [capability, readable]
       });
     });
@@ -372,9 +417,10 @@
       "Summarize This Trello Power-Up field map",
       "",
       fieldMap.map(function (item) {
-        var prefix = item.type === "capability" ? "Capability" : "Field";
+        var prefix = item.type === "capability" ? "Capability" : item.type === "manual" ? "Manual step" : "Field";
         var required = item.required ? "required" : "optional";
         return "- " + prefix + ": " + item.label + " (" + required + ")\n" +
+          "  Stage: " + (item.stage || "edit") + "\n" +
           "  Value: " + item.value + "\n" +
           "  Trello labels matched by helper: " + item.aliases.join(", ");
       }).join("\n")
@@ -390,6 +436,8 @@
     var privacyValidation = validateAbsoluteHttps(values.privacyUrl);
     var termsValidation = validateAbsoluteHttps(values.termsUrl);
     var iconValidation = validateAbsoluteHttps(values.iconUrl);
+    var emailValidation = validateContactEmail(values.authorEmail);
+    var supportValidation = validateSupportContact(values.supportContact);
     return [
       {
         key: "hosted-base-url",
@@ -434,6 +482,24 @@
         detail: "Required: card-buttons and show-settings. Current: " + capabilities.join(", ")
       },
       {
+        key: "developer-email",
+        label: "Developer contact Email is set",
+        ok: emailValidation.ok,
+        detail: emailValidation.message
+      },
+      {
+        key: "support-contact",
+        label: "Support contact is set",
+        ok: supportValidation.ok,
+        detail: supportValidation.message
+      },
+      {
+        key: "workspace-selection",
+        label: "Trello Workspace selected during app creation",
+        ok: false,
+        detail: "Trello requires a Workspace on the New App form. The helper never selects a Workspace; choose it manually before creating the app."
+      },
+      {
         key: "manual-save",
         label: "Manual Trello admin save is still required",
         ok: true,
@@ -457,10 +523,11 @@
       "",
       "Manual steps:",
       "1. Open https://trello.com/power-ups/admin.",
-      "2. Create or edit the Summarize This Power-Up.",
-      "3. Paste the admin values above, or run the autofill bookmarklet and review every field.",
-      "4. Confirm the capabilities match the list above.",
-      "5. Save manually in Trello only after review.",
+      "2. On New App, select the owning Workspace manually.",
+      "3. Paste the creation values above, or run the autofill bookmarklet to fill App name, Email, Support contact, Author, and iframe Connector URL.",
+      "4. Create manually in Trello only after reviewing the visible creation fields.",
+      "5. Open the app edit page, run the helper again, and confirm the metadata and capabilities match the list above.",
+      "6. Save manually in Trello only after review.",
       "",
       "Safety: The autofill helper fills matching fields only. It does not save, submit, create API keys, change Trello boards, or post to Trello cards."
     ].join("\n");
@@ -478,6 +545,7 @@
         appName: values.appName,
         author: values.author,
         authorEmail: values.authorEmail,
+        supportContact: values.supportContact,
         authorUrl: values.authorUrl,
         overviewUrl: values.overviewUrl,
         privacyUrl: values.privacyUrl,
@@ -497,10 +565,11 @@
       ),
       manualSteps: [
         "Open https://trello.com/power-ups/admin.",
-        "Create or edit the Summarize This Power-Up.",
-        "Paste the admin values or use the autofill bookmarklet.",
-        "Review every populated field.",
-        "Save manually in Trello."
+        "On New App, select the owning Workspace manually.",
+        "Paste the creation values or use the autofill bookmarklet.",
+        "Create manually only after reviewing the visible fields.",
+        "Open the app edit page, then run the helper again for metadata and capabilities.",
+        "Review every populated field and save manually in Trello."
       ],
       safetyNotes: [
         "The helper does not save or submit the Trello admin page.",
@@ -524,16 +593,17 @@
     return "(function(){'use strict';var config=" + payload + ";" +
       "function norm(value){return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}" +
       "function esc(value){return String(value).replace(/\\\\/g,'\\\\\\\\').replace(/\"/g,'\\\\\"');}" +
-      "function show(status,detail,missing){var banner=document.getElementById('summarize-this-admin-autofill-status');if(!banner){banner=document.createElement('div');banner.id='summarize-this-admin-autofill-status';document.body.appendChild(banner);}banner.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483647;background:'+(status==='error'?'#c9372c':status==='ok'?'#1f845a':'#172b4d')+';color:#fff;padding:12px 14px;border-radius:8px;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 8px 24px rgba(9,30,66,.25)';banner.textContent=detail+(missing&&missing.length?' Missing: '+missing.join(', ')+'.':'')+' Review every field in Trello, then save manually.';}" +
+      "function show(status,detail,missing,manual){var banner=document.getElementById('summarize-this-admin-autofill-status');if(!banner){banner=document.createElement('div');banner.id='summarize-this-admin-autofill-status';document.body.appendChild(banner);}banner.style.cssText='position:fixed;left:16px;right:16px;bottom:16px;z-index:2147483647;background:'+(status==='error'?'#c9372c':status==='ok'?'#1f845a':'#172b4d')+';color:#fff;padding:12px 14px;border-radius:8px;font:14px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;box-shadow:0 8px 24px rgba(9,30,66,.25)';banner.textContent=detail+(missing&&missing.length?' Missing: '+missing.join(', ')+'.':'')+(manual&&manual.length?' Manual: '+manual.join(', ')+'.':'')+' Review every field in Trello, then save manually.';}" +
       "function trelloAdminPage(){return /(^|\\.)trello\\.com$/i.test(location.hostname)&&/\\/power-ups\\/admin/i.test(location.pathname);}" +
       "if(!trelloAdminPage()){show('error','Summarize This admin autofill only runs on https://trello.com/power-ups/admin.',[]);return;}" +
       "function textFor(el){var parts=[];if(el.id){document.querySelectorAll('label[for=\"'+esc(el.id)+'\"]').forEach(function(label){parts.push(label.textContent);});}var label=el.closest&&el.closest('label');if(label)parts.push(label.textContent);['aria-label','placeholder','name','id'].forEach(function(name){parts.push(el.getAttribute(name));});return norm(parts.join(' '));}" +
       "function candidates(){return Array.prototype.slice.call(document.querySelectorAll('input,textarea'));}" +
-      "function setField(labels,value){var wanted=labels.map(norm);var field=candidates().find(function(el){var type=(el.type||'').toLowerCase();if(type==='checkbox'||type==='radio'||type==='submit'||type==='button'||type==='hidden')return false;var text=textFor(el);return wanted.some(function(label){return text.indexOf(label)!==-1;});});if(!field)return false;field.focus();field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));field.style.outline='2px solid #1f845a';return true;}" +
+      "function findField(labels){var wanted=labels.map(norm);return candidates().find(function(el){var type=(el.type||'').toLowerCase();if(type==='checkbox'||type==='radio'||type==='submit'||type==='button'||type==='hidden')return false;var text=textFor(el);return wanted.some(function(label){return text.indexOf(label)!==-1;});});}" +
+      "function setField(labels,value){if(!String(value||'').trim())return false;var field=findField(labels);if(!field)return false;field.focus();field.value=value;field.dispatchEvent(new Event('input',{bubbles:true}));field.dispatchEvent(new Event('change',{bubbles:true}));field.style.outline='2px solid #1f845a';return true;}" +
       "function setCapability(capability){var readable=norm(capability);var compact=readable.replace(/ /g,'');var boxes=Array.prototype.slice.call(document.querySelectorAll('input[type=\"checkbox\"]'));var box=boxes.find(function(el){var text=textFor(el);return text.indexOf(readable)!==-1||text.replace(/ /g,'').indexOf(compact)!==-1;});if(!box)return false;if(!box.checked){box.checked=true;box.dispatchEvent(new Event('input',{bubbles:true}));box.dispatchEvent(new Event('change',{bubbles:true}));}box.style.outline='2px solid #1f845a';return true;}" +
-      "var result=[];" +
-      "config.fields.forEach(function(item){var filled=item.type==='capability'?setCapability(item.value):setField(item.aliases,item.value);result.push([item.label,filled]);});" +
-      "var filled=result.filter(function(item){return item[1];}).length;var missing=result.filter(function(item){return !item[1];}).map(function(item){return item[0];});show(missing.length?'warn':'ok','Summarize This filled '+filled+' of '+result.length+' admin value(s).',missing);console.table(result.map(function(item){return{field:item[0],filled:item[1]};}));" +
+      "var phase=findField(['support contact'])?'create':'edit';var result=[];" +
+      "config.fields.forEach(function(item){var active=!item.stage||item.stage===phase||item.stage==='create-and-edit';var manual=active&&item.type==='manual';var filled=!active?null:(manual?false:(item.type==='capability'?setCapability(item.value):setField(item.aliases,item.value)));result.push({field:item.label,filled:filled,manual:manual,active:active,stage:item.stage||'edit'});});" +
+      "var fillable=result.filter(function(item){return item.active&&!item.manual;});var filled=fillable.filter(function(item){return item.filled;}).length;var missing=fillable.filter(function(item){return !item.filled;}).map(function(item){return item.field;});var manual=result.filter(function(item){return item.manual;}).map(function(item){return item.field;});show(missing.length||manual.length?'warn':'ok','Summarize This filled '+filled+' of '+fillable.length+' visible admin value(s).',missing,manual);console.table(result);" +
     "}());";
   }
 
@@ -558,6 +628,26 @@
         message: "Invalid URL: " + text
       };
     }
+  }
+
+  function validateContactEmail(value) {
+    var email = clean(value);
+    var ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    return {
+      ok: ok,
+      message: ok ? "A developer contact email will be provided to Trello." : "Enter a monitored email address before creating the Trello app."
+    };
+  }
+
+  function validateSupportContact(value) {
+    var contact = clean(value);
+    var email = validateContactEmail(contact);
+    var url = validateAbsoluteHttps(contact);
+    var ok = email.ok || url.ok;
+    return {
+      ok: ok,
+      message: ok ? "A support contact will be provided to Trello." : "Enter a monitored email address or public HTTPS support URL before creating the Trello app."
+    };
   }
 
   function clean(value) {
@@ -633,9 +723,12 @@
     createDeploymentPresets: createDeploymentPresets,
     normalizeBaseUrl: normalizeBaseUrl,
     validateHostedBaseUrl: validateHostedBaseUrl,
+    validateContactEmail: validateContactEmail,
+    validateSupportContact: validateSupportContact,
     createDeploymentGuide: createDeploymentGuide,
     buildHostedUrl: buildHostedUrl,
     createAdminConfig: createAdminConfig,
+    createHostedFileChecks: createHostedFileChecks,
     createAdminFieldMap: createAdminFieldMap,
     createAdminReadinessChecklist: createAdminReadinessChecklist,
     createAdminSetupPackage: createAdminSetupPackage,

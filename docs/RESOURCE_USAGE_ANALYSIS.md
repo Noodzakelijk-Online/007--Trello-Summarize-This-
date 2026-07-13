@@ -17,9 +17,9 @@ npm run analyze:resources
 Current results:
 
 - Active popup initial local files: about 401.6 KB (`popup.html`, `attachment-processor.js`, `summarizer-core.js`, `card-intelligence-ledger.js`, `icon.svg`).
-- Windows installer runtime payload: about 565.7 KB.
-- Whole repository source footprint, excluding `.git` and `dist`: about 1.85 MB.
-- Generated Windows installer executable: 340,992 bytes.
+- Windows installer runtime payload: about 577.1 KB.
+- Whole repository source footprint, excluding `.git` and `dist`: about 1.87 MB.
+- Generated Windows installer executable: 347,648 bytes.
 - Large-card AI prompt after caps: 19,446 characters.
 - Large-card prompt comments included: 12.
 - Longest included comment: 700 characters.
@@ -59,7 +59,7 @@ Current results:
 4. Lightweight Windows runtime:
    - The installer includes only runtime static files and launcher scripts, not the full repository, docs, benchmarks, or prototype modules.
    - The Windows launcher uses PowerShell and a tiny local HTTP server, avoiding Electron and background services.
-   - The Trello setup assistant, deployment presets, deployment guide, URL validation, readiness package, admin field map, admin autofill helper, and static policy pages add about 52.9 KB to the runtime payload and are not loaded by the active popup.
+   - The Trello setup assistant, deployment presets, deployment guide, on-demand public-file check, URL and contact validation, readiness package, staged admin field map, admin autofill helper, and static policy pages add about 61.4 KB to the runtime payload and are not loaded by the active popup.
    - Runtime entry pages declare the existing `icon.svg` as their favicon, avoiding an extra failed `/favicon.ico` request in local preview.
    - System dark-mode support is CSS-only and follows `prefers-color-scheme`, adding no script, storage, polling, or network work.
    - Dutch local-fallback output uses static in-bundle copy only, adding no network calls, provider calls, storage writes, polling, or runtime translation dependency.

@@ -5,6 +5,7 @@ const SummarizeThis = require("../summarizer-core");
 const repoRoot = path.resolve(__dirname, "..");
 const runtimeFiles = [
   "manifest.json",
+  "connector.html",
   "connector.js",
   "popup.html",
   "settings-powerup.html",

@@ -10,6 +10,7 @@ $OutputExe = Join-Path $DistDir "SummarizeThisSetup.exe"
 
 $RuntimeFiles = @(
   "manifest.json",
+  "connector.html",
   "connector.js",
   "popup.html",
   "settings-powerup.html",

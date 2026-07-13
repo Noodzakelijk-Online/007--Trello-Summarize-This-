@@ -128,7 +128,7 @@ vercel
 2. Click "Create New Power-Up"
 3. Fill in details:
    - **Name**: Summarize This
-   - **Connector URL**: `https://your-url.com/connector.js`
+   - **Connector URL**: `https://your-url.com/connector.html`
    - **Capabilities**: `card-buttons`, `show-settings`, `authorization-status`
 4. Save
 
@@ -227,7 +227,8 @@ vercel
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| **Connector** | `connector.js` | Trello Power-Up initialization |
+| **Connector page** | `connector.html` | Hidden Trello iframe that loads the client library and connector logic |
+| **Connector logic** | `connector.js` | Trello Power-Up initialization |
 | **Main UI** | `popup.html` | Card intelligence analysis interface |
 | **Legacy popup redirects** | `popup-999-accuracy.html`, `popup-enhanced.html`, `popup-nextgen.html`, `popup-original.html` | Compatibility redirects to the active popup |
 | **Accuracy** | `accuracy-system.js` | Confidence, validation, errors |
@@ -326,7 +327,8 @@ cd 007--Trello-Summarize-This-
 
 ```
 007--Trello-Summarize-This-/
-├── connector.js                    # Power-Up connector
+├── connector.html                  # Hidden iframe connector page
+├── connector.js                    # Power-Up connector logic
 ├── popup.html                      # Main card intelligence UI
 ├── popup-999-accuracy.html         # Legacy redirect to popup.html
 ├── accuracy-system.js              # Accuracy modules

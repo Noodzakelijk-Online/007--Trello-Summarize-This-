@@ -1421,6 +1421,7 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   details: "Evidence-backed Trello card intelligence.",
   author: "Noodzakelijk Online",
   author_email: "support@example.com",
+  support_contact: "https://example.com/support",
   author_url: "https://example.com",
   overview_url: "https://example.com/trello",
   privacy_url: "./privacy.html",
@@ -1428,7 +1429,7 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   icon: { url: "./icon.svg" },
   capabilities: ["card-buttons", "show-settings"]
 }, "https://powerup.example.com/app/");
-assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.js");
+assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.html");
 assert.equal(adminConfig.manifestUrl, "https://powerup.example.com/app/manifest.json");
 assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
 assert.equal(adminConfig.privacyUrl, "https://powerup.example.com/app/privacy.html");
@@ -1436,7 +1437,7 @@ assert.equal(adminConfig.termsUrl, "https://powerup.example.com/app/terms.html")
 assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
 
 const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
-assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.js"));
+assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.html"));
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Privacy policy URL: https://powerup.example.com/app/privacy.html"));
 assert.ok(adminValuesText.includes("Terms of service URL: https://powerup.example.com/app/terms.html"));
@@ -1444,6 +1445,9 @@ assert.ok(adminValuesText.includes("Capabilities: card-buttons, show-settings"))
 
 const adminFieldMap = TrelloAdminConfig.createAdminFieldMap(adminConfig);
 assert.ok(adminFieldMap.some((item) => item.key === "connectorUrl" && item.aliases.includes("iframe connector url")));
+assert.ok(adminFieldMap.some((item) => item.key === "workspace" && item.type === "manual" && item.stage === "create"));
+assert.ok(adminFieldMap.some((item) => item.key === "authorEmail" && item.label === "Email" && item.aliases.includes("email")));
+assert.ok(adminFieldMap.some((item) => item.key === "supportContact" && item.aliases.includes("support contact")));
 assert.ok(adminFieldMap.some((item) => item.key === "privacyUrl" && item.aliases.includes("privacy policy url")));
 assert.ok(adminFieldMap.some((item) => item.key === "termsUrl" && item.aliases.includes("terms of service url")));
 assert.ok(adminFieldMap.some((item) => item.key === "capability:card-buttons" && item.type === "capability"));
@@ -1455,8 +1459,15 @@ assert.ok(adminFieldMapText.includes("Trello Power-Up field map"));
 assert.ok(adminFieldMapText.includes("Field: iframe Connector URL"));
 assert.ok(adminFieldMapText.includes("Field: Privacy policy URL"));
 assert.ok(adminFieldMapText.includes("Field: Terms of service URL"));
+assert.ok(adminFieldMapText.includes("Manual step: Workspace"));
+assert.ok(adminFieldMapText.includes("Stage: create"));
 assert.ok(adminFieldMapText.includes("Capability: card-buttons"));
 assert.doesNotMatch(adminFieldMapText, /sk-[a-z0-9]/i);
+
+const hostedFileChecks = TrelloAdminConfig.createHostedFileChecks(adminConfig);
+assert.deepEqual(hostedFileChecks.map((item) => item.key), ["connector", "connector-script", "manifest", "privacy", "terms", "icon"]);
+assert.equal(hostedFileChecks[0].url, "https://powerup.example.com/app/connector.html");
+assert.equal(hostedFileChecks[1].url, "https://powerup.example.com/app/connector.js");
 
 const adminReadiness = TrelloAdminConfig.createAdminReadinessChecklist(
   adminConfig,
@@ -1466,6 +1477,9 @@ assert.ok(adminReadiness.every((item) => typeof item.key === "string" && typeof 
 assert.ok(adminReadiness.some((item) => item.key === "hosted-base-url" && item.ok));
 assert.ok(adminReadiness.some((item) => item.key === "privacy-url" && item.ok));
 assert.ok(adminReadiness.some((item) => item.key === "terms-url" && item.ok));
+assert.ok(adminReadiness.some((item) => item.key === "developer-email" && item.ok));
+assert.ok(adminReadiness.some((item) => item.key === "support-contact" && item.ok));
+assert.ok(adminReadiness.some((item) => item.key === "workspace-selection" && !item.ok));
 assert.ok(adminReadiness.some((item) => item.key === "manual-save" && item.ok && item.detail.includes("never saves")));
 
 const adminRunbookText = TrelloAdminConfig.makeAdminRunbookText(
@@ -1495,6 +1509,7 @@ assert.equal(adminSetupPackage.validation.isReadyForTrello, true);
 assert.equal(adminSetupPackage.adminValues.connectorUrl, adminConfig.connectorUrl);
 assert.equal(adminSetupPackage.adminValues.privacyUrl, adminConfig.privacyUrl);
 assert.equal(adminSetupPackage.adminValues.termsUrl, adminConfig.termsUrl);
+assert.equal(adminSetupPackage.adminValues.supportContact, "https://example.com/support");
 assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "connector-url" && item.ok));
 assert.ok(adminSetupPackage.readinessChecklist.some((item) => item.key === "privacy-url" && item.ok));
 assert.ok(adminSetupPackage.adminFieldMap.some((item) => item.key === "connectorUrl"));
@@ -1507,7 +1522,7 @@ assert.equal(JSON.stringify(adminSetupPackage).includes("support@example.com"), 
 assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
 
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
-assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.html"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/privacy.html"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/terms.html"));
@@ -1516,6 +1531,9 @@ assert.ok(adminAutofillScript.includes("config.fields.forEach"));
 assert.ok(adminAutofillScript.includes("Missing:"));
 assert.ok(adminAutofillScript.includes("Review every field in Trello"));
 assert.ok(adminAutofillScript.includes("privacy policy url"));
+assert.ok(adminAutofillScript.includes("support contact"));
+assert.ok(adminAutofillScript.includes("Manual:"));
+assert.ok(adminAutofillScript.includes("visible admin value(s)"));
 assert.doesNotMatch(adminAutofillScript, /form\.submit|submit\s*\(/i);
 assert.doesNotMatch(adminAutofillScript, /save\s*\(/i);
 assert.doesNotThrow(() => new Function(adminAutofillScript));
@@ -1552,6 +1570,70 @@ new Function("document", "location", "Event", "console", adminAutofillScript)(
 );
 assert.ok(autofillBannerText.includes("only runs on https://trello.com/power-ups/admin"));
 
+function createFakeAdminInput(id, label) {
+  return {
+    id,
+    type: "text",
+    value: "",
+    style: {},
+    getAttribute(name) {
+      return name === "id" ? id : "";
+    },
+    closest() {
+      return null;
+    },
+    focus() {},
+    dispatchEvent() {}
+  };
+}
+
+const liveCreationInputs = [
+  createFakeAdminInput("app-name", "App name"),
+  createFakeAdminInput("contact-email", "Email"),
+  createFakeAdminInput("support-contact", "Support contact"),
+  createFakeAdminInput("author", "Author"),
+  createFakeAdminInput("connector-url", "Iframe connector URL")
+];
+const liveCreationLabels = {
+  "app-name": "App name",
+  "contact-email": "Email",
+  "support-contact": "Support contact",
+  author: "Author",
+  "connector-url": "Iframe connector URL"
+};
+const liveCreationDocument = {
+  body: {
+    appendChild(element) {
+      this.lastChild = element;
+    }
+  },
+  getElementById() {
+    return null;
+  },
+  createElement() {
+    return { style: {}, textContent: "" };
+  },
+  querySelectorAll(selector) {
+    if (selector === "input,textarea") return liveCreationInputs;
+    if (selector === 'input[type="checkbox"]') return [];
+    const id = Object.keys(liveCreationLabels).find((key) => selector.includes(key));
+    return id ? [{ textContent: liveCreationLabels[id] }] : [];
+  }
+};
+new Function("document", "location", "Event", "console", adminAutofillScript)(
+  liveCreationDocument,
+  { hostname: "trello.com", pathname: "/power-ups/admin/new" },
+  function Event() {},
+  { table() {} }
+);
+assert.equal(liveCreationInputs[0].value, "Summarize This");
+assert.equal(liveCreationInputs[1].value, "support@example.com");
+assert.equal(liveCreationInputs[2].value, "https://example.com/support");
+assert.equal(liveCreationInputs[3].value, "Noodzakelijk Online");
+assert.equal(liveCreationInputs[4].value, "https://powerup.example.com/app/connector.html");
+assert.ok(liveCreationDocument.body.lastChild.textContent.includes("filled 5 of 5 visible admin value(s)"));
+assert.ok(liveCreationDocument.body.lastChild.textContent.includes("Manual: Workspace"));
+
 const adminBookmarklet = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
 assert.ok(adminBookmarklet.startsWith("javascript:"));
 assert.ok(adminBookmarklet.length < 9000);
@@ -1575,6 +1657,7 @@ const githubDeploymentGuide = TrelloAdminConfig.createDeploymentGuide(
 );
 assert.equal(githubDeploymentGuide.label, "GitHub Pages");
 assert.ok(githubDeploymentGuide.actionUrl.includes("/settings/pages"));
+assert.ok(githubDeploymentGuide.requiredFiles.includes("connector.html"));
 assert.ok(githubDeploymentGuide.requiredFiles.includes("connector.js"));
 assert.ok(githubDeploymentGuide.requiredFiles.includes("privacy.html"));
 assert.ok(githubDeploymentGuide.requiredFiles.includes("terms.html"));
@@ -1612,6 +1695,9 @@ const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/Summa
 assert.equal(fileValidation.isReadyForTrello, false);
 
 async function runAsyncTests() {
+  const connectorPageText = fs.readFileSync(path.join(__dirname, "connector.html"), "utf8");
+  assert.match(connectorPageText, /https:\/\/p\.trellocdn\.com\/power-up\.min\.js/);
+  assert.match(connectorPageText, /src="\.\/connector\.js"/);
   const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
   let registeredPowerUp = null;
   new Function("TrelloPowerUp", connectorText)({

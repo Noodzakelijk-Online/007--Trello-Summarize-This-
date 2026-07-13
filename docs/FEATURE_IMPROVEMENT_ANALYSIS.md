@@ -43,9 +43,9 @@ Implemented:
 - It includes hosted privacy and terms policy URLs so common Trello admin policy fields can be filled from the same setup package.
 - It provides a copy-all setup block for manual Trello Power-Up admin entry.
 - It shows host-specific deployment steps and verification checks for GitHub Pages, Netlify, Vercel, or custom HTTPS hosting.
-- It provides a safe admin autofill bookmarklet that runs only on Trello's Power-Up admin page, fills matching Trello admin fields, policy URLs, and capabilities, reports filled/missing fields, and does not save or submit the page.
-- It now renders a readiness checklist for HTTPS hosting, connector/manifest/icon URLs, required capabilities, and manual-save safety.
-- It now renders and exports an explicit Trello admin field map that lists each value, matched admin labels, and capability checkbox target used by the autofill helper.
+- It provides a safe admin autofill bookmarklet that runs only on Trello's Power-Up admin page. It matches the current two-stage workflow: the New App form has a manually selected Workspace plus fillable App name, Email, Support contact, Author, and iframe Connector URL; the app edit page can then receive matching metadata, policy URLs, and capability checkboxes.
+- It now renders a readiness checklist for HTTPS hosting, connector/manifest/icon URLs, monitored developer and support contacts, required capabilities, manual Workspace selection, and manual-save safety.
+- It now renders and exports an explicit Trello admin field map that lists each value, stage, matched admin labels, manual steps, and capability checkbox target used by the autofill helper.
 - It can copy a deployment guide, Trello admin runbook, field map, or JSON setup package containing exact admin values, validation state, deployment steps, manual steps, safety notes, admin field map, and the autofill helper.
 - The autofill helper is data-driven from the same field map and no longer treats a privacy-policy field as an overview URL fallback.
 

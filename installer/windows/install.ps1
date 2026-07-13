@@ -6,6 +6,7 @@ $PowerShellPath = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\pow
 
 $RuntimeFiles = @(
   "manifest.json",
+  "connector.html",
   "connector.js",
   "popup.html",
   "settings-powerup.html",

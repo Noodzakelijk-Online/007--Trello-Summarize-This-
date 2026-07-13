@@ -2,7 +2,8 @@
   "name": "Summarize This",
   "details": "AI-assisted Trello card summarization with a local fallback summary when no AI provider is configured.",
   "author": "Summarize This Team",
-  "author_email": "support@summarizethis.com",
+  "author_email": "",
+  "support_contact": "",
   "author_url": "https://summarizethis.com",
   "overview_url": "https://summarizethis.com/trello",
   "privacy_url": "./privacy.html",
@@ -27,7 +28,7 @@
   ],
   "connectors": {
     "iframe": {
-      "url": "./connector.js"
+      "url": "./connector.html"
     }
   }
 }
