@@ -21,7 +21,14 @@
   }
 
   function canAnalyze(settings) {
-    return settings && (settings.analysisMode === "local" || hasAnyKey(settings) || hasUsableProxy(settings));
+    // Auto mode always has the built-in local summarizer as a safe fallback.
+    // Only AI-only mode needs an external provider or proxy before it is ready.
+    var mode = settings && settings.analysisMode ? settings.analysisMode : "auto";
+    var proxy = settings && settings.proxy ? settings.proxy : {};
+    if (proxy.enabled && !hasUsableProxy(settings)) {
+      return false;
+    }
+    return mode !== "ai-only" || hasAnyKey(settings) || hasUsableProxy(settings);
   }
 
   function loadSettings(t) {

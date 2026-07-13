@@ -1738,6 +1738,16 @@ async function runAsyncTests() {
     badgeColor: "green",
     authorized: true
   });
+  assert.deepEqual(await connectorStatusFor({}), {
+    badgeText: "Summary ready",
+    badgeColor: "green",
+    authorized: true
+  });
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "ai-only" }), {
+    badgeText: "Setup needed",
+    badgeColor: "yellow",
+    authorized: false
+  });
   assert.deepEqual(await connectorStatusFor({ apiKeys: { openai: "sk-test-value" } }), {
     badgeText: "Summary ready",
     badgeColor: "green",
