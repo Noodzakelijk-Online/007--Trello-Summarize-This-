@@ -1697,7 +1697,7 @@ assert.equal(fileValidation.isReadyForTrello, false);
 async function runAsyncTests() {
   const connectorPageText = fs.readFileSync(path.join(__dirname, "connector.html"), "utf8");
   assert.match(connectorPageText, /https:\/\/p\.trellocdn\.com\/power-up\.min\.js/);
-  assert.match(connectorPageText, /src="\.\/connector\.js"/);
+  assert.match(connectorPageText, /src="\.\/connector\.js\?v=412e6e9"/);
   const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
   let registeredPowerUp = null;
   new Function("TrelloPowerUp", connectorText)({
