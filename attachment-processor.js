@@ -545,6 +545,7 @@ class AttachmentProcessor {
                     ...fetchOptions,
                     credentials: 'omit',
                     referrerPolicy: 'no-referrer',
+                    redirect: 'error',
                     signal: controller.signal
                 });
             } finally {
@@ -555,7 +556,8 @@ class AttachmentProcessor {
         return fetch(parsed.href, {
             ...fetchOptions,
             credentials: 'omit',
-            referrerPolicy: 'no-referrer'
+            referrerPolicy: 'no-referrer',
+            redirect: 'error'
         });
     }
 

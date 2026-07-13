@@ -48,6 +48,9 @@ const launcherScriptText = fs.readFileSync(path.join(__dirname, "installer/windo
 assert.match(launcherScriptText, /\[int\]\$Port\s*=\s*17117/, "Windows launcher supports an explicit QA port while preserving the installed default");
 assert.match(launcherScriptText, /RepoRootCandidate/, "Windows launcher can resolve the repository root when run from installer/windows");
 assert.match(launcherScriptText, /Join-Path \$RepoRootCandidate "popup\.html"/, "Windows launcher serves repo static files during local development");
+const installerBuildText = fs.readFileSync(path.join(__dirname, "installer/windows/build-installer.ps1"), "utf8");
+assert.match(installerBuildText, /Get-FileHash -LiteralPath \$PayloadZip -Algorithm SHA256/, "Windows installer embeds a payload integrity hash");
+assert.match(installerBuildText, /Installer payload integrity check failed/, "Windows installer verifies its extracted payload before running it");
 const updateManifest = JSON.parse(fs.readFileSync(path.join(__dirname, "update.json"), "utf8"));
 assert.equal(updateManifest.schemaVersion, "summarize-this-update-manifest-v1");
 assert.equal(updateManifest.version, SummarizeThis.APP_VERSION);
@@ -178,6 +181,9 @@ assert.match(popupText, /id="checkUpdatesButton"/);
 assert.match(popupText, /function checkForUpdates/);
 assert.match(popupText, /credentials:\s*"omit"/);
 assert.match(popupText, /referrerPolicy:\s*"no-referrer"/);
+assert.match(popupText, /ATTACHMENT_PROCESSOR_URL = "\.\/attachment-processor\.js\?v=20260714\.2"/);
+assert.doesNotMatch(popupText, /<script src="\.\/attachment-processor\.js/);
+assert.match(popupText, /function loadAttachmentProcessor\(/);
 assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/);
 assert.match(popupText, /id="batchExecutionControls"/);
 assert.match(popupText, /id="batchAiHandoffApproval"/);
@@ -333,7 +339,18 @@ const unsafeProxySettings = SummarizeThis.normalizeProxySettings({
 });
 assert.equal(unsafeProxySettings.enabled, false);
 assert.equal(unsafeProxySettings.valid, false);
-assert.match(unsafeProxySettings.error, /valid HTTPS proxy endpoint/);
+assert.match(unsafeProxySettings.error, /public HTTPS proxy endpoint/);
+
+[
+  "https://localhost/ai",
+  "https://192.168.1.10/ai",
+  "https://[fc00::1]/ai",
+  "https://2130706433/ai"
+].forEach((endpoint) => {
+  const privateProxySettings = SummarizeThis.normalizeProxySettings({ enabled: true, endpoint });
+  assert.equal(privateProxySettings.enabled, false, endpoint + " is not a valid proxy endpoint");
+  assert.equal(privateProxySettings.valid, false, endpoint + " is not valid");
+});
 
 const disabledProxySettings = SummarizeThis.normalizeProxySettings({
   enabled: false,
@@ -1104,6 +1121,12 @@ const changedRun = CardIntelligenceLedger.createAnalysisRun(Object.assign({}, op
 });
 const changedHistory = CardIntelligenceLedger.mergeLedgerHistory(history, changedRun, 25);
 assert.equal(changedHistory.length, 2);
+const prunedHistory = CardIntelligenceLedger.pruneLedgerHistory({
+  oldest: [{ id: "oldest-run", createdAt: "2026-06-01T00:00:00.000Z" }],
+  recent: [{ id: "recent-run", createdAt: "2026-06-30T00:00:00.000Z" }],
+  current: [{ id: "current-run", createdAt: "2026-06-02T00:00:00.000Z" }]
+}, { keepCardId: "current", maxCards: 2, maxRuns: 2 });
+assert.deepEqual(Object.keys(prunedHistory).sort(), ["current", "recent"]);
 const runChange = CardIntelligenceLedger.summarizeRunChange(changedHistory[0], changedHistory[1]);
 assert.ok(runChange.changes.some(change => change.includes("Card source data changed")));
 assert.ok(runChange.changes.some(change => change.includes("Comment count changed")));
@@ -1691,13 +1714,17 @@ const privateIpValidationV6 = TrelloAdminConfig.validateHostedBaseUrl("https://[
 assert.equal(privateIpValidationV6.isReadyForTrello, false);
 assert.equal(privateIpValidationV6.isLocal, true);
 
+const rootPageText = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+assert.match(rootPageText, /window\.location\.replace\("\.\/popup\.html"\)/);
+assert.doesNotMatch(rootPageText, /api\.openai\.com|localStorage|apiKey/i);
+
 const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/SummarizeThis/connector.js");
 assert.equal(fileValidation.isReadyForTrello, false);
 
 async function runAsyncTests() {
   const connectorPageText = fs.readFileSync(path.join(__dirname, "connector.html"), "utf8");
   assert.match(connectorPageText, /https:\/\/p\.trellocdn\.com\/power-up\.min\.js/);
-  assert.match(connectorPageText, /src="\.\/connector\.js\?v=412e6e9"/);
+  assert.match(connectorPageText, /src="\.\/connector\.js\?v=20260714\.2"/);
   const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
   let registeredPowerUp = null;
   new Function("TrelloPowerUp", connectorText)({
@@ -1892,6 +1919,18 @@ async function runAsyncTests() {
   assert.equal(ProxyWorker.resolveAllowedOrigin("https://evil.example", {
     ALLOWED_ORIGINS: "https://powerup.example"
   }), "");
+  assert.equal(ProxyWorker.resolveAllowedOrigin("https://powerup.example", {
+    ALLOWED_ORIGINS: "*"
+  }), "");
+  assert.equal(ProxyWorker.hasConfiguredOrigins({ ALLOWED_ORIGINS: "*" }), false);
+  assert.equal(ProxyWorker.hasConfiguredOrigins({ ALLOWED_ORIGINS: "https://powerup.example" }), true);
+  assert.equal(ProxyWorker.selectModel("openai", "gpt-4o", {
+    OPENAI_MODEL: "gpt-4o-mini"
+  }), "gpt-4o-mini");
+  assert.equal(ProxyWorker.selectModel("openai", "gpt-4o", {
+    OPENAI_MODEL: "gpt-4o-mini",
+    OPENAI_ALLOWED_MODELS: "gpt-4o-mini,gpt-4o"
+  }), "gpt-4o");
   assert.throws(() => ProxyWorker.normalizeProxyRequest({
     schemaVersion: "summarize-this-ai-proxy-request-v1",
     provider: "openai",
@@ -1955,6 +1994,40 @@ async function runAsyncTests() {
   });
   assert.equal(blockedProxyResponse.status, 403);
 
+  const unconfiguredProxyResponse = await ProxyWorker.handleRequest(new Request("https://proxy.example.test/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Origin": "https://powerup.example"
+    },
+    body: JSON.stringify({
+      schemaVersion: "summarize-this-ai-proxy-request-v1",
+      provider: "openai",
+      prompt: "Return JSON."
+    })
+  }), {
+    OPENAI_API_KEY: "sk-proxy-openai"
+  }, {
+    waitUntil() {}
+  });
+  assert.equal(unconfiguredProxyResponse.status, 503);
+
+  const originlessProxyResponse = await ProxyWorker.handleRequest(new Request("https://proxy.example.test/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      schemaVersion: "summarize-this-ai-proxy-request-v1",
+      provider: "openai",
+      prompt: "Return JSON."
+    })
+  }), {
+    ALLOWED_ORIGINS: "https://powerup.example",
+    OPENAI_API_KEY: "sk-proxy-openai"
+  }, {
+    waitUntil() {}
+  });
+  assert.equal(originlessProxyResponse.status, 403);
+
   const originalProxyFetch = global.fetch;
   let providerCall = null;
   global.fetch = async function (url, options) {
@@ -1998,7 +2071,7 @@ async function runAsyncTests() {
       body: JSON.stringify({
         schemaVersion: "summarize-this-ai-proxy-request-v1",
         provider: "openai",
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         strategy: "cost-effective",
         outputMode: "operational-ledger",
         outputLanguage: "en",
@@ -2022,6 +2095,7 @@ async function runAsyncTests() {
     assert.equal(proxyBody.metadata.tokens, 150);
     assert.equal(providerCall.url, "https://api.openai.com/v1/chat/completions");
     assert.equal(JSON.parse(providerCall.options.body).max_tokens, 1200);
+    assert.equal(JSON.parse(providerCall.options.body).model, "gpt-4o-mini");
     assert.match(providerCall.options.headers.Authorization, /sk-proxy-secret-openai/);
     assert.doesNotMatch(JSON.stringify(proxyBody), /sk-proxy-secret-openai/);
   } finally {
@@ -2164,6 +2238,7 @@ async function runAsyncTests() {
     assert.equal(url, "https://attachments.example.com/notes.txt");
     assert.equal(options.credentials, "omit");
     assert.equal(options.referrerPolicy, "no-referrer");
+    assert.equal(options.redirect, "error");
     return {
       ok: true,
       blob: async function () {
@@ -2226,6 +2301,7 @@ async function runAsyncTests() {
     legacyFetchCount += 1;
     assert.equal(url, "https://attachments.example.com/notes.txt");
     assert.equal(options.credentials, "omit");
+    assert.equal(options.redirect, "error");
     return {
       ok: true,
       blob: async function () {

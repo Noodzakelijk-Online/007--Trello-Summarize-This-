@@ -430,7 +430,7 @@
       <div class="group">
         <label for="proxyEndpoint">Proxy endpoint</label>
         <input id="proxyEndpoint" type="url" autocomplete="off" placeholder="https://your-domain.example/summarize-this/ai">
-        <p class="warning">Use HTTPS for Trello. Local development may use localhost or 127.0.0.1. Query strings and fragments are stripped before saving.</p>
+        <p class="warning">Use a public HTTPS endpoint. Local development may use http://localhost or http://127.0.0.1. Private network endpoints, query strings, and fragments are not saved.</p>
       </div>
     </section>
 
@@ -515,7 +515,7 @@
     </div>
   </div>
 
-  <script src="./summarizer-core.js"></script>
+  <script src="./summarizer-core.js?v=20260714.2"></script>
   <script>
     /* global TrelloPowerUp, SummarizeThis */
 

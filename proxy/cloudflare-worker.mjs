@@ -14,13 +14,17 @@ export async function handleRequest(request, env, ctx) {
   const origin = request.headers.get("Origin") || "";
   const allowedOrigin = resolveAllowedOrigin(origin, env);
 
+  if (!hasConfiguredOrigins(env)) {
+    return jsonResponse({ error: "Set ALLOWED_ORIGINS before enabling the AI proxy." }, 503, null);
+  }
+
   if (request.method === "OPTIONS") {
-    if (origin && !allowedOrigin) {
+    if (!origin || !allowedOrigin) {
       return jsonResponse({ error: "Origin is not allowed." }, 403, null);
     }
     return new Response(null, {
       status: 204,
-      headers: corsHeaders(allowedOrigin || origin || "*")
+      headers: corsHeaders(allowedOrigin)
     });
   }
 
@@ -28,7 +32,11 @@ export async function handleRequest(request, env, ctx) {
     return jsonResponse({ error: "Use POST." }, 405, allowedOrigin);
   }
 
-  if (origin && !allowedOrigin) {
+  if (!origin) {
+    return jsonResponse({ error: "A browser origin is required." }, 403, null);
+  }
+
+  if (!allowedOrigin) {
     return jsonResponse({ error: "Origin is not allowed." }, 403, null);
   }
 
@@ -114,8 +122,36 @@ export function resolveAllowedOrigin(origin, env) {
     .map((value) => value.trim())
     .filter(Boolean);
   if (!allowed.length) return "";
-  if (allowed.includes("*")) return origin;
+  if (allowed.includes("*")) return "";
   return allowed.includes(origin) ? origin : "";
+}
+
+export function hasConfiguredOrigins(env) {
+  return String(env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .some((value) => value && value !== "*");
+}
+
+export function selectModel(provider, requestedModel, env) {
+  const defaults = {
+    openai: { envKey: "OPENAI_MODEL", fallback: "gpt-4o-mini", allowedKey: "OPENAI_ALLOWED_MODELS" },
+    google: { envKey: "GOOGLE_MODEL", fallback: "gemini-1.5-flash", allowedKey: "GOOGLE_ALLOWED_MODELS" },
+    anthropic: { envKey: "ANTHROPIC_MODEL", fallback: "claude-3-5-haiku-20241022", allowedKey: "ANTHROPIC_ALLOWED_MODELS" }
+  };
+  const config = defaults[provider];
+  if (!config) throw httpError(400, "Unsupported provider.");
+
+  const fallback = cleanText(env[config.envKey], 120) || config.fallback;
+  const requested = cleanText(requestedModel, 120);
+  const allowed = String(env[config.allowedKey] || "")
+    .split(",")
+    .map((value) => cleanText(value, 120))
+    .filter(Boolean);
+
+  if (!requested) return fallback;
+  if (!allowed.length) return fallback;
+  return allowed.includes(requested) ? requested : fallback;
 }
 
 export function checkRateLimit(request, env, allowedOrigin, now = Date.now()) {
@@ -164,7 +200,7 @@ async function callProvider(provider, payload, env) {
 }
 
 async function callOpenAI(payload, env) {
-  const model = payload.model || env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = selectModel("openai", payload.model, env);
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -195,7 +231,7 @@ async function callOpenAI(payload, env) {
 }
 
 async function callGoogle(payload, env) {
-  const model = payload.model || env.GOOGLE_MODEL || "gemini-1.5-flash";
+  const model = selectModel("google", payload.model, env);
   const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
     method: "POST",
     headers: {
@@ -224,7 +260,7 @@ async function callGoogle(payload, env) {
 }
 
 async function callAnthropic(payload, env) {
-  const model = payload.model || env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022";
+  const model = selectModel("anthropic", payload.model, env);
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -364,10 +400,8 @@ function parseRateLimit(value) {
 }
 
 function buildRateLimitKey(request, allowedOrigin) {
-  const ip = request.headers.get("CF-Connecting-IP")
-    || request.headers.get("X-Forwarded-For")
-    || "unknown-ip";
-  return [allowedOrigin || "no-origin", String(ip).split(",")[0].trim()].join("|");
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown-ip";
+  return [allowedOrigin || "no-origin", String(ip).trim()].join("|");
 }
 
 function pruneRateLimitBuckets(now) {
@@ -394,6 +428,8 @@ function sanitizeErrorMessage(value) {
     .replace(/sk-[A-Za-z0-9_-]{8,}/g, "[redacted key]")
     .replace(/AIza[0-9A-Za-z_-]{8,}/g, "[redacted key]")
     .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, "Bearer [redacted]")
+    .replace(/https?:\/\/[^\s)]+/gi, "[redacted url]")
+    .replace(/\b(api[_-]?key|token|secret)\s*[=:]\s*[^\s,;]+/gi, "$1=[redacted]")
     .slice(0, 240);
 }
 

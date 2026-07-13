@@ -2065,11 +2065,12 @@
 
     try {
       var parsed = new URL(raw);
-      var host = String(parsed.hostname || "").toLowerCase();
-      var isLoopback = host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+      var host = String(parsed.hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+      var isLoopback = host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "0:0:0:0:0:0:0:1";
       if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
         return "";
       }
+      if (parsed.protocol === "https:" && isPrivateOrLocalHostname(host)) return "";
       if (parsed.username || parsed.password) return "";
       parsed.search = "";
       parsed.hash = "";
@@ -2079,13 +2080,47 @@
     }
   }
 
+  function isPrivateOrLocalHostname(hostname) {
+    var value = String(hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+    if (
+      value === "localhost" ||
+      value.endsWith(".localhost") ||
+      value.endsWith(".local") ||
+      value === "::1" ||
+      value === "0:0:0:0:0:0:0:1" ||
+      value.indexOf("fc") === 0 ||
+      value.indexOf("fd") === 0 ||
+      value.indexOf("fe80:") === 0
+    ) {
+      return true;
+    }
+
+    var parts = value.split(".").map(function (part) { return Number(part); });
+    if (parts.length !== 4 || parts.some(function (part) {
+      return !Number.isInteger(part) || part < 0 || part > 255;
+    })) {
+      return false;
+    }
+
+    var first = parts[0];
+    var second = parts[1];
+    return first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      first >= 224;
+  }
+
   function normalizeProxySettings(input) {
     var source = input || {};
     var requested = source.enabled === true || source.useProxy === true || source.aiProxyEnabled === true;
     var endpoint = normalizeProxyEndpoint(source.endpoint || source.url || source.proxyEndpoint || source.aiProxyEndpoint);
     var error = "";
     if (requested && !endpoint) {
-      error = "Enter a valid HTTPS proxy endpoint. Local development may use http://localhost or http://127.0.0.1.";
+      error = "Enter a public HTTPS proxy endpoint. Local development may use http://localhost or http://127.0.0.1.";
     }
     return {
       enabled: requested && Boolean(endpoint),

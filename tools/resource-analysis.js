@@ -53,7 +53,8 @@ function walk(dir, files = []) {
 const runtimeTotal = runtimeFiles.reduce((sum, file) => sum + fileSize(file), 0);
 const sourceFiles = walk(repoRoot);
 const sourceTotal = sourceFiles.reduce((sum, file) => sum + fs.statSync(file).size, 0);
-const activeLoad = ["popup.html", "attachment-processor.js", "summarizer-core.js", "card-intelligence-ledger.js", "icon.svg"].reduce((sum, file) => sum + fileSize(file), 0);
+const activeLoad = ["popup.html", "summarizer-core.js", "card-intelligence-ledger.js", "icon.svg"].reduce((sum, file) => sum + fileSize(file), 0);
+const deferredAttachmentProcessorLoad = fileSize("attachment-processor.js");
 
 const largeCard = Object.assign({}, SummarizeThis.sampleCardData(), {
   desc: "Long description ".repeat(400),
@@ -67,6 +68,7 @@ const payload = JSON.parse(prompt.slice(prompt.lastIndexOf("\n{") + 1));
 
 const report = {
   activePopupInitialLoad: formatBytes(activeLoad),
+  deferredAttachmentProcessorLoad: formatBytes(deferredAttachmentProcessorLoad),
   installerRuntimePayload: formatBytes(runtimeTotal),
   repositorySourceFootprint: formatBytes(sourceTotal),
   promptCharactersForLargeCard: prompt.length,

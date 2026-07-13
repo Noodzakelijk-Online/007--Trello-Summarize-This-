@@ -6,9 +6,8 @@
   <title>Summarize This</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
-  <script src="./attachment-processor.js?v=1.3.0"></script>
-  <script src="./summarizer-core.js?v=1.3.0"></script>
-  <script src="./card-intelligence-ledger.js?v=1.3.0"></script>
+  <script src="./summarizer-core.js?v=20260714.2"></script>
+  <script src="./card-intelligence-ledger.js?v=20260714.2"></script>
   <style>
     :root {
       color-scheme: light dark;
@@ -1088,6 +1087,8 @@
       "use strict";
 
       var t = null;
+      var ATTACHMENT_PROCESSOR_URL = "./attachment-processor.js?v=20260714.2";
+      var attachmentProcessorLoadPromise = null;
       var lastCardData = null;
       var lastAnalysis = null;
       var lastLedgerRun = null;
@@ -1107,6 +1108,33 @@
       );
       var pageParams = new URLSearchParams(window.location.search || "");
       var installedMode = pageParams.get("installed") === "1" || pageParams.get("localPreview") === "1";
+
+      function loadAttachmentProcessor() {
+        if (window.AttachmentProcessor) return Promise.resolve(window.AttachmentProcessor);
+        if (attachmentProcessorLoadPromise) return attachmentProcessorLoadPromise;
+
+        attachmentProcessorLoadPromise = new Promise(function (resolve, reject) {
+          var script = document.createElement("script");
+          script.src = ATTACHMENT_PROCESSOR_URL;
+          script.async = true;
+          script.onload = function () {
+            if (window.AttachmentProcessor) {
+              resolve(window.AttachmentProcessor);
+            } else {
+              reject(new Error("Attachment processor did not load."));
+            }
+          };
+          script.onerror = function () {
+            reject(new Error("Attachment processor could not be loaded."));
+          };
+          document.head.appendChild(script);
+        }).catch(function (error) {
+          attachmentProcessorLoadPromise = null;
+          throw error;
+        });
+
+        return attachmentProcessorLoadPromise;
+      }
 
       var elements = {
         cardTitle: document.getElementById("cardTitle"),
@@ -1665,16 +1693,9 @@
           };
         }
 
-        if (!window.AttachmentProcessor) {
-          return {
-            ok: false,
-            value: attachments,
-            error: "Attachment processor is not available."
-          };
-        }
-
         try {
-          var processor = new window.AttachmentProcessor();
+          var AttachmentProcessor = await loadAttachmentProcessor();
+          var processor = new AttachmentProcessor();
           var result = await processor.processSafeTextAttachments(attachments, {
             maxAttachments: 5,
             maxBytes: 200000,
@@ -3706,6 +3727,11 @@
         var allHistory = await readPrivateObject(key, {});
         var cardHistory = Array.isArray(allHistory[cardId]) ? allHistory[cardId] : [];
         allHistory[cardId] = CardIntelligenceLedger.mergeLedgerHistory(cardHistory, ledgerRun, 25);
+        allHistory = CardIntelligenceLedger.pruneLedgerHistory(allHistory, {
+          keepCardId: cardId,
+          maxCards: 40,
+          maxRuns: 120
+        });
         await writePrivateObject(key, allHistory);
 
         await saveLegacyPrivateHistory(cardData, ledgerRun);
