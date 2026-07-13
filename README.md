@@ -129,7 +129,7 @@ vercel
 3. Fill in details:
    - **Name**: Summarize This
    - **Connector URL**: `https://your-url.com/connector.html`
-   - **Capabilities**: `card-buttons`, `show-settings`, `authorization-status`
+   - **Capabilities**: `card-buttons`, `card-detail-badges`, `show-settings`, `authorization-status`, `show-authorization`
 4. Save
 
 ### 3. Enable on Board (1 minute)

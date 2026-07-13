@@ -55,12 +55,13 @@ You need to host these files on an HTTPS server. Choose one of these options:
 3. Fill in the details:
    - **Name**: Summarize This
    - **Workspace**: Choose your workspace
-   - **Iframe Connector URL**: `https://your-site.com/connector.js`
+   - **Iframe Connector URL**: `https://your-site.com/connector.html`
    - **Author Name**: Your name
    - **Support Email**: Your email
 
 4. Under "Capabilities", enable:
    - ✅ card-buttons
+   - ✅ card-detail-badges
    - ✅ show-settings
    - ✅ authorization-status
    - ✅ show-authorization
@@ -159,14 +160,13 @@ You need to host these files on an HTTPS server. Choose one of these options:
 
 ### Button Not Appearing
 - Verify Power-Up is enabled on the board
-- Check that `connector.js` URL is correct
+- Check that the `connector.html` URL is correct
 - Ensure files are hosted on HTTPS
 - Clear browser cache and reload
 
 ### Popup Won't Open
 - Check browser console for errors
 - Verify `popup.html` is accessible
-- Ensure CORS is configured correctly
 - Try disabling browser extensions
 
 ## 📊 What Gets Analyzed

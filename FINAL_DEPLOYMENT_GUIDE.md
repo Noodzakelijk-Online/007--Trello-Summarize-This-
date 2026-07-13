@@ -76,11 +76,12 @@ Your Trello Power-Up is configured to use evidence-backed confidence scoring, va
 - **Workspace**: Select your Trello workspace
 
 **Connector Settings**:
-- **Iframe Connector URL**: `https://your-url.com/connector.js`
+- **Iframe Connector URL**: `https://your-url.com/connector.html`
   (Replace with your actual URL from Step 1)
 
 **Capabilities** (Check these boxes):
 - ✅ `card-buttons` - Adds button to cards
+- ✅ `card-detail-badges` - Shows setup and summary status on card details
 - ✅ `show-settings` - Settings interface
 - ✅ `authorization-status` - Local, proxy, or API-key readiness
 - ✅ `show-authorization` - AI access configuration
