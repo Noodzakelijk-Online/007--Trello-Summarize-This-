@@ -1,6 +1,6 @@
 {
   "name": "summarize-this-trello-powerup",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Static Trello Power-Up for AI-assisted card summarization.",
   "scripts": {

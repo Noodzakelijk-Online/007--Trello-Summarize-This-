@@ -54,7 +54,11 @@ assert.match(installerBuildText, /Installer payload integrity check failed/, "Wi
 const updateManifest = JSON.parse(fs.readFileSync(path.join(__dirname, "update.json"), "utf8"));
 assert.equal(updateManifest.schemaVersion, "summarize-this-update-manifest-v1");
 assert.equal(updateManifest.version, SummarizeThis.APP_VERSION);
+assert.equal(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version, SummarizeThis.APP_VERSION);
 assert.match(updateManifest.manifestUrl, /^https:\/\/raw\.githubusercontent\.com\/Noodzakelijk-Online\/007--Trello-Summarize-This-\//);
+assert.match(updateManifest.downloadUrl, /^https:\/\/raw\.githubusercontent\.com\/Noodzakelijk-Online\/007--Trello-Summarize-This-\/main\/dist\/windows-installer\/SummarizeThisSetup\.exe$/);
+const installerInstallText = fs.readFileSync(path.join(__dirname, "installer/windows/install.ps1"), "utf8");
+assert.match(installerInstallText, /DisplayVersion -Value "1\.0\.1"/, "Windows Apps & features version matches the shipped app version");
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -178,7 +182,9 @@ assert.match(popupText, /max_tokens: maxOutputTokens/);
 assert.match(popupText, /buildRuleBasedAnalysis\(cardData,\s*\{\s*outputLanguage: settings\.outputLanguage\s*\}\)/);
 assert.match(popupText, /id="updatePanel"/);
 assert.match(popupText, /id="checkUpdatesButton"/);
+assert.match(popupText, /id="downloadUpdateButton"/);
 assert.match(popupText, /function checkForUpdates/);
+assert.match(popupText, /function downloadUpdate/);
 assert.match(popupText, /credentials:\s*"omit"/);
 assert.match(popupText, /referrerPolicy:\s*"no-referrer"/);
 assert.match(popupText, /ATTACHMENT_PROCESSOR_URL = "\.\/attachment-processor\.js\?v=20260714\.2"/);

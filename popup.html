@@ -941,9 +941,10 @@
 
       <section id="updatePanel" class="panel hidden">
         <h2 class="section-title">Installed app updates</h2>
-        <p id="updateStatusText" class="section-body">Current installed version: 1.0.0. Check manually when you want to compare against the GitHub release manifest.</p>
+        <p id="updateStatusText" class="section-body">Current installed version: 1.0.1. Check manually when you want to compare against the GitHub release manifest.</p>
         <div class="actions">
           <button class="secondary" type="button" id="checkUpdatesButton">Check for updates</button>
+          <button class="secondary hidden" type="button" id="downloadUpdateButton">Download installer</button>
           <button class="secondary hidden" type="button" id="openReleaseNotesButton">Open releases</button>
         </div>
         <p id="updateCheckStatus" class="feedback-status"></p>
@@ -1251,6 +1252,7 @@
       document.getElementById("batchProgressList").addEventListener("change", updateBatchProgressFromControl);
       document.getElementById("resetBatchProgressButton").addEventListener("click", resetBatchProgress);
       document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
+      document.getElementById("downloadUpdateButton").addEventListener("click", downloadUpdate);
       document.getElementById("openReleaseNotesButton").addEventListener("click", openReleaseNotes);
       initializeUpdatePanel();
 
@@ -4231,11 +4233,14 @@
       async function checkForUpdates() {
         var status = document.getElementById("updateCheckStatus");
         var button = document.getElementById("checkUpdatesButton");
+        var downloadButton = document.getElementById("downloadUpdateButton");
         var releaseButton = document.getElementById("openReleaseNotesButton");
-        if (!status || !button || !releaseButton) return;
+        if (!status || !button || !downloadButton || !releaseButton) return;
 
         status.textContent = "Checking GitHub release manifest...";
         button.disabled = true;
+        downloadButton.classList.add("hidden");
+        downloadButton.removeAttribute("data-download-url");
         releaseButton.classList.add("hidden");
         releaseButton.removeAttribute("data-release-url");
 
@@ -4247,7 +4252,7 @@
           if (updateStatus.unsupported) {
             status.textContent = "This installed version (" + updateStatus.currentVersion + ") is below the supported minimum. Review the GitHub releases before installing an update." + releaseDate;
           } else if (updateStatus.updateAvailable) {
-            status.textContent = "Update available: " + updateStatus.latestVersion + " (installed " + updateStatus.currentVersion + "). Review the GitHub releases before installing." + releaseDate;
+            status.textContent = "Update available: " + updateStatus.latestVersion + " (installed " + updateStatus.currentVersion + "). Download the installer or review the GitHub releases before installing." + releaseDate;
           } else {
             status.textContent = "You are up to date on version " + updateStatus.currentVersion + "." + releaseDate;
           }
@@ -4259,6 +4264,10 @@
           if (updateStatus.releaseNotesUrl) {
             releaseButton.setAttribute("data-release-url", updateStatus.releaseNotesUrl);
             releaseButton.classList.remove("hidden");
+          }
+          if (updateStatus.updateAvailable && updateStatus.downloadUrl) {
+            downloadButton.setAttribute("data-download-url", updateStatus.downloadUrl);
+            downloadButton.classList.remove("hidden");
           }
         } catch (error) {
           status.textContent = "Could not check updates: " + sanitizeUserVisibleError(error) + " Open GitHub releases manually if needed.";
@@ -4272,6 +4281,13 @@
       function openReleaseNotes() {
         var button = document.getElementById("openReleaseNotesButton");
         var url = button && button.getAttribute("data-release-url");
+        if (!url) return;
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+
+      function downloadUpdate() {
+        var button = document.getElementById("downloadUpdateButton");
+        var url = button && button.getAttribute("data-download-url");
         if (!url) return;
         window.open(url, "_blank", "noopener,noreferrer");
       }
