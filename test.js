@@ -187,7 +187,7 @@ assert.match(popupText, /function checkForUpdates/);
 assert.match(popupText, /function downloadUpdate/);
 assert.match(popupText, /credentials:\s*"omit"/);
 assert.match(popupText, /referrerPolicy:\s*"no-referrer"/);
-assert.match(popupText, /ATTACHMENT_PROCESSOR_URL = "\.\/attachment-processor\.js\?v=20260714\.2"/);
+assert.match(popupText, /ATTACHMENT_PROCESSOR_URL = "\.\/attachment-processor\.js\?v=20260716\.1"/);
 assert.doesNotMatch(popupText, /<script src="\.\/attachment-processor\.js/);
 assert.match(popupText, /function loadAttachmentProcessor\(/);
 assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/);
@@ -1458,7 +1458,7 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   icon: { url: "./icon.svg" },
   capabilities: ["card-buttons", "show-settings"]
 }, "https://powerup.example.com/app/");
-assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.html");
+assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.html?v=20260716.1");
 assert.equal(adminConfig.manifestUrl, "https://powerup.example.com/app/manifest.json");
 assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
 assert.equal(adminConfig.privacyUrl, "https://powerup.example.com/app/privacy.html");
@@ -1466,7 +1466,7 @@ assert.equal(adminConfig.termsUrl, "https://powerup.example.com/app/terms.html")
 assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
 
 const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
-assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.html"));
+assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.html?v=20260716.1"));
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Privacy policy URL: https://powerup.example.com/app/privacy.html"));
 assert.ok(adminValuesText.includes("Terms of service URL: https://powerup.example.com/app/terms.html"));
@@ -1495,7 +1495,7 @@ assert.doesNotMatch(adminFieldMapText, /sk-[a-z0-9]/i);
 
 const hostedFileChecks = TrelloAdminConfig.createHostedFileChecks(adminConfig);
 assert.deepEqual(hostedFileChecks.map((item) => item.key), ["connector", "connector-script", "manifest", "privacy", "terms", "icon"]);
-assert.equal(hostedFileChecks[0].url, "https://powerup.example.com/app/connector.html");
+assert.equal(hostedFileChecks[0].url, "https://powerup.example.com/app/connector.html?v=20260716.1");
 assert.equal(hostedFileChecks[1].url, "https://powerup.example.com/app/connector.js");
 
 const adminReadiness = TrelloAdminConfig.createAdminReadinessChecklist(
@@ -1551,7 +1551,7 @@ assert.equal(JSON.stringify(adminSetupPackage).includes("support@example.com"), 
 assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
 
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
-assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.html"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.html?v=20260716.1"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/privacy.html"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/terms.html"));
@@ -1659,7 +1659,7 @@ assert.equal(liveCreationInputs[0].value, "Summarize This");
 assert.equal(liveCreationInputs[1].value, "support@example.com");
 assert.equal(liveCreationInputs[2].value, "https://example.com/support");
 assert.equal(liveCreationInputs[3].value, "Noodzakelijk Online");
-assert.equal(liveCreationInputs[4].value, "https://powerup.example.com/app/connector.html");
+assert.equal(liveCreationInputs[4].value, "https://powerup.example.com/app/connector.html?v=20260716.1");
 assert.ok(liveCreationDocument.body.lastChild.textContent.includes("filled 5 of 5 visible admin value(s)"));
 assert.ok(liveCreationDocument.body.lastChild.textContent.includes("Manual: Workspace"));
 
@@ -1730,7 +1730,7 @@ assert.equal(fileValidation.isReadyForTrello, false);
 async function runAsyncTests() {
   const connectorPageText = fs.readFileSync(path.join(__dirname, "connector.html"), "utf8");
   assert.match(connectorPageText, /https:\/\/p\.trellocdn\.com\/power-up\.min\.js/);
-  assert.match(connectorPageText, /src="\.\/connector\.js\?v=20260714\.2"/);
+  assert.match(connectorPageText, /src="\.\/connector\.js\?v=20260716\.1"/);
   const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
   let registeredPowerUp = null;
   new Function("TrelloPowerUp", connectorText)({

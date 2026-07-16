@@ -8,6 +8,8 @@
 }(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  var CONNECTOR_BUILD_ID = "20260716.1";
+
   var DEFAULT_MANIFEST = {
     name: "Summarize This",
     details: "AI-assisted Trello card summarization with a local fallback summary when no AI provider is configured.",
@@ -96,7 +98,7 @@
       ],
       steps: [],
       verification: [
-        "Open " + buildHostedUrl(targetBaseUrl, "connector.html") + " and confirm it loads without a 404.",
+        "Open " + buildVersionedHostedUrl(targetBaseUrl, "connector.html") + " and confirm it loads without a 404.",
         "Open " + buildHostedUrl(targetBaseUrl, "manifest.json") + " and confirm it returns JSON.",
         "Open " + buildHostedUrl(targetBaseUrl, "privacy.html") + " and " + buildHostedUrl(targetBaseUrl, "terms.html") + " and confirm both policy pages load.",
         "Copy the iframe Connector URL into Trello Power-Up admin only after the HTTPS URLs load publicly."
@@ -226,6 +228,10 @@
     return base + "/" + path;
   }
 
+  function buildVersionedHostedUrl(baseUrl, fileName) {
+    return buildHostedUrl(baseUrl, fileName) + "?v=" + CONNECTOR_BUILD_ID;
+  }
+
   function createAdminConfig(manifest, baseUrl) {
     var source = Object.assign({}, DEFAULT_MANIFEST, manifest || {});
     var normalizedBase = normalizeBaseUrl(baseUrl);
@@ -239,7 +245,7 @@
       overviewUrl: clean(source.overview_url || DEFAULT_MANIFEST.overview_url),
       privacyUrl: absoluteManifestUrl(normalizedBase, source.privacy_url || DEFAULT_MANIFEST.privacy_url, "privacy.html"),
       termsUrl: absoluteManifestUrl(normalizedBase, source.terms_url || DEFAULT_MANIFEST.terms_url, "terms.html"),
-      connectorUrl: buildHostedUrl(normalizedBase, "connector.html"),
+      connectorUrl: buildVersionedHostedUrl(normalizedBase, "connector.html"),
       connectorScriptUrl: buildHostedUrl(normalizedBase, "connector.js"),
       manifestUrl: buildHostedUrl(normalizedBase, "manifest.json"),
       iconUrl: absoluteManifestUrl(normalizedBase, source.icon && source.icon.url, "icon.svg"),
@@ -429,7 +435,7 @@
 
   function createAdminReadinessChecklist(config, validation) {
     var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
-    var status = validation || validateHostedBaseUrl(values.connectorUrl.replace(/\/connector\.js$/i, ""));
+    var status = validation || validateHostedBaseUrl(values.connectorUrl.replace(/\/connector\.html(?:\?.*)?$/i, ""));
     var capabilities = toArray(values.capabilities);
     var connectorValidation = validateAbsoluteHttps(values.connectorUrl);
     var manifestValidation = validateAbsoluteHttps(values.manifestUrl);
@@ -535,7 +541,7 @@
 
   function createAdminSetupPackage(config, validation, options) {
     var values = config || createAdminConfig(DEFAULT_MANIFEST, "");
-    var status = validation || validateHostedBaseUrl(values.connectorUrl.replace(/\/connector\.js$/i, ""));
+    var status = validation || validateHostedBaseUrl(values.connectorUrl.replace(/\/connector\.html(?:\?.*)?$/i, ""));
     var now = options && options.now ? options.now : new Date().toISOString();
     return {
       schemaVersion: "summarize-this-trello-admin-setup-v1",
@@ -727,6 +733,7 @@
     validateSupportContact: validateSupportContact,
     createDeploymentGuide: createDeploymentGuide,
     buildHostedUrl: buildHostedUrl,
+    buildVersionedHostedUrl: buildVersionedHostedUrl,
     createAdminConfig: createAdminConfig,
     createHostedFileChecks: createHostedFileChecks,
     createAdminFieldMap: createAdminFieldMap,
