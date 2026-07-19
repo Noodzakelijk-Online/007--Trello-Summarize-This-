@@ -58,7 +58,7 @@ assert.equal(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "u
 assert.match(updateManifest.manifestUrl, /^https:\/\/raw\.githubusercontent\.com\/Noodzakelijk-Online\/007--Trello-Summarize-This-\//);
 assert.match(updateManifest.downloadUrl, /^https:\/\/raw\.githubusercontent\.com\/Noodzakelijk-Online\/007--Trello-Summarize-This-\/main\/dist\/windows-installer\/SummarizeThisSetup\.exe$/);
 const installerInstallText = fs.readFileSync(path.join(__dirname, "installer/windows/install.ps1"), "utf8");
-assert.match(installerInstallText, /DisplayVersion -Value "1\.0\.2"/, "Windows Apps & features version matches the shipped app version");
+assert.match(installerInstallText, /DisplayVersion -Value "1\.0\.3"/, "Windows Apps & features version matches the shipped app version");
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -191,11 +191,15 @@ assert.match(popupText, /function checkForUpdates/);
 assert.match(popupText, /function downloadUpdate/);
 assert.match(popupText, /credentials:\s*"omit"/);
 assert.match(popupText, /referrerPolicy:\s*"no-referrer"/);
-assert.match(popupText, /ATTACHMENT_PROCESSOR_URL = "\.\/attachment-processor\.js\?v=20260719\.1"/);
+assert.match(popupText, /ATTACHMENT_PROCESSOR_URL = "\.\/attachment-processor\.js\?v=20260719\.2"/);
 assert.doesNotMatch(popupText, /<script src="\.\/attachment-processor\.js/);
 assert.match(popupText, /function loadAttachmentProcessor\(/);
 assert.match(popupText, /function createTrelloIframeClient\(/);
 assert.match(popupText, /Trello REST API access is not configured for this Power-Up yet/);
+assert.match(popupText, /function fetchTrelloCardActions\(/);
+assert.match(popupText, /https:\/\/api\.trello\.com\/1\/cards\//);
+assert.match(popupText, /endpoint\.searchParams\.set\("token", token\)/);
+assert.match(popupText, /Trello activity request returned HTTP/);
 assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/);
 assert.match(popupText, /id="batchExecutionControls"/);
 assert.match(popupText, /id="batchAiHandoffApproval"/);
@@ -1464,7 +1468,7 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   icon: { url: "./icon.svg" },
   capabilities: ["card-buttons", "show-settings"]
 }, "https://powerup.example.com/app/");
-assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.html?v=20260719.1");
+assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.html?v=20260719.2");
 assert.equal(adminConfig.manifestUrl, "https://powerup.example.com/app/manifest.json");
 assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
 assert.equal(adminConfig.privacyUrl, "https://powerup.example.com/app/privacy.html");
@@ -1472,7 +1476,7 @@ assert.equal(adminConfig.termsUrl, "https://powerup.example.com/app/terms.html")
 assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
 
 const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
-assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.html?v=20260719.1"));
+assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.html?v=20260719.2"));
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Privacy policy URL: https://powerup.example.com/app/privacy.html"));
 assert.ok(adminValuesText.includes("Terms of service URL: https://powerup.example.com/app/terms.html"));
@@ -1501,7 +1505,7 @@ assert.doesNotMatch(adminFieldMapText, /sk-[a-z0-9]/i);
 
 const hostedFileChecks = TrelloAdminConfig.createHostedFileChecks(adminConfig);
 assert.deepEqual(hostedFileChecks.map((item) => item.key), ["connector", "connector-script", "manifest", "privacy", "terms", "icon"]);
-assert.equal(hostedFileChecks[0].url, "https://powerup.example.com/app/connector.html?v=20260719.1");
+assert.equal(hostedFileChecks[0].url, "https://powerup.example.com/app/connector.html?v=20260719.2");
 assert.equal(hostedFileChecks[1].url, "https://powerup.example.com/app/connector.js");
 
 const adminReadiness = TrelloAdminConfig.createAdminReadinessChecklist(
@@ -1557,7 +1561,7 @@ assert.equal(JSON.stringify(adminSetupPackage).includes("support@example.com"), 
 assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
 
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
-assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.html?v=20260719.1"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.html?v=20260719.2"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/privacy.html"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/terms.html"));
@@ -1665,7 +1669,7 @@ assert.equal(liveCreationInputs[0].value, "Summarize This");
 assert.equal(liveCreationInputs[1].value, "support@example.com");
 assert.equal(liveCreationInputs[2].value, "https://example.com/support");
 assert.equal(liveCreationInputs[3].value, "Noodzakelijk Online");
-assert.equal(liveCreationInputs[4].value, "https://powerup.example.com/app/connector.html?v=20260719.1");
+assert.equal(liveCreationInputs[4].value, "https://powerup.example.com/app/connector.html?v=20260719.2");
 assert.ok(liveCreationDocument.body.lastChild.textContent.includes("filled 5 of 5 visible admin value(s)"));
 assert.ok(liveCreationDocument.body.lastChild.textContent.includes("Manual: Workspace"));
 
@@ -1736,8 +1740,8 @@ assert.equal(fileValidation.isReadyForTrello, false);
 async function runAsyncTests() {
   const connectorPageText = fs.readFileSync(path.join(__dirname, "connector.html"), "utf8");
   assert.match(connectorPageText, /https:\/\/p\.trellocdn\.com\/power-up\.min\.js/);
-  assert.match(connectorPageText, /src="\.\/trello-runtime-config\.js\?v=20260719\.1"/);
-  assert.match(connectorPageText, /src="\.\/connector\.js\?v=20260719\.1"/);
+  assert.match(connectorPageText, /src="\.\/trello-runtime-config\.js\?v=20260719\.2"/);
+  assert.match(connectorPageText, /src="\.\/connector\.js\?v=20260719\.2"/);
   const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
   assert.match(connectorText, /trelloClientOptions/);
   let registeredPowerUp = null;
