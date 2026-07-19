@@ -6,8 +6,9 @@
 (function () {
   "use strict";
 
-  var POPUP_URL = "./popup.html";
-  var SETTINGS_URL = "./settings-powerup.html";
+  var BUILD_ID = "20260719.3";
+  var POPUP_URL = "./popup.html?v=" + BUILD_ID;
+  var SETTINGS_URL = "./settings-powerup.html?v=" + BUILD_ID;
   var ICON_URL = "./icon.svg";
   var runtimeConfig = window.SummarizeThisTrelloConfig || {};
   var trelloClientOptions = {

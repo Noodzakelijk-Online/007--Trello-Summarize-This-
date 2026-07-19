@@ -73,7 +73,7 @@ New-AppShortcut -ShortcutPath (Join-Path $StartMenuDir "Uninstall Summarize This
 $uninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SummarizeThis"
 New-Item -Path $uninstallKey -Force | Out-Null
 Set-ItemProperty -Path $uninstallKey -Name DisplayName -Value "Summarize This"
-Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value "1.0.3"
+Set-ItemProperty -Path $uninstallKey -Name DisplayVersion -Value "1.0.4"
 Set-ItemProperty -Path $uninstallKey -Name Publisher -Value "Summarize This Team"
 Set-ItemProperty -Path $uninstallKey -Name InstallLocation -Value $InstallRoot
 Set-ItemProperty -Path $uninstallKey -Name UninstallString -Value "`"$PowerShellPath`" $uninstallArgs"
