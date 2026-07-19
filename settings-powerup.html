@@ -515,7 +515,8 @@
     </div>
   </div>
 
-  <script src="./summarizer-core.js?v=20260716.1"></script>
+  <script src="./trello-runtime-config.js?v=20260719.1"></script>
+  <script src="./summarizer-core.js?v=20260719.1"></script>
   <script>
     /* global TrelloPowerUp, SummarizeThis */
 
@@ -527,7 +528,13 @@
         window.TrelloPowerUp.iframe &&
         window.self !== window.top
       );
-      var t = inTrello ? window.TrelloPowerUp.iframe() : null;
+      var runtimeConfig = window.SummarizeThisTrelloConfig || {};
+      var restApiOptions = {
+        appKey: String(runtimeConfig.appKey || "").trim(),
+        appName: String(runtimeConfig.appName || "Summarize this!").trim(),
+        appAuthor: String(runtimeConfig.appAuthor || "").trim()
+      };
+      var t = inTrello ? window.TrelloPowerUp.iframe(restApiOptions.appKey && restApiOptions.appName ? restApiOptions : undefined) : null;
       var promptTemplates = [];
       var fields = {
         analysisMode: document.getElementById("analysisMode"),

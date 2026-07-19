@@ -11,6 +11,7 @@ $OutputExe = Join-Path $DistDir "SummarizeThisSetup.exe"
 $RuntimeFiles = @(
   "manifest.json",
   "connector.html",
+  "trello-runtime-config.js",
   "connector.js",
   "popup.html",
   "settings-powerup.html",

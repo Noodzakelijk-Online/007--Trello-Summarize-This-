@@ -9,6 +9,12 @@
   var POPUP_URL = "./popup.html";
   var SETTINGS_URL = "./settings-powerup.html";
   var ICON_URL = "./icon.svg";
+  var runtimeConfig = window.SummarizeThisTrelloConfig || {};
+  var trelloClientOptions = {
+    appKey: String(runtimeConfig.appKey || "").trim(),
+    appName: String(runtimeConfig.appName || "Summarize this!").trim(),
+    appAuthor: String(runtimeConfig.appAuthor || "").trim()
+  };
 
   function hasAnyKey(settings) {
     var keys = settings && settings.apiKeys ? settings.apiKeys : {};
@@ -175,5 +181,5 @@
         height: 620
       });
     }
-  });
+  }, trelloClientOptions.appKey && trelloClientOptions.appName ? trelloClientOptions : undefined);
 })();
