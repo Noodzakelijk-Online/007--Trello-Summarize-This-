@@ -898,6 +898,7 @@
           </label>
           <div class="actions">
             <button class="secondary" type="button" id="previewBatchExecutionButton">Preview controlled run</button>
+            <button class="secondary" type="button" id="runBatchExecutionButton">Run reviewed batch</button>
             <button class="secondary" type="button" id="openFirstBatchCardButton">Open next selected card</button>
             <button class="secondary" type="button" id="copyBatchManualChecklistButton">Copy manual checklist</button>
             <button class="secondary" type="button" id="copyBatchHandoffReportButton">Copy handoff report</button>
@@ -1101,6 +1102,7 @@
       var lastBatchExecutionReview = null;
       var lastBatchProgressScope = "";
       var lastBatchProgressState = {};
+      var batchExecutionRunning = false;
       var inTrello = Boolean(
         window.TrelloPowerUp &&
         window.TrelloPowerUp.iframe &&
@@ -1218,6 +1220,7 @@
       document.getElementById("previewBatchExecutionButton").addEventListener("click", function () {
         renderBatchExecutionReview(lastBatchPlan, true);
       });
+      document.getElementById("runBatchExecutionButton").addEventListener("click", runReviewedBatchExecution);
       document.getElementById("openFirstBatchCardButton").addEventListener("click", openFirstBatchCard);
       document.getElementById("copyBatchManualChecklistButton").addEventListener("click", copyBatchManualChecklist);
       document.getElementById("copyBatchHandoffReportButton").addEventListener("click", copyBatchHandoffReport);
@@ -1290,70 +1293,98 @@
           }
 
           setStatus("Building summary", "Creating a reliable local summary first.");
-          var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData, {
-            outputLanguage: settings.outputLanguage
+          var analyzed = await analyzeCardDataWithSettings(cardData, settings, {
+            allowSensitiveAi: allowSensitiveAi,
+            onAiStart: function () {
+              setStatus("Calling AI provider", "Asking the configured provider or proxy for a structured project summary.");
+            }
           });
           timingTracker.mark("local-summary", "Local summary");
-          var analysis = localAnalysis;
-          var warning = "";
-          if (cardData.__sourceStatus && cardData.__sourceStatus.attachments && cardData.__sourceStatus.attachments.skippedForSensitiveApproval) {
-            warning = appendWarning(warning, "Sensitive-card signals were detected. Text attachment extraction stayed metadata-only until approval.");
+          if (analyzed.usedAiAttempt) {
+            timingTracker.mark("ai-provider", "AI provider");
           }
 
-          if (settings.analysisMode !== "local") {
-            if (hasAnyAIConnector(settings)) {
-              if (shouldRequireSensitiveAiApproval(settings, sensitiveSignals, allowSensitiveAi)) {
-                warning = appendWarning(warning, "Sensitive-card signals were detected. The local result is shown first; AI provider/proxy handoff requires explicit approval.");
-              } else {
-                setStatus("Calling AI provider", "Asking the configured provider or proxy for a structured project summary.");
-                try {
-                  analysis = await runConfiguredAI(cardData, settings, localAnalysis);
-                  if (analysis.metadata && analysis.metadata.consensusRequested && analysis.metadata.consensusProviderCount < 2) {
-                    warning = appendWarning(warning, "Consensus mode was requested, but fewer than two providers returned results. Review the single-provider result before relying on it.");
-                  }
-                  timingTracker.mark("ai-provider", "AI provider");
-                } catch (error) {
-                  timingTracker.mark("ai-provider", "AI provider");
-                  if (settings.analysisMode === "ai-only") {
-                    throw error;
-                  }
-                  warning = appendWarning(warning, "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + sanitizeUserVisibleError(error));
-                  analysis = localAnalysis;
-                }
-              }
-            } else if (settings.analysisMode === "ai-only") {
-              throw new Error("AI-only mode is selected, but no provider API key or proxy endpoint is configured.");
-            } else {
-              warning = appendWarning(warning, "No AI key or proxy endpoint is configured yet. This result uses the built-in summarizer.");
-            }
-          }
-
-          lastAnalysis = analysis;
-          lastLedgerRun = CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
-            outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
-            outputLanguage: SummarizeThis.normalizeOutputLanguage(settings.outputLanguage),
-            promptTemplateId: promptProfile.selectedPromptTemplateId || "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
-            promptTemplateName: promptProfile.selectedPromptTemplateName,
-            customInstructions: promptProfile.customInstructions,
-            cacheProfileHash: cacheProfileHash,
-            cacheProfile: cacheProfile
-          });
+          lastAnalysis = analyzed.analysis;
+          lastLedgerRun = createLedgerRunForAnalysis(cardData, analyzed.analysis, settings, promptProfile, cacheProfile, cacheProfileHash);
           timingTracker.mark("ledger", "Ledger build");
-          renderAnalysis(cardData, analysis, warning, lastLedgerRun);
-          renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analysis.source === "local", cardData);
+          renderAnalysis(cardData, analyzed.analysis, analyzed.warning, lastLedgerRun);
+          renderAiApproval(settings, sensitiveSignals, allowSensitiveAi, analyzed.analysis.source === "local", cardData);
           lastHistoryRuns = await saveLedgerRun(cardData, lastLedgerRun);
           document.getElementById("historyMetric").textContent = String(lastHistoryRuns.length);
           renderHistory(lastHistoryRuns);
-          var costUsage = await recordCostUsage(cardData, lastLedgerRun, analysis, settings);
+          var costUsage = await recordCostUsage(cardData, lastLedgerRun, analyzed.analysis, settings);
           renderBudgetAlert(costUsage.alert);
           await loadAndRenderReviewState();
           await loadAndRenderExportHistory();
           timingTracker.mark("history-ui", "History and review panels");
-          var timingRecord = await recordRuntimeTiming(cardData, lastLedgerRun, analysis, timingTracker);
+          var timingRecord = await recordRuntimeTiming(cardData, lastLedgerRun, analyzed.analysis, timingTracker);
           renderRuntimeTiming(timingRecord.record, timingRecord.summary);
         } catch (error) {
           showError(sanitizeUserVisibleError(error));
         }
+      }
+
+      async function analyzeCardDataWithSettings(cardData, settings, options) {
+        var allowSensitiveAi = Boolean(options && options.allowSensitiveAi);
+        var sensitiveSignals = options && options.sensitiveSignals ? options.sensitiveSignals : SummarizeThis.detectSensitiveSignals(cardData);
+        var localAnalysis = SummarizeThis.buildRuleBasedAnalysis(cardData, {
+          outputLanguage: settings.outputLanguage
+        });
+        var analysis = localAnalysis;
+        var warning = "";
+        var usedAiAttempt = false;
+
+        if (cardData.__sourceStatus && cardData.__sourceStatus.attachments && cardData.__sourceStatus.attachments.skippedForSensitiveApproval) {
+          warning = appendWarning(warning, "Sensitive-card signals were detected. Text attachment extraction stayed metadata-only until approval.");
+        }
+
+        if (settings.analysisMode !== "local") {
+          if (hasAnyAIConnector(settings)) {
+            if (shouldRequireSensitiveAiApproval(settings, sensitiveSignals, allowSensitiveAi)) {
+              warning = appendWarning(warning, "Sensitive-card signals were detected. The local result is shown first; AI provider/proxy handoff requires explicit approval.");
+            } else {
+              usedAiAttempt = true;
+              if (options && typeof options.onAiStart === "function") {
+                options.onAiStart();
+              }
+              try {
+                analysis = await runConfiguredAI(cardData, settings, localAnalysis);
+                if (analysis.metadata && analysis.metadata.consensusRequested && analysis.metadata.consensusProviderCount < 2) {
+                  warning = appendWarning(warning, "Consensus mode was requested, but fewer than two providers returned results. Review the single-provider result before relying on it.");
+                }
+              } catch (error) {
+                if (settings.analysisMode === "ai-only") {
+                  throw error;
+                }
+                warning = appendWarning(warning, "AI analysis was not available, so this result uses the built-in summarizer. Provider message: " + sanitizeUserVisibleError(error));
+                analysis = localAnalysis;
+              }
+            }
+          } else if (settings.analysisMode === "ai-only") {
+            throw new Error("AI-only mode is selected, but no provider API key or proxy endpoint is configured.");
+          } else {
+            warning = appendWarning(warning, "No AI key or proxy endpoint is configured yet. This result uses the built-in summarizer.");
+          }
+        }
+
+        return {
+          analysis: analysis,
+          warning: warning,
+          sensitiveSignals: sensitiveSignals,
+          usedAiAttempt: usedAiAttempt
+        };
+      }
+
+      function createLedgerRunForAnalysis(cardData, analysis, settings, promptProfile, cacheProfile, cacheProfileHash) {
+        return CardIntelligenceLedger.createAnalysisRun(cardData, analysis, {
+          outputMode: SummarizeThis.normalizeOutputMode(settings.outputMode),
+          outputLanguage: SummarizeThis.normalizeOutputLanguage(settings.outputLanguage),
+          promptTemplateId: promptProfile.selectedPromptTemplateId || "operational-ledger-v1-" + SummarizeThis.normalizeOutputMode(settings.outputMode),
+          promptTemplateName: promptProfile.selectedPromptTemplateName,
+          customInstructions: promptProfile.customInstructions,
+          cacheProfileHash: cacheProfileHash,
+          cacheProfile: cacheProfile
+        });
       }
 
       async function renderCachedRun(cardData, ledgerRun, historyRuns, settings, timingTracker) {
@@ -1446,6 +1477,7 @@
         lastBatchProgressState = {};
         document.getElementById("batchExecutionControls").classList.add("hidden");
         document.getElementById("batchAiHandoffApproval").checked = false;
+        document.getElementById("runBatchExecutionButton").disabled = true;
         document.getElementById("openFirstBatchCardButton").disabled = true;
         document.getElementById("copyBatchManualChecklistButton").disabled = true;
         document.getElementById("copyBatchHandoffReportButton").disabled = true;
@@ -1796,6 +1828,98 @@
           cards: limitedCards,
           source: failed ? source + " failed" : source
         };
+      }
+
+      function queueItemsAsListCards(review) {
+        return ((review && review.queue) || []).map(function (item) {
+          return {
+            id: item.cardId || "",
+            name: item.name || "Untitled card",
+            labels: [],
+            due: item.due || null,
+            dueComplete: false,
+            url: item.cardUrl || ""
+          };
+        });
+      }
+
+      async function signedTrelloGetJson(path) {
+        if (!t || typeof t.getRestApi !== "function") {
+          throw new Error("Trello REST API helper is not available in this runtime.");
+        }
+
+        var rest = await t.getRestApi();
+        if (!rest || typeof rest.getToken !== "function") {
+          throw new Error("REST API helper was not available in this Power-Up runtime.");
+        }
+
+        var signedIn = typeof rest.isMemberSignedIn === "function" ? await rest.isMemberSignedIn() : true;
+        if (!signedIn) {
+          throw new Error("Not authorized. Use \"Authorize account\" in Power-Up settings first.");
+        }
+
+        var token = await rest.getToken();
+        if (!token) {
+          throw new Error("Not authorized. Use \"Authorize account\" in Power-Up settings first.");
+        }
+
+        var appKey = trelloAppKey();
+        if (!appKey) {
+          throw new Error("Trello app key is not configured for reviewed batch execution.");
+        }
+
+        var separator = path.indexOf("?") === -1 ? "?" : "&";
+        var response = await fetch("https://api.trello.com/1" + path + separator + "key=" + encodeURIComponent(appKey) + "&token=" + encodeURIComponent(token), {
+          credentials: "omit",
+          referrerPolicy: "no-referrer"
+        });
+        if (!response.ok) {
+          throw new Error("Trello API request failed (status " + response.status + ").");
+        }
+        return await response.json();
+      }
+
+      async function fetchBatchCardData(item, settings, review) {
+        if (!item || !item.cardId) {
+          throw new Error("Batch queue item is missing a card id.");
+        }
+
+        var card = await signedTrelloGetJson("/cards/" + encodeURIComponent(item.cardId) + "?fields=name,desc,due,dueComplete,url,shortUrl,dateLastActivity,idBoard,idList,badges&attachments=true&attachment_fields=id,name,url,mimeType,bytes&checklists=all&customFieldItems=true&members=true&member_fields=fullName,username&labels=all");
+        var board = card.idBoard ? await signedTrelloGetJson("/boards/" + encodeURIComponent(card.idBoard) + "?fields=name") : {};
+        var list = card.idList ? await signedTrelloGetJson("/lists/" + encodeURIComponent(card.idList) + "?fields=name") : {};
+        var commentsRead = await readCardComments(card);
+        var activityRead = await readCardActivity(card);
+        var attachmentsRead = await readCardAttachments(card, settings, {
+          allowSensitiveAttachmentExtraction: Boolean(review && review.aiHandoffApproved)
+        });
+        var customFieldItems = card.customFieldItems || [];
+        var batchListCards = queueItemsAsListCards(review);
+
+        return Object.assign({}, card, {
+          board: board,
+          list: list,
+          listContext: createListContextValue(card, Object.assign({}, list, { cards: batchListCards }), batchListCards, "reviewed batch queue", false),
+          attachments: attachmentsRead.value,
+          comments: commentsRead.value,
+          actions: activityRead.value,
+          customFields: customFieldItems,
+          __sourceStatus: {
+            card: { ok: true },
+            board: { ok: true },
+            list: { ok: true },
+            listContext: { ok: true, detail: "Reviewed batch queue metadata was used for list context." },
+            comments: sourceReadStatus(commentsRead),
+            activity: sourceReadStatus(activityRead),
+            attachments: sourceReadStatus(attachmentsRead),
+            customFields: { ok: Array.isArray(customFieldItems) }
+          }
+        });
+      }
+
+      function sleep(ms) {
+        return new Promise(function (resolve) {
+          window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+        });
       }
 
       async function readSource(fn, fallback) {
@@ -3022,6 +3146,7 @@
         var list = document.getElementById("batchExecutionList");
         var status = document.getElementById("batchExecutionStatus");
         var openButton = document.getElementById("openFirstBatchCardButton");
+        var runButton = document.getElementById("runBatchExecutionButton");
         var copyButton = document.getElementById("copyBatchManualChecklistButton");
         var handoffButton = document.getElementById("copyBatchHandoffReportButton");
         var resetButton = document.getElementById("resetBatchProgressButton");
@@ -3033,6 +3158,7 @@
         if (!plan || !plan.queueSize) {
           controls.classList.add("hidden");
           lastBatchExecutionReview = null;
+          runButton.disabled = true;
           openButton.disabled = true;
           copyButton.disabled = true;
           handoffButton.disabled = true;
@@ -3088,10 +3214,11 @@
         executionState.textContent = "Automatic execution: " + (review.automaticExecution ? "on" : "off") + ".";
         list.appendChild(executionState);
 
-        openButton.disabled = !review.executionAllowed || !review.openableCards;
+        runButton.disabled = !review.executionAllowed || batchExecutionRunning;
+        openButton.disabled = !review.executionAllowed || !review.openableCards || batchExecutionRunning;
         copyButton.disabled = !review.queue.length;
         handoffButton.disabled = !review.queue.length;
-        resetButton.disabled = !review.queue.length;
+        resetButton.disabled = !review.queue.length || batchExecutionRunning;
         renderBatchProgress(review);
 
         if (announce) {
@@ -3786,6 +3913,86 @@
       function currentBatchExecutionReview() {
         if (!lastBatchPlan || !lastBatchPlan.queueSize) return null;
         return SummarizeThis.createBatchExecutionReview(lastBatchPlan, batchExecutionOptionsFromControls());
+      }
+
+      async function runReviewedBatchExecution() {
+        var review = currentBatchExecutionReview();
+        var status = document.getElementById("batchExecutionStatus");
+        if (!review || !review.queue.length) {
+          status.textContent = "Build a batch execution review before running a controlled batch.";
+          return;
+        }
+        if (!review.executionAllowed) {
+          status.textContent = "Review the selected queue and approve AI handoff before running batch analysis.";
+          return;
+        }
+        if (batchExecutionRunning) {
+          status.textContent = "A reviewed batch run is already in progress.";
+          return;
+        }
+
+        batchExecutionRunning = true;
+        renderBatchExecutionReview(lastBatchPlan, false);
+        status.textContent = "Starting reviewed batch run. Trello posting remains off.";
+
+        try {
+          var settings = lastSettings || await loadSettings();
+          var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
+          var loaded = await loadBatchProgress(review);
+          var snapshot = SummarizeThis.createBatchProgressSnapshot(review, loaded.progress);
+          var pendingQueue = snapshot.queue.filter(function (item) {
+            return ["pending", "opened", "blocked"].indexOf(item.status) !== -1;
+          });
+
+          if (!pendingQueue.length) {
+            status.textContent = "All selected queue items are already complete or intentionally skipped.";
+            return;
+          }
+
+          for (var index = 0; index < pendingQueue.length; index += 1) {
+            var item = pendingQueue[index];
+            var nextState = Object.assign({}, lastBatchProgressState);
+            nextState[item.key] = "opened";
+            await saveBatchProgress(loaded.scope, nextState);
+            await renderBatchProgress(review);
+            status.textContent = "Running reviewed batch card " + (index + 1) + " of " + pendingQueue.length + ": " + item.name + ".";
+
+            try {
+              var cardData = await fetchBatchCardData(item, settings, review);
+              cardData = await attachPriorFeedback(cardData);
+              var sensitiveSignals = SummarizeThis.detectSensitiveSignals(cardData);
+              var analyzed = await analyzeCardDataWithSettings(cardData, settings, {
+                allowSensitiveAi: true,
+                sensitiveSignals: sensitiveSignals
+              });
+              var cacheProfile = analysisCacheProfile(settings, promptProfile, true);
+              var cacheProfileHash = compactHash(JSON.stringify(cacheProfile));
+              var ledgerRun = createLedgerRunForAnalysis(cardData, analyzed.analysis, settings, promptProfile, cacheProfile, cacheProfileHash);
+              await saveLedgerRun(cardData, ledgerRun);
+              await recordCostUsage(cardData, ledgerRun, analyzed.analysis, settings);
+
+              nextState = Object.assign({}, lastBatchProgressState);
+              nextState[item.key] = "analyzed";
+              await saveBatchProgress(loaded.scope, nextState);
+              await renderBatchProgress(review);
+            } catch (error) {
+              nextState = Object.assign({}, lastBatchProgressState);
+              nextState[item.key] = "blocked";
+              await saveBatchProgress(loaded.scope, nextState);
+              await renderBatchProgress(review);
+              status.textContent = "Batch card blocked for " + item.name + ": " + sanitizeUserVisibleError(error);
+            }
+
+            if (index < pendingQueue.length - 1 && review.delaySeconds > 0) {
+              await sleep(review.delaySeconds * 1000);
+            }
+          }
+
+          status.textContent = "Reviewed batch run finished. Selected cards were analyzed and stored privately; no Trello card was changed.";
+        } finally {
+          batchExecutionRunning = false;
+          renderBatchExecutionReview(lastBatchPlan, false);
+        }
       }
 
       async function openFirstBatchCard() {

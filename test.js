@@ -259,6 +259,7 @@ assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/)
 assert.match(popupText, /id="batchExecutionControls"/);
 assert.match(popupText, /id="batchAiHandoffApproval"/);
 assert.match(popupText, /id="previewBatchExecutionButton"/);
+assert.match(popupText, /id="runBatchExecutionButton"/);
 assert.match(popupText, /id="openFirstBatchCardButton"/);
 assert.match(popupText, /id="copyBatchManualChecklistButton"/);
 assert.match(popupText, /id="copyBatchHandoffReportButton"/);
@@ -588,7 +589,7 @@ assert.equal(blockedBatchExecutionReview.openableCards, 3);
 assert.equal(blockedBatchExecutionReview.executionAllowed, false);
 assert.ok(blockedBatchExecutionReview.blockedReasons.some(item => item.includes("AI handoff approval")));
 assert.ok(blockedBatchExecutionReview.queue.every(item => item.status === "review-required"));
-assert.ok(blockedBatchExecutionReview.privacyNote.includes("does not fetch full card bodies"));
+assert.ok(blockedBatchExecutionReview.privacyNote.includes("starts from bounded list metadata"));
 
 const approvedBatchExecutionReview = SummarizeThis.createBatchExecutionReview(batchAnalysisPlan, {
   maxCards: 50,
@@ -601,12 +602,14 @@ assert.equal(approvedBatchExecutionReview.concurrency, 3);
 assert.equal(approvedBatchExecutionReview.delaySeconds, 30);
 assert.equal(approvedBatchExecutionReview.executionAllowed, true);
 assert.equal(approvedBatchExecutionReview.trelloWriteDefault, "off");
+assert.equal(approvedBatchExecutionReview.automaticExecution, true);
+assert.equal(approvedBatchExecutionReview.networkAction, "trello-read-and-analyze");
 assert.ok(approvedBatchExecutionReview.queue.every(item => item.status === "ready-for-reviewed-run"));
-assert.ok(approvedBatchExecutionReview.queue.every(item => item.manualStep.includes("Open this Trello card")));
+assert.ok(approvedBatchExecutionReview.queue.every(item => item.manualStep.includes("Run the reviewed batch here")));
 
 const manualBatchChecklist = SummarizeThis.markdownForBatchManualRunChecklist(approvedBatchExecutionReview);
 assert.ok(manualBatchChecklist.includes("Manual batch run checklist"));
-assert.ok(manualBatchChecklist.includes("Automatic execution: off"));
+assert.ok(manualBatchChecklist.includes("Automatic execution: on"));
 assert.ok(manualBatchChecklist.includes("[2. Prepare launch checklist](https://trello.com/c/samplecard/prepare-launch-checklist)"));
 assert.equal(manualBatchChecklist.includes("Finalize the launch checklist"), false);
 
@@ -2254,7 +2257,7 @@ async function runAsyncTests() {
     assert.equal(processed.status.extracted, 2);
     assert.equal(processed.status.failed, 0);
     assert.equal(processed.attachments[0].processed, true);
-    assert.equal(processed.attachments[0].extractionStatus, "text-extracted");
+    assert.equal(processed.attachments[0].extractionStatus, "truncated");
     assert.equal(processed.attachments[0].extractedText.length, 500);
     assert.equal(processed.attachments[0].metadata.truncated, true);
     assert.equal(processed.attachments[1].processed, true);

@@ -142,7 +142,7 @@ class AttachmentProcessor {
             ...attachment,
             processed: true,
             type: this.detectType(attachment),
-            extractionStatus: 'text-extracted',
+            extractionStatus: truncated ? 'truncated' : 'text-extracted',
             extractedText: extractedText,
             content: `Text attachment: ${attachment.name || 'Attachment'}\n\n${extractedText}${truncated ? '\n\n[Content truncated before analysis]' : ''}`,
             metadata: {

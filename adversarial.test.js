@@ -15,6 +15,7 @@
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const fs = require("node:fs");
+const os = require("node:os");
 const { startBackendServer } = require("./backend-server");
 const FakeProvider = require("./fake-provider");
 const SummarizeThis = require("./summarizer-core");
@@ -190,9 +191,11 @@ const reqOpts = (method, p, token) => ({
 });
 
 async function runIsolationTests() {
+  const storagePath = path.join(os.tmpdir(), `summarize-this-adversarial-${Date.now()}.json`);
   const { server } = await startBackendServer({
     port: TEST_PORT,
-    allowMissingEnv: true
+    allowMissingEnv: true,
+    storagePath
   });
 
   try {
@@ -263,6 +266,7 @@ async function runIsolationTests() {
     assert.ok(typeof creditsB.body.credits === "number", "User B credits is a number");
 
   } finally {
+    fs.rmSync(storagePath, { force: true });
     await new Promise((resolve) => server.close(resolve));
   }
 }
