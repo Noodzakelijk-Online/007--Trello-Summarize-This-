@@ -6,9 +6,10 @@
   <title>Summarize This</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <script src="https://p.trellocdn.com/power-up.min.js"></script>
-  <script src="./trello-runtime-config.js?v=20260719.3"></script>
-  <script src="./summarizer-core.js?v=20260719.3"></script>
-  <script src="./card-intelligence-ledger.js?v=20260719.3"></script>
+  <script src="./trello-config.js?v=1.3.0"></script>
+  <script src="./attachment-processor.js?v=1.3.0"></script>
+  <script src="./summarizer-core.js?v=1.3.0"></script>
+  <script src="./card-intelligence-ledger.js?v=1.3.0"></script>
   <style>
     :root {
       color-scheme: light dark;
@@ -942,10 +943,9 @@
 
       <section id="updatePanel" class="panel hidden">
         <h2 class="section-title">Installed app updates</h2>
-        <p id="updateStatusText" class="section-body">Current installed version: 1.0.4. Check manually when you want to compare against the GitHub release manifest.</p>
+        <p id="updateStatusText" class="section-body">Current installed version: 1.0.0. Check manually when you want to compare against the GitHub release manifest.</p>
         <div class="actions">
           <button class="secondary" type="button" id="checkUpdatesButton">Check for updates</button>
-          <button class="secondary hidden" type="button" id="downloadUpdateButton">Download installer</button>
           <button class="secondary hidden" type="button" id="openReleaseNotesButton">Open releases</button>
         </div>
         <p id="updateCheckStatus" class="feedback-status"></p>
@@ -1077,7 +1077,6 @@
       <div class="actions">
         <button class="primary" type="button" id="copyButton">Copy summary</button>
         <button class="secondary" type="button" id="reanalyzeButton">Analyze again</button>
-        <button class="secondary hidden" type="button" id="authorizeTrelloActivityButton">Connect Trello activity</button>
         <button class="secondary" type="button" id="settingsButton">Settings</button>
       </div>
     </main>
@@ -1090,8 +1089,6 @@
       "use strict";
 
       var t = null;
-      var ATTACHMENT_PROCESSOR_URL = "./attachment-processor.js?v=20260719.3";
-      var attachmentProcessorLoadPromise = null;
       var lastCardData = null;
       var lastAnalysis = null;
       var lastLedgerRun = null;
@@ -1111,138 +1108,6 @@
       );
       var pageParams = new URLSearchParams(window.location.search || "");
       var installedMode = pageParams.get("installed") === "1" || pageParams.get("localPreview") === "1";
-
-      function trelloRuntimeConfig() {
-        var config = window.SummarizeThisTrelloConfig || {};
-        return {
-          appKey: String(config.appKey || "").trim(),
-          appName: String(config.appName || "Summarize this!").trim(),
-          appAuthor: String(config.appAuthor || "").trim()
-        };
-      }
-
-      function hasTrelloRestApiIdentity() {
-        var config = trelloRuntimeConfig();
-        return Boolean(config.appKey && config.appName);
-      }
-
-      function createTrelloIframeClient() {
-        if (!inTrello) return null;
-        var config = trelloRuntimeConfig();
-        return TrelloPowerUp.iframe(hasTrelloRestApiIdentity() ? config : undefined);
-      }
-
-      function setTrelloActivityAuthorizationVisible(visible) {
-        document.getElementById("authorizeTrelloActivityButton").classList.toggle("hidden", !visible);
-      }
-
-      async function getTrelloRestApiAccess() {
-        if (!hasTrelloRestApiIdentity()) {
-          return {
-            ok: false,
-            rest: null,
-            needsAuthorization: false,
-            error: "Trello REST API access is not configured for this Power-Up yet. Generate its API key in Trello admin."
-          };
-        }
-        if (!t || typeof t.getRestApi !== "function") {
-          return {
-            ok: false,
-            rest: null,
-            needsAuthorization: false,
-            error: "Trello REST API is not available in this Power-Up runtime."
-          };
-        }
-
-        try {
-          var rest = await t.getRestApi();
-          if (!rest || typeof rest.isAuthorized !== "function" || typeof rest.getToken !== "function") {
-            return {
-              ok: false,
-              rest: null,
-              needsAuthorization: false,
-              error: "Trello activity authorization is not available in this Power-Up runtime."
-            };
-          }
-          if (!await rest.isAuthorized()) {
-            return {
-              ok: false,
-              rest: null,
-              needsAuthorization: true,
-              error: "Connect Trello activity to include private card comments and activity in this summary."
-            };
-          }
-          var token = await rest.getToken();
-          if (!token) {
-            return {
-              ok: false,
-              rest: null,
-              needsAuthorization: true,
-              error: "Connect Trello activity to include private card comments and activity in this summary."
-            };
-          }
-          return { ok: true, token: token, needsAuthorization: false, error: "" };
-        } catch (error) {
-          return {
-            ok: false,
-            rest: null,
-            needsAuthorization: false,
-            error: sanitizeUserVisibleError(error)
-          };
-        }
-      }
-
-      async function authorizeTrelloActivity() {
-        if (!inTrello) return;
-
-        try {
-          t = createTrelloIframeClient();
-          var access = await getTrelloRestApiAccess();
-          if (access.ok) {
-            setTrelloActivityAuthorizationVisible(false);
-            await runAnalysis({ forceRefresh: true });
-            return;
-          }
-          if (!access.needsAuthorization) {
-            throw new Error(access.error || "Trello activity access could not be started.");
-          }
-
-          var rest = await t.getRestApi();
-          setStatus("Connecting Trello activity", "Requesting read-only access to card comments and activity.");
-          await rest.authorize({ scope: "read" });
-          setTrelloActivityAuthorizationVisible(false);
-          await runAnalysis({ forceRefresh: true });
-        } catch (error) {
-          showError("Could not connect Trello activity: " + sanitizeUserVisibleError(error));
-        }
-      }
-
-      function loadAttachmentProcessor() {
-        if (window.AttachmentProcessor) return Promise.resolve(window.AttachmentProcessor);
-        if (attachmentProcessorLoadPromise) return attachmentProcessorLoadPromise;
-
-        attachmentProcessorLoadPromise = new Promise(function (resolve, reject) {
-          var script = document.createElement("script");
-          script.src = ATTACHMENT_PROCESSOR_URL;
-          script.async = true;
-          script.onload = function () {
-            if (window.AttachmentProcessor) {
-              resolve(window.AttachmentProcessor);
-            } else {
-              reject(new Error("Attachment processor did not load."));
-            }
-          };
-          script.onerror = function () {
-            reject(new Error("Attachment processor could not be loaded."));
-          };
-          document.head.appendChild(script);
-        }).catch(function (error) {
-          attachmentProcessorLoadPromise = null;
-          throw error;
-        });
-
-        return attachmentProcessorLoadPromise;
-      }
 
       var elements = {
         cardTitle: document.getElementById("cardTitle"),
@@ -1266,7 +1131,6 @@
       document.getElementById("reanalyzeButton").addEventListener("click", function () {
         runAnalysis({ forceRefresh: true });
       });
-      document.getElementById("authorizeTrelloActivityButton").addEventListener("click", authorizeTrelloActivity);
       document.getElementById("retryButton").addEventListener("click", function () {
         runAnalysis({ forceRefresh: true });
       });
@@ -1360,13 +1224,34 @@
       document.getElementById("batchProgressList").addEventListener("change", updateBatchProgressFromControl);
       document.getElementById("resetBatchProgressButton").addEventListener("click", resetBatchProgress);
       document.getElementById("checkUpdatesButton").addEventListener("click", checkForUpdates);
-      document.getElementById("downloadUpdateButton").addEventListener("click", downloadUpdate);
       document.getElementById("openReleaseNotesButton").addEventListener("click", openReleaseNotes);
       initializeUpdatePanel();
 
       document.addEventListener("DOMContentLoaded", function () {
         runAnalysis();
       });
+
+      function trelloIframeOptions() {
+        var config = window.SummarizeThisTrelloConfig || {};
+        var appKey = typeof config.appKey === "string" ? config.appKey.trim() : "";
+        var appName = typeof config.appName === "string" && config.appName.trim()
+          ? config.appName.trim()
+          : "Summarize This";
+        var options = {
+          appName: appName
+        };
+
+        if (appKey) {
+          options.appKey = appKey;
+        }
+
+        return options;
+      }
+
+      function trelloAppKey() {
+        var config = window.SummarizeThisTrelloConfig || {};
+        return typeof config.appKey === "string" ? config.appKey.trim() : "";
+      }
 
       async function runAnalysis(options) {
         var allowSensitiveAi = Boolean(options && options.approveSensitiveAi);
@@ -1376,7 +1261,7 @@
         setStatus("Reading card", "Collecting card title, description, due date, labels, members, and progress.");
 
         try {
-          t = createTrelloIframeClient();
+          t = inTrello ? TrelloPowerUp.iframe(trelloIframeOptions()) : null;
           var settings = await loadSettings();
           lastSettings = settings;
           updateQuickCopyButton(settings);
@@ -1731,11 +1616,8 @@
         }, null);
         var card = cardRead.value || {};
         var listContextRead = await readListContext(card, listRead.value, settings);
-        var needsRestApi = !(Array.isArray(card.comments) && card.comments.length) || !(Array.isArray(card.actions) && card.actions.length);
-        var restApiAccess = needsRestApi ? await getTrelloRestApiAccess() : { ok: true, rest: null, needsAuthorization: false, error: "" };
-        setTrelloActivityAuthorizationVisible(Boolean(restApiAccess.needsAuthorization));
-        var commentsRead = await readCardComments(card, restApiAccess);
-        var activityRead = await readCardActivity(card, restApiAccess);
+        var commentsRead = await readCardComments(card);
+        var activityRead = await readCardActivity(card);
         var attachmentsRead = await readCardAttachments(card, settings, options);
         var customFieldItems = card.customFieldItems || card.customFields || [];
 
@@ -1806,9 +1688,16 @@
           };
         }
 
+        if (!window.AttachmentProcessor) {
+          return {
+            ok: false,
+            value: attachments,
+            error: "Attachment processor is not available."
+          };
+        }
+
         try {
-          var AttachmentProcessor = await loadAttachmentProcessor();
-          var processor = new AttachmentProcessor();
+          var processor = new window.AttachmentProcessor();
           var result = await processor.processSafeTextAttachments(attachments, {
             maxAttachments: 5,
             maxBytes: 200000,
@@ -1935,7 +1824,78 @@
         };
       }
 
-      async function readCardComments(card, restApiAccess) {
+      // async function readCardComments(card) {
+      //   var existingComments = Array.isArray(card.comments) ? card.comments : [];
+      //   if (existingComments.length) {
+      //     return {
+      //       ok: true,
+      //       value: existingComments,
+      //       error: ""
+      //     };
+      //   }
+      //   if (!card.id) {
+      //     return {
+      //       ok: false,
+      //       value: [],
+      //       error: "Card id was not available for comment lookup."
+      //     };
+      //   }
+      //   if (typeof t.getRestApi !== "function") {
+      //     return {
+      //       ok: false,
+      //       value: [],
+      //       error: "Comment API was not available in this Power-Up runtime."
+      //     };
+      //   }
+
+      //   try {
+      //     var rest = await t.getRestApi();
+      //     if (!rest || typeof rest.getCardActions !== "function") {
+      //       return {
+      //         ok: false,
+      //         value: [],
+      //         error: "Comment action API was not available in this Power-Up runtime."
+      //       };
+      //     }
+      //     var actions = await rest.getCardActions(card.id, {
+      //       filter: "commentCard",
+      //       limit: 50
+      //     });
+      //     return {
+      //       ok: true,
+      //       value: Array.isArray(actions) ? actions : [],
+      //       error: ""
+      //     };
+      //   } catch (error) {
+      //     return {
+      //       ok: false,
+      //       value: [],
+      //       error: sanitizeUserVisibleError(error)
+      //     };
+      //   }
+      // }
+
+      // ============================================================
+// FIX: readCardComments() and readCardActivity() in popup.html
+// ============================================================
+//
+// PROBLEM: These functions called `rest.getCardActions(...)`, but
+// Trello's real Power-Up REST API helper (from t.getRestApi()) does
+// NOT have a getCardActions() method. It only exposes:
+//   - isMemberSignedIn()
+//   - getToken()
+//   - getCurrentMember()
+//
+// So this check was always going to fail, regardless of authorization:
+//   if (!rest || typeof rest.getCardActions !== "function") { ... }
+//
+// FIX: use rest.getToken() to get a real user token, then make a
+// direct, signed fetch() call to Trello's REST API for card actions.
+//
+// The signed request path below uses the shared app key from trello-config.js.
+// ============================================================
+
+      async function readCardComments(card) {
         var existingComments = Array.isArray(card.comments) ? card.comments : [];
         if (existingComments.length) {
           return {
@@ -1951,16 +1911,65 @@
             error: "Card id was not available for comment lookup."
           };
         }
-        if (!restApiAccess || !restApiAccess.ok) {
+        if (typeof t.getRestApi !== "function") {
           return {
             ok: false,
             value: [],
-            error: restApiAccess && restApiAccess.error ? restApiAccess.error : "Comment API was not available in this Power-Up runtime."
+            error: "Comment API was not available in this Power-Up runtime."
           };
         }
 
         try {
-          var actions = await fetchTrelloCardActions(card.id, "commentCard", 50, restApiAccess.token);
+          var rest = await t.getRestApi();
+          if (!rest || typeof rest.getToken !== "function") {
+            return {
+              ok: false,
+              value: [],
+              error: "REST API helper was not available in this Power-Up runtime."
+            };
+          }
+
+          var signedIn = typeof rest.isMemberSignedIn === "function" ? await rest.isMemberSignedIn() : true;
+          if (!signedIn) {
+            return {
+              ok: false,
+              value: [],
+              error: "Not authorized. Use \"Authorize account\" in Power-Up settings first."
+            };
+          }
+
+          var token = await rest.getToken();
+          if (!token) {
+            return {
+              ok: false,
+              value: [],
+              error: "Not authorized. Use \"Authorize account\" in Power-Up settings first."
+            };
+          }
+
+          var appKey = trelloAppKey();
+          if (!appKey) {
+            return {
+              ok: false,
+              value: [],
+              error: "Trello app key is not configured for comment lookup."
+            };
+          }
+
+          var url = "https://api.trello.com/1/cards/" + encodeURIComponent(card.id) +
+            "/actions?filter=commentCard&limit=50&key=" + encodeURIComponent(appKey) +
+            "&token=" + encodeURIComponent(token);
+
+          var response = await fetch(url);
+          if (!response.ok) {
+            return {
+              ok: false,
+              value: [],
+              error: "Trello API request for comments failed (status " + response.status + ")."
+            };
+          }
+
+          var actions = await response.json();
           return {
             ok: true,
             value: Array.isArray(actions) ? actions : [],
@@ -1975,7 +1984,7 @@
         }
       }
 
-      async function readCardActivity(card, restApiAccess) {
+      async function readCardActivity(card) {
         var existingActions = Array.isArray(card.actions) ? card.actions : [];
         if (existingActions.length) {
           return {
@@ -1991,16 +2000,68 @@
             error: "Card id was not available for activity lookup."
           };
         }
-        if (!restApiAccess || !restApiAccess.ok) {
+        if (typeof t.getRestApi !== "function") {
           return {
             ok: false,
             value: [],
-            error: restApiAccess && restApiAccess.error ? restApiAccess.error : "Activity API was not available in this Power-Up runtime."
+            error: "Activity API was not available in this Power-Up runtime."
           };
         }
 
         try {
-          var actions = await fetchTrelloCardActions(card.id, "all", 25, restApiAccess.token);
+          var rest = await t.getRestApi();
+          if (!rest || typeof rest.getToken !== "function") {
+            return {
+              ok: false,
+              value: [],
+              error: "REST API helper was not available in this Power-Up runtime."
+            };
+          }
+
+          var signedIn = typeof rest.isMemberSignedIn === "function" ? await rest.isMemberSignedIn() : true;
+          if (!signedIn) {
+            return {
+              ok: false,
+              value: [],
+              error: "Not authorized. Use \"Authorize account\" in Power-Up settings first."
+            };
+          }
+
+          var token = await rest.getToken();
+          if (!token) {
+            return {
+              ok: false,
+              value: [],
+              error: "Not authorized. Use \"Authorize account\" in Power-Up settings first."
+            };
+          }
+
+          var appKey = trelloAppKey();
+          if (!appKey) {
+            return {
+              ok: false,
+              value: [],
+              error: "Trello app key is not configured for activity lookup."
+            };
+          }
+
+          // filter=all returns every action type (comments, updates, moves, etc.)
+          // -- we filter out commentCard entries below since those are handled
+          // separately by readCardComments().
+          var url = "https://api.trello.com/1/cards/" + encodeURIComponent(card.id) +
+            "/actions?filter=all&limit=25&key=" + encodeURIComponent(appKey) +
+            "&token=" + encodeURIComponent(token);
+
+          var response = await fetch(url);
+          if (!response.ok) {
+            return {
+              ok: false,
+              value: [],
+              error: "Trello API request for activity failed (status " + response.status + ")."
+            };
+          }
+
+          var actions = await response.json();
           return {
             ok: true,
             value: Array.isArray(actions) ? actions.filter(function (action) { return action && action.type !== "commentCard"; }) : [],
@@ -2015,46 +2076,63 @@
         }
       }
 
+      // async function readCardActivity(card) {
+      //   var existingActions = Array.isArray(card.actions) ? card.actions : [];
+      //   if (existingActions.length) {
+      //     return {
+      //       ok: true,
+      //       value: existingActions.filter(function (action) { return action && action.type !== "commentCard"; }).slice(0, 25),
+      //       error: ""
+      //     };
+      //   }
+      //   if (!card.id) {
+      //     return {
+      //       ok: false,
+      //       value: [],
+      //       error: "Card id was not available for activity lookup."
+      //     };
+      //   }
+      //   if (typeof t.getRestApi !== "function") {
+      //     return {
+      //       ok: false,
+      //       value: [],
+      //       error: "Activity API was not available in this Power-Up runtime."
+      //     };
+      //   }
+
+      //   try {
+      //     var rest = await t.getRestApi();
+      //     if (!rest || typeof rest.getCardActions !== "function") {
+      //       return {
+      //         ok: false,
+      //         value: [],
+      //         error: "Activity action API was not available in this Power-Up runtime."
+      //       };
+      //     }
+      //     var actions = await rest.getCardActions(card.id, {
+      //       filter: "all",
+      //       limit: 25
+      //     });
+      //     return {
+      //       ok: true,
+      //       value: Array.isArray(actions) ? actions.filter(function (action) { return action && action.type !== "commentCard"; }) : [],
+      //       error: ""
+      //     };
+      //   } catch (error) {
+      //     return {
+      //       ok: false,
+      //       value: [],
+      //       error: sanitizeUserVisibleError(error)
+      //     };
+      //   }
+      // }
+
       async function safe(fn, fallback) {
         try {
           var value = await fn();
           return value === undefined || value === null ? fallback : value;
         } catch (error) {
           return fallback;
-        }
-      }
-
-      async function fetchTrelloCardActions(cardId, filter, limit, token) {
-        var config = trelloRuntimeConfig();
-        var endpoint = new URL("https://api.trello.com/1/cards/" + encodeURIComponent(cardId) + "/actions");
-        endpoint.searchParams.set("filter", filter);
-        endpoint.searchParams.set("limit", String(limit));
-        endpoint.searchParams.set("key", config.appKey);
-        endpoint.searchParams.set("token", token);
-
-        var controller = new AbortController();
-        var timeout = setTimeout(function () {
-          controller.abort();
-        }, 10000);
-
-        try {
-          var response = await fetch(endpoint.toString(), {
-            credentials: "omit",
-            referrerPolicy: "no-referrer",
-            signal: controller.signal
-          });
-          if (!response.ok) {
-            throw new Error("Trello activity request returned HTTP " + response.status + ".");
-          }
-          var actions = await response.json();
-          return Array.isArray(actions) ? actions : [];
-        } catch (error) {
-          if (error && error.name === "AbortError") {
-            throw new Error("Trello activity request timed out.");
-          }
-          throw error;
-        } finally {
-          clearTimeout(timeout);
         }
       }
 
@@ -3401,10 +3479,30 @@
         recordExport("trello-comment-draft", "clipboard", null, true);
       }
 
+      // ============================================================
+// FIX: postApprovedComment() in popup.html
+// ============================================================
+//
+// PROBLEM: This function called `rest.addCardComment(...)`, but
+// Trello's real Power-Up REST API helper (from t.getRestApi()) does
+// NOT have an addCardComment() method -- same category of bug as
+// getCardActions() before. It only exposes:
+//   - isMemberSignedIn()
+//   - getToken()
+//   - getCurrentMember()
+//
+// FIX: use rest.getToken() to get a real user token, then make a
+// direct, signed POST request to Trello's REST API comments endpoint.
+//
+// Uses the same shared app key from trello-config.js as the signed read paths.
+// ============================================================
+
       async function postApprovedComment() {
         if (!lastLedgerRun || !lastCardData) return;
+
         var approval = document.getElementById("postbackApproval");
         var text = document.getElementById("postbackPreview").value;
+
         if (!approval.checked || !text) {
           updatePostbackControls();
           return;
@@ -3424,10 +3522,41 @@
         var posted = false;
         try {
           var rest = await t.getRestApi();
-          if (!rest || typeof rest.addCardComment !== "function") {
-            throw new Error("This Trello runtime does not expose addCardComment.");
+          if (!rest || typeof rest.getToken !== "function") {
+            throw new Error("REST API helper was not available in this Power-Up runtime.");
           }
-          await rest.addCardComment(lastCardData.id, text);
+
+          var signedIn = typeof rest.isMemberSignedIn === "function" ? await rest.isMemberSignedIn() : true;
+          if (!signedIn) {
+            throw new Error("Not authorized. Use \"Authorize account\" in Power-Up settings first.");
+          }
+
+          var token = await rest.getToken();
+          if (!token) {
+            throw new Error("Not authorized. Use \"Authorize account\" in Power-Up settings first.");
+          }
+
+          var appKey = trelloAppKey();
+          if (!appKey) {
+            throw new Error("Trello app key is not configured for comment posting.");
+          }
+
+          var url = "https://api.trello.com/1/cards/" + encodeURIComponent(lastCardData.id) +
+            "/actions/comments?key=" + encodeURIComponent(appKey) +
+            "&token=" + encodeURIComponent(token);
+
+          var response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text })
+          });
+
+          if (!response.ok) {
+            var bodyText = "";
+            try { bodyText = await response.text(); } catch (e) {}
+            throw new Error("Trello API request failed (status " + response.status + "). " + bodyText);
+          }
+
           elements.confidencePill.textContent = "Comment posted";
           document.getElementById("postbackStatus").textContent = "Reviewed comment posted to Trello.";
           await recordExport("trello-comment", "trello-comment", null, true);
@@ -3442,7 +3571,6 @@
           }
         }
       }
-
       async function copyLedgerExport(format, statusId) {
         var statusElement = document.getElementById(statusId || "exportStatus");
         if (!lastLedgerRun) {
@@ -3852,11 +3980,6 @@
         var allHistory = await readPrivateObject(key, {});
         var cardHistory = Array.isArray(allHistory[cardId]) ? allHistory[cardId] : [];
         allHistory[cardId] = CardIntelligenceLedger.mergeLedgerHistory(cardHistory, ledgerRun, 25);
-        allHistory = CardIntelligenceLedger.pruneLedgerHistory(allHistory, {
-          keepCardId: cardId,
-          maxCards: 40,
-          maxRuns: 120
-        });
         await writePrivateObject(key, allHistory);
 
         await saveLegacyPrivateHistory(cardData, ledgerRun);
@@ -3976,11 +4099,11 @@
           totalMs: timingTracker.totalMs(),
           now: ledgerRun && ledgerRun.completedAt
         });
-
+      
         records.unshift(record);
-        records = records.slice(0, 100);
+        records = records.slice(0, 10); // was 100 -- reduced to stay within shared storage budget
         await writePrivateObject(key, records);
-
+      
         return {
           record: record,
           summary: SummarizeThis.summarizeRuntimeTimingRecords(records)
@@ -4018,25 +4141,36 @@
         return Math.round(value) + "ms";
       }
 
+
       async function saveLegacyPrivateHistory(cardData, ledgerRun) {
         var history = await readPrivateObject("analysisHistory", []);
         if (!Array.isArray(history)) history = [];
+      
+        function trimText(value, maxLen) {
+          if (typeof value !== "string") return value;
+          return value.length > maxLen ? value.slice(0, maxLen) + "..." : value;
+        }
+      
         history.unshift({
           cardId: cardData.id,
-          cardName: cardData.name,
+          cardName: trimText(cardData.name, 100),
           timestamp: ledgerRun.completedAt,
           provider: ledgerRun.provider,
           qualityScore: ledgerRun.result.confidence.overall,
           summary: {
-            about: ledgerRun.result.about,
-            history: ledgerRun.result.history,
-            status: ledgerRun.result.currentStatus,
-            nextSteps: ledgerRun.result.nextActions.map(function (item) { return item.text; }),
-            risks: ledgerRun.result.blockers.map(function (item) { return item.text; })
+            about: trimText(ledgerRun.result.about, 150),
+            history: trimText(ledgerRun.result.history, 150),
+            status: trimText(ledgerRun.result.currentStatus, 150),
+            // Cap list fields to first 3 items and trim each item's text,
+            // instead of storing full unbounded arrays.
+            nextSteps: (ledgerRun.result.nextActions || []).slice(0, 3).map(function (item) { return trimText(item.text, 80); }),
+            risks: (ledgerRun.result.blockers || []).slice(0, 3).map(function (item) { return trimText(item.text, 80); })
           }
         });
-        await writePrivateObject("analysisHistory", history.slice(0, 50));
+      
+        await writePrivateObject("analysisHistory", history.slice(0, 5)); // was 50 -- reduced to stay within shared storage budget
       }
+
 
       async function readPrivateObject(key, fallback) {
         if (!t) {
@@ -4356,14 +4490,11 @@
       async function checkForUpdates() {
         var status = document.getElementById("updateCheckStatus");
         var button = document.getElementById("checkUpdatesButton");
-        var downloadButton = document.getElementById("downloadUpdateButton");
         var releaseButton = document.getElementById("openReleaseNotesButton");
-        if (!status || !button || !downloadButton || !releaseButton) return;
+        if (!status || !button || !releaseButton) return;
 
         status.textContent = "Checking GitHub release manifest...";
         button.disabled = true;
-        downloadButton.classList.add("hidden");
-        downloadButton.removeAttribute("data-download-url");
         releaseButton.classList.add("hidden");
         releaseButton.removeAttribute("data-release-url");
 
@@ -4375,7 +4506,7 @@
           if (updateStatus.unsupported) {
             status.textContent = "This installed version (" + updateStatus.currentVersion + ") is below the supported minimum. Review the GitHub releases before installing an update." + releaseDate;
           } else if (updateStatus.updateAvailable) {
-            status.textContent = "Update available: " + updateStatus.latestVersion + " (installed " + updateStatus.currentVersion + "). Download the installer or review the GitHub releases before installing." + releaseDate;
+            status.textContent = "Update available: " + updateStatus.latestVersion + " (installed " + updateStatus.currentVersion + "). Review the GitHub releases before installing." + releaseDate;
           } else {
             status.textContent = "You are up to date on version " + updateStatus.currentVersion + "." + releaseDate;
           }
@@ -4387,10 +4518,6 @@
           if (updateStatus.releaseNotesUrl) {
             releaseButton.setAttribute("data-release-url", updateStatus.releaseNotesUrl);
             releaseButton.classList.remove("hidden");
-          }
-          if (updateStatus.updateAvailable && updateStatus.downloadUrl) {
-            downloadButton.setAttribute("data-download-url", updateStatus.downloadUrl);
-            downloadButton.classList.remove("hidden");
           }
         } catch (error) {
           status.textContent = "Could not check updates: " + sanitizeUserVisibleError(error) + " Open GitHub releases manually if needed.";
@@ -4404,13 +4531,6 @@
       function openReleaseNotes() {
         var button = document.getElementById("openReleaseNotesButton");
         var url = button && button.getAttribute("data-release-url");
-        if (!url) return;
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-
-      function downloadUpdate() {
-        var button = document.getElementById("downloadUpdateButton");
-        var url = button && button.getAttribute("data-download-url");
         if (!url) return;
         window.open(url, "_blank", "noopener,noreferrer");
       }

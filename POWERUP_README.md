@@ -1,17 +1,21 @@
 # Summarize This - Trello Power-Up
 
-An AI-powered Trello Power-Up that adds a "Summarize This" button to every card, providing instant AI analysis with a single click.
+> Current-scope note: this document covers the shipped static Power-Up flow. Experimental or disconnected backend/admin files elsewhere in the repo are not part of this product surface.
+
+An evidence-backed Trello Power-Up that adds a "Summarize This" button to every card and provides a structured operational summary with review and export controls.
 
 ## 🎯 How It Works
 
 1. **Click the Button**: Every Trello card now has a "Summarize This" button
-2. **AI Analyzes**: The Power-Up gathers all card data (description, checklists, comments, attachments) and sends it to your chosen AI provider
+2. **AI Analyzes**: The Power-Up gathers card data (description, checklists, comments, activity, attachment metadata, and optional bounded text/CSV excerpts) and sends a bounded prompt to your chosen AI provider or proxy
 3. **Get Insights**: Within 10-30 seconds, you receive a comprehensive 4-part summary:
    - **What This Card Is About**: Overview and objectives
    - **What Has Happened**: Progress and history
    - **Current Status**: Where things stand now
    - **Next Steps**: What needs to be done
    - **Key Insights**: Important observations and recommendations
+
+Binary attachments such as PDFs, Office files, and images remain metadata-only in the shipped flow unless future extraction support is explicitly documented.
 
 ## 📦 Files Structure
 
@@ -128,10 +132,10 @@ You need to host these files on an HTTPS server. Choose one of these options:
 
 ## 🔒 Privacy & Security
 
-- **API Keys**: Stored securely in your Trello account only
-- **No Server Storage**: Keys never sent to our servers
-- **Direct API Calls**: Communication goes directly to AI providers
-- **Your Data**: Card data is only sent to AI providers you configure
+- **API Keys**: Stored in Trello member-private storage in Power-Up mode, or kept server-side when proxy mode is used
+- **No Silent Provider Fallback**: If proxy mode fails, the popup falls back to the local summarizer instead of silently switching to browser-held provider keys
+- **Attachment Limits**: Binary attachments are represented honestly as metadata-only when text was not extracted
+- **Your Data**: Card data is only sent to configured providers or your configured proxy after the runtime rules allow it
 
 ## 💰 Cost Estimates
 
@@ -176,9 +180,17 @@ The Power-Up analyzes:
 - ✅ Labels and members
 - ✅ Due dates and completion status
 - ✅ Checklists and progress
-- ✅ Recent comments (last 10)
+- ✅ Recent comments and activity as exposed by the runtime
 - ✅ Attachment metadata
+- ✅ Optional bounded text/CSV attachment excerpts when enabled and allowed
 - ✅ Board and list context
+
+## Verification Notes
+
+- The active runtime is the static Power-Up flow in `connector.js`, `popup.html`, `settings-powerup.html`, `summarizer-core.js`, `attachment-processor.js`, `ai-providers.js`, `trello-integration.js`, and `card-intelligence-ledger.js`.
+- Trello comment posting is approval-gated.
+- Trello card description writeback is not implemented.
+- The audit and verification documents under `docs/` are the source of truth for completion status.
 
 ## 🔄 Updates
 

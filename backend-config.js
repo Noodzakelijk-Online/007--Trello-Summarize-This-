@@ -1,0 +1,122 @@
+const path = require("node:path");
+
+function env() {
+  return {
+    PORT: Number(process.env.API_PORT || process.env.PORT || 8787),
+    HOST: process.env.API_HOST || "127.0.0.1",
+    JWT_SECRET: process.env.JWT_SECRET || "",
+    DATABASE_URL: process.env.DATABASE_URL || "",
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || "",
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || "",
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || "admin@example.com",
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "",
+    TRELLO_APP_KEY: process.env.TRELLO_APP_KEY || "",
+    TRELLO_APP_NAME: process.env.TRELLO_APP_NAME || "Summarize This",
+    PROXY_ENDPOINT: process.env.PROXY_ENDPOINT || "",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || "",
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || ""
+  };
+}
+
+function missingEnvForBackend() {
+  const current = env();
+  const missing = [];
+  if (!current.JWT_SECRET) missing.push("JWT_SECRET");
+  if (!current.ADMIN_PASSWORD) missing.push("ADMIN_PASSWORD");
+  return missing;
+}
+
+function backendReadiness() {
+  const current = env();
+  const missing = missingEnvForBackend();
+  return {
+    ok: missing.length === 0,
+    missing,
+    optional: {
+      DATABASE_URL: Boolean(current.DATABASE_URL),
+      STRIPE_SECRET_KEY: Boolean(current.STRIPE_SECRET_KEY),
+      STRIPE_WEBHOOK_SECRET: Boolean(current.STRIPE_WEBHOOK_SECRET),
+      PROXY_ENDPOINT: Boolean(current.PROXY_ENDPOINT),
+      directProviderKey: Boolean(current.OPENAI_API_KEY || current.ANTHROPIC_API_KEY || current.GOOGLE_API_KEY)
+    }
+  };
+}
+
+function powerUpReadiness() {
+  const current = env();
+  return {
+    trelloKeyConfigured: Boolean(current.TRELLO_APP_KEY),
+    trelloNameConfigured: Boolean(current.TRELLO_APP_NAME)
+  };
+}
+
+function publicConfig() {
+  const current = env();
+  return {
+    host: current.HOST,
+    port: current.PORT,
+    adminEmail: current.ADMIN_EMAIL,
+    trello: {
+      appKeyConfigured: Boolean(current.TRELLO_APP_KEY),
+      appName: current.TRELLO_APP_NAME
+    },
+    backend: backendReadiness(),
+    paths: {
+      root: __dirname,
+      staticConnector: path.join(__dirname, "connector.html")
+    }
+  };
+}
+
+const exported = {
+  env,
+  get PORT() {
+    return env().PORT;
+  },
+  get HOST() {
+    return env().HOST;
+  },
+  get JWT_SECRET() {
+    return env().JWT_SECRET;
+  },
+  get DATABASE_URL() {
+    return env().DATABASE_URL;
+  },
+  get STRIPE_SECRET_KEY() {
+    return env().STRIPE_SECRET_KEY;
+  },
+  get STRIPE_WEBHOOK_SECRET() {
+    return env().STRIPE_WEBHOOK_SECRET;
+  },
+  get ADMIN_EMAIL() {
+    return env().ADMIN_EMAIL;
+  },
+  get ADMIN_PASSWORD() {
+    return env().ADMIN_PASSWORD;
+  },
+  get TRELLO_APP_KEY() {
+    return env().TRELLO_APP_KEY;
+  },
+  get TRELLO_APP_NAME() {
+    return env().TRELLO_APP_NAME;
+  },
+  get PROXY_ENDPOINT() {
+    return env().PROXY_ENDPOINT;
+  },
+  get OPENAI_API_KEY() {
+    return env().OPENAI_API_KEY;
+  },
+  get ANTHROPIC_API_KEY() {
+    return env().ANTHROPIC_API_KEY;
+  },
+  get GOOGLE_API_KEY() {
+    return env().GOOGLE_API_KEY;
+  },
+  missingEnvForBackend,
+  backendReadiness,
+  powerUpReadiness,
+  publicConfig
+};
+
+module.exports = exported;

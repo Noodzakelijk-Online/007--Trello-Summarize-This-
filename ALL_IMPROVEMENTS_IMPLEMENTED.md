@@ -1,8 +1,10 @@
 # 🚀 All 20 Improvements Implemented - Next-Generation Trello Power-Up
 
-## ✅ Implementation Complete
+> Historical note: this file records an earlier improvement pass. It is not the current source of truth for what is fully shipped, verified, or production-ready in this repository. Use the audit and verification documents under `docs/` for current status.
 
-All 20 advanced improvements have been successfully implemented across 4 phases, creating a truly next-generation AI-powered Trello analysis system.
+## Historical Implementation Snapshot
+
+This document describes a historical implementation snapshot across four phases. Several items below are framework-level, partial, or no longer representative of the currently verified shipped surface.
 
 ---
 

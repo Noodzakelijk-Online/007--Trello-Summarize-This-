@@ -4,7 +4,11 @@
   "private": true,
   "description": "Static Trello Power-Up for AI-assisted card summarization.",
   "scripts": {
-    "test": "node test.js",
+    "start": "node local-dev-server.js",
+    "start:backend": "node backend-server.js",
+    "doctor": "node doctor.js",
+    "doctor:backend": "node backend-doctor.js",
+    "test": "node test.js && node backend.test.js",
     "analyze:resources": "node tools/resource-analysis.js",
     "build:windows-installer": "powershell -NoProfile -ExecutionPolicy Bypass -File installer/windows/build-installer.ps1"
   },
