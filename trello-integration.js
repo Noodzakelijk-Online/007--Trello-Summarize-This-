@@ -277,53 +277,51 @@ class TrelloIntegration {
         }
     }
 
+    metadataOnlyAttachment(attachment, type, detail) {
+        return {
+            ...attachment,
+            processed: false,
+            type,
+            extractionStatus: 'metadata-only',
+            extractedText: '',
+            content: detail
+        };
+    }
+
     // Process PDF attachment
     async processPDF(attachment) {
-        try {
-            // Fetch PDF content
-            const response = await this.safeFetchAttachment(attachment.url);
-            const blob = await response.blob();
-            
-            // For now, return metadata (actual PDF parsing would require pdf.js or similar)
-            return {
-                ...attachment,
-                processed: true,
-                type: 'pdf',
-                content: `PDF document: ${attachment.name} (${this.formatBytes(attachment.bytes)})`
-            };
-        } catch (error) {
-            throw new Error(`PDF processing failed: ${error.message}`);
-        }
+        return this.metadataOnlyAttachment(
+            attachment,
+            'pdf',
+            `PDF document: ${attachment.name} (${this.formatBytes(attachment.bytes)})\n\nBinary attachments stay metadata-only in the shipped Power-Up.`
+        );
     }
 
     // Process Word document
     async processWord(attachment) {
-        return {
-            ...attachment,
-            processed: true,
-            type: 'word',
-            content: `Word document: ${attachment.name} (${this.formatBytes(attachment.bytes)})`
-        };
+        return this.metadataOnlyAttachment(
+            attachment,
+            'word',
+            `Word document: ${attachment.name} (${this.formatBytes(attachment.bytes)})\n\nBinary attachments stay metadata-only in the shipped Power-Up.`
+        );
     }
 
     // Process Excel spreadsheet
     async processExcel(attachment) {
-        return {
-            ...attachment,
-            processed: true,
-            type: 'excel',
-            content: `Excel spreadsheet: ${attachment.name} (${this.formatBytes(attachment.bytes)})`
-        };
+        return this.metadataOnlyAttachment(
+            attachment,
+            'excel',
+            `Excel spreadsheet: ${attachment.name} (${this.formatBytes(attachment.bytes)})\n\nBinary attachments stay metadata-only in the shipped Power-Up.`
+        );
     }
 
-    // Process image attachment (could use OCR in future)
+    // Process image attachment (OCR is not active in the shipped Power-Up)
     async processImage(attachment) {
-        return {
-            ...attachment,
-            processed: true,
-            type: 'image',
-            content: `Image: ${attachment.name} (${this.formatBytes(attachment.bytes)})`
-        };
+        return this.metadataOnlyAttachment(
+            attachment,
+            'image',
+            `Image: ${attachment.name} (${this.formatBytes(attachment.bytes)})\n\nBinary attachments stay metadata-only in the shipped Power-Up.`
+        );
     }
 
     // Process text file

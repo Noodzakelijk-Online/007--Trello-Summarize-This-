@@ -1,6 +1,13 @@
 // Attachment Processor Module
 // Handles extraction of text content from various file types
 
+let nodeZlib = null;
+try {
+    nodeZlib = require('node:zlib');
+} catch (_error) {
+    nodeZlib = null;
+}
+
 class AttachmentProcessor {
     constructor() {
         this.supportedTypes = {
@@ -38,7 +45,7 @@ class AttachmentProcessor {
 
         const processed = [];
         for (const attachment of source.slice(0, 25)) {
-            if (!this.isTextLikeAttachment(attachment)) {
+            if (!this.isSafeExtractableAttachment(attachment)) {
                 processed.push(this.metadataOnlyAttachment(attachment, 'not-text-like'));
                 continue;
             }
@@ -76,12 +83,16 @@ class AttachmentProcessor {
                 failed: failed,
                 skipped: Math.max(source.length - attempted, 0),
                 detail: extracted
-                    ? `${extracted} text attachment(s) extracted with bounded HTTPS reads.`
+                    ? `${extracted} attachment(s) extracted with bounded HTTPS reads.`
                     : attempted
-                        ? 'Text attachment extraction ran, but no text was extracted.'
-                        : 'No text-like attachments were eligible for extraction.'
+                        ? 'Attachment extraction ran, but no text was extracted.'
+                        : 'No eligible text or PDF attachments were extracted.'
             }
         };
+    }
+
+    isSafeExtractableAttachment(attachment) {
+        return this.isTextLikeAttachment(attachment) || this.detectType(attachment) === 'pdf';
     }
 
     isTextLikeAttachment(attachment) {
@@ -94,6 +105,10 @@ class AttachmentProcessor {
     }
 
     async processSafeTextAttachment(attachment, limits) {
+        if (this.detectType(attachment) === 'pdf') {
+            return this.processSafePdfAttachment(attachment, limits);
+        }
+
         if (!attachment || !attachment.url) {
             throw new Error('Attachment has no fetchable URL');
         }
@@ -127,7 +142,7 @@ class AttachmentProcessor {
             ...attachment,
             processed: true,
             type: this.detectType(attachment),
-            extractionStatus: 'text-extracted',
+            extractionStatus: truncated ? 'truncated' : 'text-extracted',
             extractedText: extractedText,
             content: `Text attachment: ${attachment.name || 'Attachment'}\n\n${extractedText}${truncated ? '\n\n[Content truncated before analysis]' : ''}`,
             metadata: {
@@ -142,6 +157,71 @@ class AttachmentProcessor {
         };
     }
 
+    async processSafePdfAttachment(attachment, limits) {
+        if (!attachment || !attachment.url) {
+            throw new Error('Attachment has no fetchable URL');
+        }
+
+        const knownBytes = Number(attachment.bytes || attachment.size || 0);
+        if (knownBytes > limits.maxBytes) {
+            throw new Error(`Attachment is larger than the ${this.formatBytes(limits.maxBytes)} PDF extraction cap`);
+        }
+
+        const response = await this.safeFetchAttachment(attachment.url, {
+            timeoutMs: limits.timeoutMs,
+            headers: { Accept: 'application/pdf,*/*;q=0.2' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch PDF attachment: ${response.statusText || response.status}`);
+        }
+
+        const blob = await response.blob();
+        if (blob.size > limits.maxBytes) {
+            throw new Error(`Attachment response is larger than the ${this.formatBytes(limits.maxBytes)} PDF extraction cap`);
+        }
+
+        const arrayBuffer = await blob.arrayBuffer();
+        const decodedText = this.extractTextFromPdfBuffer(arrayBuffer);
+        if (!decodedText) {
+            return {
+                ...attachment,
+                processed: false,
+                type: 'pdf',
+                extractionStatus: 'pdf-no-readable-text',
+                extractedText: '',
+                content: `PDF document: ${attachment.name || 'Attachment'}\n\nNo readable text could be extracted from this PDF within the safe browser limit.`,
+                metadata: {
+                    size: blob.size,
+                    formattedSize: this.formatBytes(blob.size),
+                    type: 'application/pdf',
+                    extractedCharacters: 0,
+                    truncated: false
+                }
+            };
+        }
+
+        const extractedText = decodedText.slice(0, limits.maxExtractedCharacters);
+        const truncated = decodedText.length > extractedText.length;
+
+        return {
+            ...attachment,
+            processed: true,
+            type: 'pdf',
+            extractionStatus: 'pdf-text-extracted',
+            extractedText: extractedText,
+            content: `PDF attachment: ${attachment.name || 'Attachment'}\n\n${extractedText}${truncated ? '\n\n[PDF text truncated before analysis]' : ''}`,
+            metadata: {
+                size: blob.size,
+                formattedSize: this.formatBytes(blob.size),
+                type: 'application/pdf',
+                originalCharacters: decodedText.length,
+                extractedCharacters: extractedText.length,
+                truncated: truncated
+            }
+        };
+    }
+
     metadataOnlyAttachment(attachment, reason) {
         return {
             ...attachment,
@@ -149,7 +229,11 @@ class AttachmentProcessor {
             type: this.detectType(attachment),
             extractionStatus: reason || 'metadata-only',
             extractedText: attachment && attachment.extractedText ? attachment.extractedText : '',
-            content: attachment && attachment.content ? attachment.content : `Attachment metadata only: ${(attachment && attachment.name) || 'Attachment'}`
+            content: attachment && attachment.content ? attachment.content : `Attachment metadata only: ${(attachment && attachment.name) || 'Attachment'}`,
+            metadata: {
+                size: attachment && (attachment.bytes || attachment.size) || 0,
+                formattedSize: this.formatBytes(attachment && (attachment.bytes || attachment.size) || 0)
+            }
         };
     }
 
@@ -291,32 +375,7 @@ class AttachmentProcessor {
     // Process PDF files using PDF.js
     async processPDF(attachment) {
         try {
-            // For browser environment, we'll use a simplified approach
-            // In production, you'd want to use PDF.js library
-            
-            // Check if we can fetch the PDF
-            const response = await this.safeFetchAttachment(attachment.url);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch PDF: ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-            const size = this.formatBytes(blob.size);
-
-            // For now, return metadata
-            // TODO: Implement actual PDF text extraction with PDF.js
-            return {
-                ...attachment,
-                processed: true,
-                type: 'pdf',
-                extractedText: '',
-                content: `PDF Document: ${attachment.name} (${size})\n\nNote: PDF text extraction requires PDF.js library. Currently showing metadata only.`,
-                metadata: {
-                    size: blob.size,
-                    formattedSize: size,
-                    type: 'application/pdf'
-                }
-            };
+            return await this.processSafePdfAttachment(attachment, this.normalizeExtractionLimits({}));
         } catch (error) {
             throw new Error(`PDF processing failed: ${error.message}`);
         }
@@ -325,29 +384,39 @@ class AttachmentProcessor {
     // Process Word documents
     async processWord(attachment) {
         try {
-            // For browser environment, Word processing is complex
-            // Would require mammoth.js or similar library
-            
-            const response = await this.safeFetchAttachment(attachment.url);
+            const limits = this.normalizeExtractionLimits({});
+            const response = await this.safeFetchAttachment(attachment.url, { timeoutMs: limits.timeoutMs });
             if (!response.ok) {
                 throw new Error(`Failed to fetch Word document: ${response.statusText}`);
             }
 
             const blob = await response.blob();
-            const size = this.formatBytes(blob.size);
-
-            // Return metadata for now
-            // TODO: Implement actual Word document parsing with mammoth.js
+            if (blob.size > limits.maxBytes) {
+                throw new Error(`Attachment response is larger than the ${this.formatBytes(limits.maxBytes)} Word extraction cap`);
+            }
+            const arrayBuffer = await blob.arrayBuffer();
+            const extracted = await this.extractTextFromOfficeDocument(arrayBuffer, {
+                type: 'word',
+                maxExtractedCharacters: limits.maxExtractedCharacters
+            });
             return {
                 ...attachment,
-                processed: true,
+                processed: Boolean(extracted.text),
                 type: 'word',
-                extractedText: '',
-                content: `Word Document: ${attachment.name} (${size})\n\nNote: Word document text extraction requires mammoth.js library. Currently showing metadata only.`,
+                extractionStatus: extracted.text
+                    ? (extracted.truncated ? 'truncated' : 'text-extracted')
+                    : 'failed',
+                extractedText: extracted.text,
+                content: extracted.text
+                    ? `Word document: ${attachment.name}\n\n${extracted.text}${extracted.truncated ? '\n\n[Word document text truncated before analysis]' : ''}`
+                    : `Word document: ${attachment.name}\n\nNo readable document text could be extracted within the safe limit.`,
                 metadata: {
                     size: blob.size,
-                    formattedSize: size,
-                    type: 'word'
+                    formattedSize: this.formatBytes(blob.size),
+                    type: 'word',
+                    truncated: extracted.truncated,
+                    originalCharacters: extracted.originalCharacters,
+                    extractedCharacters: extracted.text.length
                 }
             };
         } catch (error) {
@@ -358,47 +427,66 @@ class AttachmentProcessor {
     // Process Excel spreadsheets
     async processExcel(attachment) {
         try {
-            const response = await this.safeFetchAttachment(attachment.url);
+            const limits = this.normalizeExtractionLimits({});
+            const response = await this.safeFetchAttachment(attachment.url, { timeoutMs: limits.timeoutMs });
             if (!response.ok) {
                 throw new Error(`Failed to fetch Excel file: ${response.statusText}`);
             }
 
             const blob = await response.blob();
             const size = this.formatBytes(blob.size);
+            if (blob.size > limits.maxBytes) {
+                throw new Error(`Attachment response is larger than the ${this.formatBytes(limits.maxBytes)} spreadsheet extraction cap`);
+            }
 
             // Check if it's CSV (easier to process)
             if (attachment.name.toLowerCase().endsWith('.csv')) {
                 const text = await blob.text();
-                const rows = text.split('\n').slice(0, 10); // First 10 rows
+                const extractedText = text.slice(0, limits.maxExtractedCharacters);
+                const truncated = text.length > extractedText.length;
+                const rows = extractedText.split('\n').slice(0, 10); // First 10 rows
                 const preview = rows.join('\n');
                 
                 return {
                     ...attachment,
                     processed: true,
                     type: 'excel',
-                    extractedText: text,
-                    content: `CSV Spreadsheet: ${attachment.name} (${size})\n\nPreview (first 10 rows):\n${preview}\n\n[${text.split('\n').length} total rows]`,
+                    extractionStatus: truncated ? 'truncated' : 'text-extracted',
+                    extractedText: extractedText,
+                    content: `CSV Spreadsheet: ${attachment.name} (${size})\n\nPreview (first 10 rows):\n${preview}${truncated ? '\n\n[CSV content truncated before analysis]' : ''}\n\n[${text.split('\n').length} total rows]`,
                     metadata: {
                         size: blob.size,
                         formattedSize: size,
                         rows: text.split('\n').length,
-                        type: 'csv'
+                        type: 'csv',
+                        truncated: truncated
                     }
                 };
             }
 
-            // For Excel files, would need xlsx.js library
-            // TODO: Implement Excel parsing with xlsx.js
+            const arrayBuffer = await blob.arrayBuffer();
+            const extracted = await this.extractTextFromOfficeDocument(arrayBuffer, {
+                type: 'excel',
+                maxExtractedCharacters: limits.maxExtractedCharacters
+            });
             return {
                 ...attachment,
-                processed: true,
+                processed: Boolean(extracted.text),
                 type: 'excel',
-                extractedText: '',
-                content: `Excel Spreadsheet: ${attachment.name} (${size})\n\nNote: Excel file parsing requires xlsx.js library. Currently showing metadata only.`,
+                extractionStatus: extracted.text
+                    ? (extracted.truncated ? 'truncated' : 'text-extracted')
+                    : 'failed',
+                extractedText: extracted.text,
+                content: extracted.text
+                    ? `Excel Spreadsheet: ${attachment.name} (${size})\n\n${extracted.text}${extracted.truncated ? '\n\n[Spreadsheet content truncated before analysis]' : ''}`
+                    : `Excel Spreadsheet: ${attachment.name} (${size})\n\nNo readable spreadsheet text could be extracted within the safe limit.`,
                 metadata: {
                     size: blob.size,
                     formattedSize: size,
-                    type: 'excel'
+                    type: 'excel',
+                    truncated: extracted.truncated,
+                    originalCharacters: extracted.originalCharacters,
+                    extractedCharacters: extracted.text.length
                 }
             };
         } catch (error) {
@@ -439,31 +527,43 @@ class AttachmentProcessor {
     // Process images (with optional OCR)
     async processImage(attachment) {
         try {
-            const response = await this.safeFetchAttachment(attachment.url);
+            const limits = this.normalizeExtractionLimits({});
+            const response = await this.safeFetchAttachment(attachment.url, { timeoutMs: limits.timeoutMs });
             if (!response.ok) {
                 throw new Error(`Failed to fetch image: ${response.statusText}`);
             }
 
             const blob = await response.blob();
             const size = this.formatBytes(blob.size);
+            if (blob.size > limits.maxBytes) {
+                throw new Error(`Attachment response is larger than the ${this.formatBytes(limits.maxBytes)} OCR extraction cap`);
+            }
 
             // Create object URL for preview
             const objectUrl = URL.createObjectURL(blob);
-
-            // For OCR, would need Tesseract.js
-            // TODO: Implement OCR with Tesseract.js
+            const extracted = await this.extractTextFromImage(blob, {
+                maxExtractedCharacters: limits.maxExtractedCharacters,
+                timeoutMs: limits.timeoutMs
+            });
             return {
                 ...attachment,
-                processed: true,
+                processed: Boolean(extracted.text),
                 type: 'image',
-                extractedText: '',
-                content: `Image: ${attachment.name} (${size})\n\nNote: OCR text extraction from images requires Tesseract.js library. Currently showing metadata only.`,
+                extractionStatus: extracted.text
+                    ? (extracted.truncated ? 'truncated' : 'text-extracted')
+                    : extracted.status,
+                extractedText: extracted.text,
+                content: extracted.text
+                    ? `Image: ${attachment.name} (${size})\n\n${extracted.text}${extracted.truncated ? '\n\n[OCR text truncated before analysis]' : ''}`
+                    : `Image: ${attachment.name} (${size})\n\n${extracted.detail}`,
                 previewUrl: objectUrl,
                 metadata: {
                     size: blob.size,
                     formattedSize: size,
                     type: blob.type,
-                    dimensions: 'Unknown' // Would need to load image to get dimensions
+                    dimensions: 'Unknown',
+                    truncated: extracted.truncated,
+                    extractedCharacters: extracted.text.length
                 }
             };
         } catch (error) {
@@ -528,6 +628,263 @@ class AttachmentProcessor {
         text = text.replace(/\s+/g, ' ').trim();
         
         return text;
+    }
+
+    extractTextFromPdfBuffer(arrayBuffer) {
+        const bytes = new Uint8Array(arrayBuffer || new ArrayBuffer(0));
+        if (!bytes.length) {
+            return '';
+        }
+
+        let binary = '';
+        const chunkSize = 8192;
+        for (let index = 0; index < bytes.length; index += chunkSize) {
+            const chunk = bytes.subarray(index, Math.min(index + chunkSize, bytes.length));
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+
+        const streams = [];
+        const streamPattern = /stream\r?\n([\s\S]*?)endstream/g;
+        let match;
+        while ((match = streamPattern.exec(binary))) {
+            streams.push(match[1]);
+        }
+
+        const fragments = [];
+        const source = streams.length ? streams.join('\n') : binary;
+        const literalMatches = source.match(/\((?:\\.|[^\\()]){2,}\)/g) || [];
+        literalMatches.forEach((value) => {
+            const decoded = this.decodePdfLiteralString(value.slice(1, -1));
+            if (decoded) {
+                fragments.push(decoded);
+            }
+        });
+
+        const hexMatches = source.match(/<([0-9A-Fa-f\s]{8,})>/g) || [];
+        hexMatches.forEach((value) => {
+            const decoded = this.decodePdfHexString(value.slice(1, -1));
+            if (decoded) {
+                fragments.push(decoded);
+            }
+        });
+
+        const normalized = fragments
+            .join('\n')
+            .replace(/\r\n/g, '\n')
+            .replace(/[^\x09\x0A\x0D\x20-\x7E]/g, ' ')
+            .replace(/[ \t]{2,}/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        return normalized;
+    }
+
+    decodePdfLiteralString(value) {
+        if (!value) return '';
+        const decoded = value
+            .replace(/\\n/g, '\n')
+            .replace(/\\r/g, '\r')
+            .replace(/\\t/g, '\t')
+            .replace(/\\b/g, '\b')
+            .replace(/\\f/g, '\f')
+            .replace(/\\\(/g, '(')
+            .replace(/\\\)/g, ')')
+            .replace(/\\\\/g, '\\')
+            .replace(/\\([0-7]{1,3})/g, function (_match, octal) {
+                return String.fromCharCode(parseInt(octal, 8));
+            });
+        return decoded.replace(/\s+/g, ' ').trim();
+    }
+
+    decodePdfHexString(value) {
+        const compact = String(value || '').replace(/\s+/g, '');
+        if (!compact) return '';
+        const padded = compact.length % 2 === 0 ? compact : compact + '0';
+        let output = '';
+        for (let index = 0; index < padded.length; index += 2) {
+            const code = parseInt(padded.slice(index, index + 2), 16);
+            if (Number.isFinite(code) && code >= 32 && code <= 126) {
+                output += String.fromCharCode(code);
+            } else if (code === 10 || code === 13) {
+                output += '\n';
+            } else {
+                output += ' ';
+            }
+        }
+        return output.replace(/\s+/g, ' ').trim();
+    }
+
+    async extractTextFromOfficeDocument(arrayBuffer, options = {}) {
+        const entries = await this.extractZipEntries(arrayBuffer);
+        const maxExtractedCharacters = Number(options.maxExtractedCharacters || 3000);
+        let combined = '';
+
+        if (options.type === 'word') {
+            const xml = entries['word/document.xml'] || '';
+            combined = this.extractWordXmlText(xml);
+        } else {
+            combined = this.extractExcelText(entries);
+        }
+
+        const text = combined.slice(0, maxExtractedCharacters);
+        return {
+            text,
+            truncated: combined.length > text.length,
+            originalCharacters: combined.length
+        };
+    }
+
+    async extractZipEntries(arrayBuffer) {
+        const bytes = new Uint8Array(arrayBuffer || new ArrayBuffer(0));
+        const entries = {};
+        let index = 0;
+
+        while (index + 30 < bytes.length) {
+            const signature = this.readUint32LE(bytes, index);
+            if (signature !== 0x04034b50) {
+                index += 1;
+                continue;
+            }
+
+            const compressionMethod = this.readUint16LE(bytes, index + 8);
+            const compressedSize = this.readUint32LE(bytes, index + 18);
+            const fileNameLength = this.readUint16LE(bytes, index + 26);
+            const extraLength = this.readUint16LE(bytes, index + 28);
+            const nameStart = index + 30;
+            const nameEnd = nameStart + fileNameLength;
+            const dataStart = nameEnd + extraLength;
+            const dataEnd = dataStart + compressedSize;
+            const name = this.decodeUtf8(bytes.subarray(nameStart, nameEnd));
+            const data = bytes.subarray(dataStart, dataEnd);
+
+            entries[name] = await this.inflateZipEntry(data, compressionMethod);
+            index = dataEnd;
+        }
+
+        return entries;
+    }
+
+    async inflateZipEntry(bytes, compressionMethod) {
+        if (compressionMethod === 0) {
+            return this.decodeUtf8(bytes);
+        }
+        if (compressionMethod !== 8) {
+            return '';
+        }
+
+        if (nodeZlib && typeof Buffer !== 'undefined') {
+            return nodeZlib.inflateRawSync(Buffer.from(bytes)).toString('utf8');
+        }
+
+        if (typeof DecompressionStream !== 'undefined') {
+            const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            const response = new Response(stream);
+            return response.text();
+        }
+
+        return '';
+    }
+
+    extractWordXmlText(xml) {
+        return String(xml || '')
+            .replace(/<w:tab\/>/g, '\t')
+            .replace(/<w:br\/>/g, '\n')
+            .replace(/<\/w:p>/g, '\n')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/\s+\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .replace(/[ \t]{2,}/g, ' ')
+            .trim();
+    }
+
+    extractExcelText(entries) {
+        const sharedStrings = this.extractSharedStrings(entries['xl/sharedStrings.xml'] || '');
+        const worksheetNames = Object.keys(entries).filter((key) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(key)).sort();
+        const sections = worksheetNames.map((name, index) => {
+            const label = `Sheet ${index + 1}`;
+            const rows = this.extractWorksheetRows(entries[name], sharedStrings);
+            return `${label}\n${rows.join('\n')}`.trim();
+        }).filter(Boolean);
+        return sections.join('\n\n').trim();
+    }
+
+    extractSharedStrings(xml) {
+        const values = [];
+        String(xml || '').replace(/<si[\s\S]*?<\/si>/g, (item) => {
+            const text = item.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            values.push(text);
+            return item;
+        });
+        return values;
+    }
+
+    extractWorksheetRows(xml, sharedStrings) {
+        const rows = [];
+        const rowMatches = String(xml || '').match(/<row[\s\S]*?<\/row>/g) || [];
+        rowMatches.forEach((rowMatch) => {
+            const cells = [];
+            const cellMatches = rowMatch.match(/<c[\s\S]*?<\/c>/g) || [];
+            cellMatches.forEach((cellMatch) => {
+                const typeMatch = cellMatch.match(/\bt="([^"]+)"/);
+                const valueMatch = cellMatch.match(/<v>([\s\S]*?)<\/v>/);
+                const inlineMatch = cellMatch.match(/<t[^>]*>([\s\S]*?)<\/t>/);
+                const type = typeMatch ? typeMatch[1] : '';
+                let value = inlineMatch ? inlineMatch[1] : (valueMatch ? valueMatch[1] : '');
+                if (type === 's') {
+                    value = sharedStrings[Number(value)] || '';
+                }
+                value = String(value || '').replace(/\s+/g, ' ').trim();
+                if (value) cells.push(value);
+            });
+            if (cells.length) rows.push(cells.join('\t'));
+        });
+        return rows.slice(0, 100);
+    }
+
+    async extractTextFromImage(blob, options = {}) {
+        const maxExtractedCharacters = Number(options.maxExtractedCharacters || 3000);
+        if (typeof Tesseract !== 'undefined' && Tesseract && typeof Tesseract.recognize === 'function') {
+            const result = await Tesseract.recognize(blob, 'eng');
+            const text = String(result && result.data && result.data.text || '').trim().slice(0, maxExtractedCharacters);
+            return {
+                status: text ? 'text-extracted' : 'failed',
+                text,
+                truncated: text.length >= maxExtractedCharacters,
+                detail: text ? 'OCR completed.' : 'OCR ran but no readable text was found.'
+            };
+        }
+
+        return {
+            status: 'unsupported',
+            text: '',
+            truncated: false,
+            detail: 'OCR is not available in this runtime. The image was kept out of AI handoff instead of pretending text was extracted.'
+        };
+    }
+
+    readUint16LE(bytes, index) {
+        return bytes[index] | (bytes[index + 1] << 8);
+    }
+
+    readUint32LE(bytes, index) {
+        return (bytes[index]) |
+            (bytes[index + 1] << 8) |
+            (bytes[index + 2] << 16) |
+            (bytes[index + 3] << 24);
+    }
+
+    decodeUtf8(bytes) {
+        if (typeof TextDecoder !== 'undefined') {
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+        if (typeof Buffer !== 'undefined') {
+            return Buffer.from(bytes).toString('utf8');
+        }
+        return '';
     }
 
     // Fetch attachment content only after basic URL safety checks.

@@ -1,7 +1,9 @@
 # Summarize This v2 - Implementation Summary
 
+> Historical note: this file is a dated milestone summary from January 31, 2026. It is not the current source of truth for repo completion, shipped scope, or production readiness. Use the audit and verification documents under `docs/` for current status.
+
 ## Overview
-This document summarizes the Phase 1 high-priority implementations completed for the Summarize This Trello Power-Up, transforming it from a mock/simulated system to a production-ready application with real AI API integrations.
+This document summarizes a Phase 1 implementation milestone for the Summarize This Trello Power-Up. Some claims below are now historical and should be read alongside the current audit documents.
 
 ## Date
 January 31, 2026

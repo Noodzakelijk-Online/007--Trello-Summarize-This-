@@ -978,7 +978,7 @@
       nextSteps: queue.length ? [
         "Use this as the reviewed queue seed for a future full-card batch run.",
         "Start with overdue or due-soon cards, then process common-label groups.",
-        "Open each card for full evidence-backed analysis before exporting or posting results."
+        "Run a reviewed batch here, or open cards manually when you want to inspect them one by one before exporting or posting results."
       ] : [
         "Enable list context in settings before building a batch analysis plan."
       ],
@@ -1033,8 +1033,8 @@
       estimatedMinutes: estimatedSeconds ? Math.max(1, Math.ceil(estimatedSeconds / 60)) : 0,
       aiHandoffApproved: aiHandoffApproved,
       trelloWriteDefault: "off",
-      automaticExecution: false,
-      networkAction: "none",
+      automaticExecution: aiHandoffApproved,
+      networkAction: aiHandoffApproved ? "trello-read-and-analyze" : "none",
       openableCards: openableCards,
       executionAllowed: !blockedReasons.length,
       blockedReasons: blockedReasons,
@@ -1050,17 +1050,17 @@
           status: aiHandoffApproved ? "ready-for-reviewed-run" : "review-required",
           requiredApproval: item.requiredApproval || "Review this queue item before any full-card AI analysis or Trello write.",
           manualStep: cardUrl
-            ? "Open this Trello card and run Summarize This manually."
+            ? "Run the reviewed batch here, or open this Trello card and run Summarize This manually."
             : "Open this card manually from Trello before running analysis."
         };
       }),
       safetyChecklist: [
-        "Open each selected card and collect full evidence before analysis.",
+        "Fetch full card context before analysis and stop if Trello read errors appear.",
         "Send card bodies, comments, or attachment text to AI only after this approval.",
         "Keep Trello posting off until each exact comment draft is reviewed.",
         "Stop or reduce concurrency if Trello or provider rate limits appear."
       ],
-      privacyNote: "This execution review still uses bounded list metadata only. It previews controls and queue state, but does not fetch full card bodies, call AI, or write to Trello."
+      privacyNote: "This execution review starts from bounded list metadata only. When run, it fetches full card context for the selected queue, analyzes it, stores results privately, and keeps Trello write actions off."
     };
   }
 
@@ -2130,6 +2130,49 @@
     };
   }
 
+  function normalizeBackendApiBase(value) {
+    var input = String(value || "").trim();
+    if (!input) return "";
+    try {
+      var parsed = new URL(input);
+      if (parsed.username || parsed.password) return "";
+      if (parsed.protocol !== "https:" && !isAllowedLocalProxyUrl(parsed)) return "";
+      parsed.search = "";
+      parsed.hash = "";
+      parsed.pathname = (parsed.pathname || "/api").replace(/\/+$/, "") || "/api";
+      return parsed.toString().replace(/\/$/, "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function deriveBackendApiBaseFromProxy(proxy) {
+    var proxySettings = normalizeProxySettings(proxy);
+    if (!proxySettings.endpoint) return "";
+    try {
+      var parsed = new URL(proxySettings.endpoint);
+      parsed.search = "";
+      parsed.hash = "";
+      parsed.pathname = "/api";
+      return parsed.toString().replace(/\/$/, "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function normalizeBackendSettings(input, proxy) {
+    var source = input || {};
+    var explicit = normalizeBackendApiBase(source.apiBase || source.endpoint || source.baseUrl || source.url);
+    var derived = explicit ? "" : deriveBackendApiBaseFromProxy(proxy);
+    var apiBase = explicit || derived;
+    return {
+      apiBase: apiBase,
+      valid: Boolean(apiBase),
+      derivedFromProxy: !explicit && Boolean(derived),
+      source: explicit ? "explicit" : (derived ? "derived-from-proxy" : "none")
+    };
+  }
+
   function stripApiKeysForLocalPreview(settings) {
     var source = settings && typeof settings === "object" ? settings : {};
     return Object.assign({}, source, {
@@ -2373,6 +2416,7 @@
     normalizeGenerationSettings: normalizeGenerationSettings,
     normalizeProviderMode: normalizeProviderMode,
     normalizeProxySettings: normalizeProxySettings,
+    normalizeBackendSettings: normalizeBackendSettings,
     normalizePromptTemplates: normalizePromptTemplates,
     normalizePromptTemplateSettings: normalizePromptTemplateSettings,
     normalizeProviderKey: normalizeProviderKey,

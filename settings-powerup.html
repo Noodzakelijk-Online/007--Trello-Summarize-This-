@@ -430,7 +430,19 @@
       <div class="group">
         <label for="proxyEndpoint">Proxy endpoint</label>
         <input id="proxyEndpoint" type="url" autocomplete="off" placeholder="https://your-domain.example/summarize-this/ai">
-        <p class="warning">Use a public HTTPS endpoint. Local development may use http://localhost or http://127.0.0.1. Private network endpoints, query strings, and fragments are not saved.</p>
+        <p class="warning">Use HTTPS for Trello. Local development may use localhost or 127.0.0.1. Query strings and fragments are stripped before saving.</p>
+      </div>
+
+      <div class="group">
+        <label for="backendApiBase">Backend API base</label>
+        <input id="backendApiBase" type="url" autocomplete="off" placeholder="https://your-domain.example/api">
+        <p class="help">Optional. Used for persisted batch jobs and authenticated backend review state. Leave blank to derive from the proxy host when possible.</p>
+      </div>
+
+      <div class="group">
+        <label for="backendSessionToken">Backend session token</label>
+        <input id="backendSessionToken" type="password" autocomplete="off" placeholder="st_...">
+        <p class="help">Optional. Stored in member-private Power-Up storage and used only for authenticated backend batch execution.</p>
       </div>
     </section>
 
@@ -515,8 +527,7 @@
     </div>
   </div>
 
-  <script src="./trello-runtime-config.js?v=20260719.3"></script>
-  <script src="./summarizer-core.js?v=20260719.3"></script>
+  <script src="./summarizer-core.js"></script>
   <script>
     /* global TrelloPowerUp, SummarizeThis */
 
@@ -528,13 +539,31 @@
         window.TrelloPowerUp.iframe &&
         window.self !== window.top
       );
-      var runtimeConfig = window.SummarizeThisTrelloConfig || {};
-      var restApiOptions = {
-        appKey: String(runtimeConfig.appKey || "").trim(),
-        appName: String(runtimeConfig.appName || "Summarize this!").trim(),
-        appAuthor: String(runtimeConfig.appAuthor || "").trim()
+      var t = inTrello ? window.TrelloPowerUp.iframe() : null;
+      
+      window.trimSummarizeThisHistory = async function () {
+        console.log("[SummarizeThis TRIM] starting...");
+        if (!t) {
+          console.log("[SummarizeThis TRIM] t is null -- not running inside Trello iframe context.");
+          return;
+        }
+        try {
+          var r1 = await t.remove("member", "private", "analysisHistory");
+          console.log("[SummarizeThis TRIM] removed analysisHistory:", r1);
+        } catch (e) {
+          console.log("[SummarizeThis TRIM] error removing analysisHistory:", e);
+        }
+        try {
+          var r2 = await t.remove("member", "private", "summarizeThisPerformanceRecords");
+          console.log("[SummarizeThis TRIM] removed summarizeThisPerformanceRecords:", r2);
+        } catch (e) {
+          console.log("[SummarizeThis TRIM] error removing summarizeThisPerformanceRecords:", e);
+        }
+        console.log("[SummarizeThis TRIM] done. This frees up storage. Try Save settings again now.");
       };
-      var t = inTrello ? window.TrelloPowerUp.iframe(restApiOptions.appKey && restApiOptions.appName ? restApiOptions : undefined) : null;
+      
+      console.log("[SummarizeThis TRIM] trimSummarizeThisHistory() is now available -- call it from the console.");
+ 
       var promptTemplates = [];
       var fields = {
         analysisMode: document.getElementById("analysisMode"),
@@ -556,6 +585,8 @@
         requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
         useProxy: document.getElementById("useProxy"),
         proxyEndpoint: document.getElementById("proxyEndpoint"),
+        backendApiBase: document.getElementById("backendApiBase"),
+        backendSessionToken: document.getElementById("backendSessionToken"),
         budgetWarningPercent: document.getElementById("budgetWarningPercent"),
         openaiMonthlyLimit: document.getElementById("openaiMonthlyLimit"),
         googleMonthlyLimit: document.getElementById("googleMonthlyLimit"),
@@ -618,6 +649,9 @@
         var proxySettings = SummarizeThis.normalizeProxySettings(settings.proxy);
         fields.useProxy.checked = proxySettings.enabled;
         fields.proxyEndpoint.value = proxySettings.endpoint;
+        var backendSettings = SummarizeThis.normalizeBackendSettings(settings.backend, settings.proxy);
+        fields.backendApiBase.value = backendSettings.derivedFromProxy ? "" : backendSettings.apiBase;
+        fields.backendSessionToken.value = await readBackendSessionToken();
         var budget = SummarizeThis.normalizeBudgetSettings(settings.budget);
         fields.budgetWarningPercent.value = String(budget.warningPercent);
         fields.openaiMonthlyLimit.value = budget.providerMonthlyLimits.openai ? String(budget.providerMonthlyLimits.openai) : "";
@@ -656,6 +690,7 @@
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
             safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
+            safeLocalSettings.backend = SummarizeThis.normalizeBackendSettings(safeLocalSettings.backend, safeLocalSettings.proxy);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
               localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
             }
@@ -665,20 +700,25 @@
           }
         }
 
-        var current = await safe(function () {
+       var current = await safe(function () {
           return t.get("member", "private", "summarizeThisSettings");
         }, {});
+        var storedPromptTemplates = await safe(function () {
+          return t.get("member", "private", "summarizeThisPromptTemplates");
+        }, []);
         var legacyKeys = await safe(function () {
           return t.get("member", "private", "apiKeys");
         }, {});
         var strategy = await safe(function () {
           return t.get("member", "private", "preferredStrategy");
         }, "");
-
+        
         return Object.assign({}, fallback, current || {}, {
           apiKeys: Object.assign({}, legacyKeys || {}, current && current.apiKeys ? current.apiKeys : {}),
           strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy,
-          proxy: SummarizeThis.normalizeProxySettings(current && current.proxy)
+          proxy: SummarizeThis.normalizeProxySettings(current && current.proxy),
+          backend: SummarizeThis.normalizeBackendSettings(current && current.backend, current && current.proxy),
+          promptTemplates: Array.isArray(storedPromptTemplates) ? storedPromptTemplates : []
         });
       }
 
@@ -709,6 +749,12 @@
             enabled: fields.useProxy.checked,
             endpoint: fields.proxyEndpoint.value
           }),
+          backend: SummarizeThis.normalizeBackendSettings({
+            apiBase: fields.backendApiBase.value
+          }, {
+            enabled: fields.useProxy.checked,
+            endpoint: fields.proxyEndpoint.value
+          }),
           promptContext: normalizePromptContext({
             descriptionCharacters: fields.promptDescriptionCharacters.value,
             commentLimit: fields.promptCommentLimit.value,
@@ -736,9 +782,19 @@
           updatedAt: new Date().toISOString()
         };
       }
+      // ============================================================
+// TEMPORARY DEBUG VERSION of saveSettings() in settings-powerup.html
+// ============================================================
+// Add console.log tracing at every step to find exactly where
+// execution stops (or if the function runs at all).
+// ============================================================
 
       async function saveSettings(options) {
+        console.log("[SummarizeThis DEBUG] saveSettings() called");
+
         var settings = buildSettings();
+        console.log("[SummarizeThis DEBUG] buildSettings() returned:", settings);
+
         var closeAfterSave = !(options && options.keepOpen);
         var successMessage = options && options.successMessage ? options.successMessage : "Settings saved.";
 
@@ -747,6 +803,7 @@
         });
 
         if (fields.useProxy.checked && !settings.proxy.valid) {
+          console.log("[SummarizeThis DEBUG] blocked: proxy invalid:", settings.proxy.error);
           showMessage(settings.proxy.error, "error");
           return;
         }
@@ -754,42 +811,193 @@
         var hasProxy = settings.proxy && settings.proxy.enabled;
         var usableKeyCount = t ? Object.keys(settings.apiKeys).length : 0;
         if (settings.analysisMode === "ai-only" && usableKeyCount === 0 && !hasProxy) {
+          console.log("[SummarizeThis DEBUG] blocked: ai-only mode with no key/proxy");
           showMessage(!t
             ? "AI-only mode requires a valid proxy endpoint in local preview."
             : "Add at least one API key, configure a valid proxy endpoint, or choose Auto/local mode.", "error");
           return;
         }
 
+        console.log("[SummarizeThis DEBUG] t (inTrello iframe) is:", t);
+
         if (!t) {
+          console.log("[SummarizeThis DEBUG] taking LOCAL PREVIEW path (t is falsy)");
           var safePreviewSettings = SummarizeThis.stripApiKeysForLocalPreview(settings);
           localStorage.setItem("summarizeThisSettings", JSON.stringify(safePreviewSettings));
+          localStorage.setItem("summarizeThisBackendSessionToken", JSON.stringify(fields.backendSessionToken.value.trim()));
           fields.openaiKey.value = "";
           fields.googleKey.value = "";
           fields.anthropicKey.value = "";
+          fields.backendSessionToken.value = "";
           showMessage("Non-key settings saved for local preview. API keys are only stored in Trello member-private storage.", "success");
           return;
         }
 
-        await t.set("member", "private", "summarizeThisSettings", settings);
-        await t.set("member", "private", "apiKeys", settings.apiKeys);
-        await t.set("member", "private", "preferredStrategy", settings.strategy);
-        showMessage(successMessage, "success");
+        console.log("[SummarizeThis DEBUG] taking REAL TRELLO save path, about to call t.set()...");
+
+        try {
+          var promptTemplatesForStorage = settings.promptTemplates;
+          var coreSettings = Object.assign({}, settings);
+          delete coreSettings.promptTemplates;
+
+          console.log("[SummarizeThis DEBUG] coreSettings size (chars):", JSON.stringify(coreSettings).length);
+          console.log("[SummarizeThis DEBUG] promptTemplates size (chars):", JSON.stringify(promptTemplatesForStorage).length);
+
+          var result1 = await t.set("member", "private", "summarizeThisSettings", coreSettings);
+          console.log("[SummarizeThis DEBUG] t.set summarizeThisSettings result:", result1);
+
+          var result2 = await t.set("member", "private", "summarizeThisPromptTemplates", promptTemplatesForStorage);
+          console.log("[SummarizeThis DEBUG] t.set summarizeThisPromptTemplates result:", result2);
+
+          var result3 = await t.set("member", "private", "apiKeys", settings.apiKeys);
+          console.log("[SummarizeThis DEBUG] t.set apiKeys result:", result3);
+
+          var result4 = await t.set("member", "private", "preferredStrategy", settings.strategy);
+          console.log("[SummarizeThis DEBUG] t.set preferredStrategy result:", result4);
+
+          var result5 = await t.set("member", "private", "summarizeThisBackendSessionToken", fields.backendSessionToken.value.trim());
+          console.log("[SummarizeThis DEBUG] t.set summarizeThisBackendSessionToken result:", result5);
+
+          console.log("[SummarizeThis DEBUG] all t.set() calls completed successfully, showing success message");
+          fields.backendSessionToken.value = "";
+          showMessage(successMessage, "success");
+        } catch (error) {
+          console.log("[SummarizeThis DEBUG] CAUGHT ERROR during t.set():", error);
+          showMessage("Settings could not be saved: " + (error && error.message ? error.message : String(error)), "error");
+          return;
+        }
 
         if (closeAfterSave) {
+          console.log("[SummarizeThis DEBUG] scheduling closePopup in 900ms");
           setTimeout(function () {
+            console.log("[SummarizeThis DEBUG] attempting t.closePopup()");
             if (t && t.closePopup) t.closePopup();
           }, 900);
         }
       }
 
+      // async function saveSettings(options) {
+      //   var settings = buildSettings();
+      //   var closeAfterSave = !(options && options.keepOpen);
+      //   var successMessage = options && options.successMessage ? options.successMessage : "Settings saved.";
+
+      //   Object.keys(settings.apiKeys).forEach(function (key) {
+      //     if (!settings.apiKeys[key]) delete settings.apiKeys[key];
+      //   });
+
+      //   if (fields.useProxy.checked && !settings.proxy.valid) {
+      //     showMessage(settings.proxy.error, "error");
+      //     return;
+      //   }
+
+      //   var hasProxy = settings.proxy && settings.proxy.enabled;
+      //   var usableKeyCount = t ? Object.keys(settings.apiKeys).length : 0;
+      //   if (settings.analysisMode === "ai-only" && usableKeyCount === 0 && !hasProxy) {
+      //     showMessage(!t
+      //       ? "AI-only mode requires a valid proxy endpoint in local preview."
+      //       : "Add at least one API key, configure a valid proxy endpoint, or choose Auto/local mode.", "error");
+      //     return;
+      //   }
+
+      //   if (!t) {
+      //     var safePreviewSettings = SummarizeThis.stripApiKeysForLocalPreview(settings);
+      //     localStorage.setItem("summarizeThisSettings", JSON.stringify(safePreviewSettings));
+      //     fields.openaiKey.value = "";
+      //     fields.googleKey.value = "";
+      //     fields.anthropicKey.value = "";
+      //     showMessage("Non-key settings saved for local preview. API keys are only stored in Trello member-private storage.", "success");
+      //     return;
+      //   }
+
+      //   await t.set("member", "private", "summarizeThisSettings", settings);
+      //   await t.set("member", "private", "apiKeys", settings.apiKeys);
+      //   await t.set("member", "private", "preferredStrategy", settings.strategy);
+      //   showMessage(successMessage, "success");
+
+      //   if (closeAfterSave) {
+      //     setTimeout(function () {
+      //       if (t && t.closePopup) t.closePopup();
+      //     }, 900);
+      //   }
+      // }
+      
+      // ============================================================
+// FIX: Save Settings failing with "PluginData length of 4096
+// characters exceeded" in settings-powerup.html
+// ============================================================
+//
+// PROBLEM: saveSettings() bundles everything -- including the
+// promptTemplates array (each template has a name + up to 600
+// characters of instructions) -- into ONE object saved under a
+// single key: t.set("member", "private", "summarizeThisSettings", settings)
+//
+// Trello enforces a hard 4096-character limit PER KEY. Once you have
+// even one or two saved templates plus all the other settings fields
+// (proxy, budget, generation, export preferences, etc.), the combined
+// JSON blows past that limit and the write throws -- which is why
+// Save Settings appears to silently do nothing.
+//
+// FIX: store promptTemplates in its own separate key, so the core
+// settings blob stays small and the templates can grow independently
+// (still bounded, but no longer compounding with everything else).
+// ============================================================
+
+// ---- Replace inside saveSettings() ----
+//
+// OLD:
+//   await t.set("member", "private", "summarizeThisSettings", settings);
+//   await t.set("member", "private", "apiKeys", settings.apiKeys);
+//   await t.set("member", "private", "preferredStrategy", settings.strategy);
+//
+// NEW:
+
+     
+      // ---- Replace inside readSettings(), in the `t` (real Trello) branch ----
+      //
+      // OLD:
+      //   var current = await safe(function () {
+      //     return t.get("member", "private", "summarizeThisSettings");
+      //   }, {});
+      //   var legacyKeys = await safe(function () {
+      //     return t.get("member", "private", "apiKeys");
+      //   }, {});
+      //   var strategy = await safe(function () {
+      //     return t.get("member", "private", "preferredStrategy");
+      //   }, "");
+      //
+      //   return Object.assign({}, fallback, current || {}, {
+      //     apiKeys: Object.assign({}, legacyKeys || {}, current && current.apiKeys ? current.apiKeys : {}),
+      //     strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy,
+      //     proxy: SummarizeThis.normalizeProxySettings(current && current.proxy)
+      //   });
+      //
+      // NEW: also read the separate promptTemplates key and merge it back in,
+      // so the rest of the code (which expects settings.promptTemplates) keeps
+      // working unchanged.
+
+   
       async function clearKeys() {
         fields.openaiKey.value = "";
         fields.googleKey.value = "";
         fields.anthropicKey.value = "";
+        fields.backendSessionToken.value = "";
         setProviderStatus("openai", "", "");
         setProviderStatus("google", "", "");
         setProviderStatus("anthropic", "", "");
         await saveSettings();
+      }
+
+      async function readBackendSessionToken() {
+        if (!t) {
+          try {
+            return JSON.parse(localStorage.getItem("summarizeThisBackendSessionToken") || "\"\"");
+          } catch (_error) {
+            return "";
+          }
+        }
+        return await safe(function () {
+          return t.get("member", "private", "summarizeThisBackendSessionToken");
+        }, "");
       }
 
       async function savePromptTemplate() {

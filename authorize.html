@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Authorize Summarize This</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 16px;
+        color: #172b4d;
+        font-size: 14px;
+      }
+      #status {
+        text-align: center;
+        padding-top: 8px;
+      }
+      button {
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        margin-top: 10px;
+        border-radius: 3px;
+        border: none;
+        background: #0079bf;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #026aa7;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">Loading&hellip;</div>
+
+    <script src="https://p.trellocdn.com/power-up.min.js"></script>
+    <script src="./trello-config.js"></script>
+    <script>
+      var runtimeConfig = window.SummarizeThisTrelloConfig || {};
+      var APP_KEY = typeof runtimeConfig.appKey === "string" ? runtimeConfig.appKey.trim() : "";
+      var APP_NAME = typeof runtimeConfig.appName === "string" && runtimeConfig.appName.trim()
+        ? runtimeConfig.appName.trim()
+        : "Summarize This";
+      var clientReady = false;
+
+      var iframeOptions = {
+        appName: APP_NAME
+      };
+      if (APP_KEY) {
+        iframeOptions.appKey = APP_KEY;
+      }
+      var t = TrelloPowerUp.iframe(iframeOptions);
+
+      window.addEventListener("load", function () {
+        if (!APP_KEY) {
+          setStatus("Trello authorization is not configured yet. Add your Trello app key in trello-config.js first.");
+          return;
+        }
+
+        loadAuthorizationClient();
+      });
+
+      function setStatus(message) {
+        document.getElementById("status").textContent = message;
+      }
+
+      function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+          var script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      function appendAuthorizeButton() {
+        if (document.getElementById("authorizeButton")) return;
+        var statusEl = document.getElementById("status");
+        var btn = document.createElement("button");
+        btn.id = "authorizeButton";
+        btn.textContent = "Authorize Summarize This";
+        btn.onclick = requestAuthorization;
+        statusEl.parentNode.appendChild(btn);
+      }
+
+      function loadAuthorizationClient() {
+        setStatus("Loading Trello authorization SDK…");
+
+        loadScript("https://code.jquery.com/jquery-3.6.0.min.js")
+          .then(function () {
+            return loadScript("https://api.trello.com/1/client.js?key=" + encodeURIComponent(APP_KEY));
+          })
+          .then(function () {
+            clientReady = (typeof Trello !== "undefined");
+            if (clientReady) {
+              setStatus("Ready.");
+              appendAuthorizeButton();
+            } else {
+              setStatus("Failed to load Trello's authorization SDK. Check your Trello app key.");
+            }
+          })
+          .catch(function () {
+            setStatus("Failed to load Trello authorization dependencies. Check network access and your Trello app key.");
+          });
+      }
+
+      function requestAuthorization() {
+        if (!clientReady) {
+          setStatus("Still loading, try again in a moment.");
+          return;
+        }
+
+        setStatus("Requesting authorization…");
+
+        Trello.authorize({
+          type: "popup",
+          name: APP_NAME,
+          scope: {
+            read: true,
+            write: true,
+            account: false
+          },
+          expiration: "never",
+          success: function () {
+            setStatus("Authorized. Closing…");
+            t.closePopup();
+          },
+          error: function () {
+            setStatus("Authorization was not completed. Popup may have been blocked -- allow popups for this site and try again.");
+            appendAuthorizeButton();
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
