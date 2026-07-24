@@ -20,6 +20,38 @@ const CustomPromptManager = require("./custom-prompts");
   assert.match(documentText, /confidence/i);
 });
 
+[
+  "docs/TECHNICAL_AUDIT.md",
+  "docs/CRITICAL_PATH.md",
+  "docs/ACCEPTANCE_TESTS.md",
+  "docs/GOAL_COMPLETION_MATRIX.md",
+  "docs/FINAL_VERIFICATION_REPORT.md",
+  "docs/UI_ACTION_AUDIT.md",
+  "docs/API_USAGE_AUDIT.md",
+  "docs/SECURITY.md",
+  "docs/OPERATOR_RUNBOOK.md",
+  "docs/CODEX_WORKLOG.md",
+  "docs/CODEX_CHECKPOINTS.md",
+  "docs/TASK_GRAPH.md"
+].forEach((fileName) => {
+  assert.ok(fs.existsSync(path.join(__dirname, fileName)), `${fileName} exists`);
+});
+
+assert.ok(fs.existsSync(path.join(__dirname, "trello-config.js")), "trello-config.js exists");
+
+const technicalAuditText = fs.readFileSync(path.join(__dirname, "docs/TECHNICAL_AUDIT.md"), "utf8");
+assert.match(technicalAuditText, /static Power-Up flow/i);
+assert.match(technicalAuditText, /database-user\.js/);
+assert.match(technicalAuditText, /not part of the current shipped Power-Up claim/i);
+
+const completionMatrixText = fs.readFileSync(path.join(__dirname, "docs/GOAL_COMPLETION_MATRIX.md"), "utf8");
+assert.match(completionMatrixText, /\| PDF\/Word\/Excel\/image OCR extraction \| Partial \|/);
+assert.match(completionMatrixText, /\| Trello description writeback \| Missing \|/);
+
+const trelloConfigText = fs.readFileSync(path.join(__dirname, "trello-config.js"), "utf8");
+assert.match(trelloConfigText, /SummarizeThisTrelloConfig/);
+assert.match(trelloConfigText, /appKey/);
+
 function readPowerShellStringArray(fileName, variableName) {
   const scriptText = fs.readFileSync(path.join(__dirname, fileName), "utf8");
   const pattern = new RegExp("\\$" + variableName + "\\s*=\\s*@\\(([\\s\\S]*?)\\)", "m");
@@ -52,6 +84,45 @@ const updateManifest = JSON.parse(fs.readFileSync(path.join(__dirname, "update.j
 assert.equal(updateManifest.schemaVersion, "summarize-this-update-manifest-v1");
 assert.equal(updateManifest.version, SummarizeThis.APP_VERSION);
 assert.match(updateManifest.manifestUrl, /^https:\/\/raw\.githubusercontent\.com\/Noodzakelijk-Online\/007--Trello-Summarize-This-\//);
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"));
+assert.equal(packageJson.scripts.start, "node local-dev-server.js");
+assert.equal(packageJson.scripts["start:backend"], "node backend-server.js");
+assert.equal(packageJson.scripts.doctor, "node doctor.js");
+assert.equal(packageJson.scripts["doctor:backend"], "node backend-doctor.js");
+assert.equal(packageJson.scripts.test, "node test.js && node backend.test.js");
+const localServerText = fs.readFileSync(path.join(__dirname, "local-dev-server.js"), "utf8");
+assert.match(localServerText, /path\.normalize/);
+assert.match(localServerText, /startsWith\(ROOT\)/);
+assert.match(localServerText, /Open http:\/\/\$\{HOST\}:\$\{PORT\}\/connector\.html/);
+const doctorText = fs.readFileSync(path.join(__dirname, "doctor.js"), "utf8");
+assert.match(doctorText, /Doctor checks passed/);
+assert.match(doctorText, /connector\.html/);
+assert.match(doctorText, /backend-server\.js/);
+const backendDoctorText = fs.readFileSync(path.join(__dirname, "backend-doctor.js"), "utf8");
+assert.match(backendDoctorText, /Backend doctor checks passed/);
+assert.match(backendDoctorText, /Trello app key presence/);
+assert.ok(fs.existsSync(path.join(__dirname, "backend-server.js")));
+assert.ok(fs.existsSync(path.join(__dirname, "backend-app.js")));
+assert.ok(fs.existsSync(path.join(__dirname, "backend-config.js")));
+assert.ok(fs.existsSync(path.join(__dirname, "backend-doctor.js")));
+assert.ok(fs.existsSync(path.join(__dirname, "backend.test.js")));
+assert.ok(fs.existsSync(path.join(__dirname, "database/connection.js")));
+assert.ok(fs.existsSync(path.join(__dirname, "middleware/errorHandler.js")));
+const backendServerText = fs.readFileSync(path.join(__dirname, "backend-server.js"), "utf8");
+assert.match(backendServerText, /Missing required environment variables/);
+const backendAppText = fs.readFileSync(path.join(__dirname, "backend-app.js"), "utf8");
+assert.match(backendAppText, /\/api\/health/);
+assert.match(backendAppText, /\/api\/readiness/);
+assert.match(backendAppText, /\/api\/admin\/users/);
+assert.match(backendAppText, /\/api\/admin\/settings/);
+assert.match(backendAppText, /\/api\/admin\/system\/alerts/);
+assert.match(backendAppText, /\/api\/admin\/reports/);
+assert.match(backendAppText, /\/api\/admin\/backup\/create/);
+assert.match(backendAppText, /\/api\/admin\/maintenance\/schedule/);
+assert.match(backendAppText, /\/api\/admin\/credits\/bulk-adjust/);
+const backendConfigText = fs.readFileSync(path.join(__dirname, "backend-config.js"), "utf8");
+assert.match(backendConfigText, /function env\(\)/);
+assert.match(backendConfigText, /get JWT_SECRET\(\)/);
 
 const sample = SummarizeThis.sampleCardData();
 const normalized = SummarizeThis.normalizeCardData(sample);
@@ -164,11 +235,17 @@ const trelloSafeError = trelloSanitizer.sanitizeErrorMessage(unsafeError);
 assert.doesNotMatch(trelloSafeError, /secret123|trello-token|attachments\.example\.com/);
 assert.match(trelloSafeError, /redacted|url redacted/);
 const popupText = fs.readFileSync(path.join(__dirname, "popup.html"), "utf8");
+assert.match(popupText, /trello-config\.js/);
+assert.match(popupText, /function trelloAppKey/);
+assert.doesNotMatch(popupText, /var TRELLO_API_KEY = "87f50d5376d860dfac3dfbb42f5c7e79"/);
 assert.match(popupText, /color-scheme:\s*light dark/);
 assert.match(popupText, /prefers-color-scheme:\s*dark/);
 assert.match(popupText, /function sanitizeUserVisibleError/);
 assert.match(popupText, /Provider message: " \+ sanitizeUserVisibleError\(error\)/);
 assert.match(popupText, /Could not post the comment: " \+ sanitizeUserVisibleError\(error\)/);
+assert.match(popupText, /built-in summarizer/);
+assert.match(popupText, /metadata-only until approval/);
+assert.match(popupText, /Trello app key is not configured for comment lookup/);
 assert.match(popupText, /function maxOutputTokensFor/);
 assert.match(popupText, /maxOutputTokens: maxOutputTokensFor\(settings\)/);
 assert.match(popupText, /max_tokens: maxOutputTokens/);
@@ -182,6 +259,7 @@ assert.doesNotMatch(popupText, /DOMContentLoaded[\s\S]{0,200}checkForUpdates\(/)
 assert.match(popupText, /id="batchExecutionControls"/);
 assert.match(popupText, /id="batchAiHandoffApproval"/);
 assert.match(popupText, /id="previewBatchExecutionButton"/);
+assert.match(popupText, /id="runBatchExecutionButton"/);
 assert.match(popupText, /id="openFirstBatchCardButton"/);
 assert.match(popupText, /id="copyBatchManualChecklistButton"/);
 assert.match(popupText, /id="copyBatchHandoffReportButton"/);
@@ -333,7 +411,7 @@ const unsafeProxySettings = SummarizeThis.normalizeProxySettings({
 });
 assert.equal(unsafeProxySettings.enabled, false);
 assert.equal(unsafeProxySettings.valid, false);
-assert.match(unsafeProxySettings.error, /valid HTTPS proxy endpoint/);
+assert.match(unsafeProxySettings.error, /public HTTPS proxy endpoint/);
 
 const disabledProxySettings = SummarizeThis.normalizeProxySettings({
   enabled: false,
@@ -341,6 +419,21 @@ const disabledProxySettings = SummarizeThis.normalizeProxySettings({
 });
 assert.equal(disabledProxySettings.enabled, false);
 assert.equal(disabledProxySettings.endpoint, "https://proxy.example.com/ai");
+
+const explicitBackendSettings = SummarizeThis.normalizeBackendSettings({
+  apiBase: "https://powerup.example.com/api/"
+});
+assert.equal(explicitBackendSettings.apiBase, "https://powerup.example.com/api");
+assert.equal(explicitBackendSettings.valid, true);
+assert.equal(explicitBackendSettings.derivedFromProxy, false);
+
+const derivedBackendSettings = SummarizeThis.normalizeBackendSettings({}, {
+  enabled: true,
+  endpoint: "https://proxy.example.com/summarize-this/ai"
+});
+assert.equal(derivedBackendSettings.apiBase, "https://proxy.example.com/api");
+assert.equal(derivedBackendSettings.valid, true);
+assert.equal(derivedBackendSettings.derivedFromProxy, true);
 
 const defaultGenerationSettings = SummarizeThis.normalizeGenerationSettings();
 assert.equal(defaultGenerationSettings.maxOutputTokens, 900);
@@ -511,7 +604,7 @@ assert.equal(blockedBatchExecutionReview.openableCards, 3);
 assert.equal(blockedBatchExecutionReview.executionAllowed, false);
 assert.ok(blockedBatchExecutionReview.blockedReasons.some(item => item.includes("AI handoff approval")));
 assert.ok(blockedBatchExecutionReview.queue.every(item => item.status === "review-required"));
-assert.ok(blockedBatchExecutionReview.privacyNote.includes("does not fetch full card bodies"));
+assert.ok(blockedBatchExecutionReview.privacyNote.includes("starts from bounded list metadata"));
 
 const approvedBatchExecutionReview = SummarizeThis.createBatchExecutionReview(batchAnalysisPlan, {
   maxCards: 50,
@@ -524,12 +617,14 @@ assert.equal(approvedBatchExecutionReview.concurrency, 3);
 assert.equal(approvedBatchExecutionReview.delaySeconds, 30);
 assert.equal(approvedBatchExecutionReview.executionAllowed, true);
 assert.equal(approvedBatchExecutionReview.trelloWriteDefault, "off");
+assert.equal(approvedBatchExecutionReview.automaticExecution, true);
+assert.equal(approvedBatchExecutionReview.networkAction, "trello-read-and-analyze");
 assert.ok(approvedBatchExecutionReview.queue.every(item => item.status === "ready-for-reviewed-run"));
-assert.ok(approvedBatchExecutionReview.queue.every(item => item.manualStep.includes("Open this Trello card")));
+assert.ok(approvedBatchExecutionReview.queue.every(item => item.manualStep.includes("Run the reviewed batch here")));
 
 const manualBatchChecklist = SummarizeThis.markdownForBatchManualRunChecklist(approvedBatchExecutionReview);
 assert.ok(manualBatchChecklist.includes("Manual batch run checklist"));
-assert.ok(manualBatchChecklist.includes("Automatic execution: off"));
+assert.ok(manualBatchChecklist.includes("Automatic execution: on"));
 assert.ok(manualBatchChecklist.includes("[2. Prepare launch checklist](https://trello.com/c/samplecard/prepare-launch-checklist)"));
 assert.equal(manualBatchChecklist.includes("Finalize the launch checklist"), false);
 
@@ -1428,7 +1523,7 @@ const adminConfig = TrelloAdminConfig.createAdminConfig({
   icon: { url: "./icon.svg" },
   capabilities: ["card-buttons", "show-settings"]
 }, "https://powerup.example.com/app/");
-assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.js");
+assert.equal(adminConfig.connectorUrl, "https://powerup.example.com/app/connector.html?v=20260719.3");
 assert.equal(adminConfig.manifestUrl, "https://powerup.example.com/app/manifest.json");
 assert.equal(adminConfig.iconUrl, "https://powerup.example.com/app/icon.svg");
 assert.equal(adminConfig.privacyUrl, "https://powerup.example.com/app/privacy.html");
@@ -1436,7 +1531,7 @@ assert.equal(adminConfig.termsUrl, "https://powerup.example.com/app/terms.html")
 assert.deepEqual(adminConfig.capabilities, ["card-buttons", "show-settings"]);
 
 const adminValuesText = TrelloAdminConfig.makeAdminValuesText(adminConfig);
-assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.js"));
+assert.ok(adminValuesText.includes("iframe Connector URL: https://powerup.example.com/app/connector.html?v=20260719.3"));
 assert.ok(adminValuesText.includes("Manifest URL: https://powerup.example.com/app/manifest.json"));
 assert.ok(adminValuesText.includes("Privacy policy URL: https://powerup.example.com/app/privacy.html"));
 assert.ok(adminValuesText.includes("Terms of service URL: https://powerup.example.com/app/terms.html"));
@@ -1507,7 +1602,7 @@ assert.equal(JSON.stringify(adminSetupPackage).includes("support@example.com"), 
 assert.doesNotMatch(JSON.stringify(adminSetupPackage), /sk-[a-z0-9]/i);
 
 const adminAutofillScript = TrelloAdminConfig.createAdminAutofillScript(adminConfig);
-assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.js"));
+assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/connector.html?v=20260719.3"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/manifest.json"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/privacy.html"));
 assert.ok(adminAutofillScript.includes("https://powerup.example.com/app/terms.html"));
@@ -1612,6 +1707,28 @@ const fileValidation = TrelloAdminConfig.validateHostedBaseUrl("file:///C:/Summa
 assert.equal(fileValidation.isReadyForTrello, false);
 
 async function runAsyncTests() {
+  const previousTrelloConfig = globalThis.SummarizeThisTrelloConfig;
+  globalThis.SummarizeThisTrelloConfig = {
+    appKey: "trello-app-key-test",
+    appName: "Summarize This"
+  };
+
+  const metadataOnlyPdf = await trelloSanitizer.processPDF({
+    name: "contract.pdf",
+    bytes: 2048
+  });
+  assert.equal(metadataOnlyPdf.processed, false);
+  assert.equal(metadataOnlyPdf.extractionStatus, "metadata-only");
+  assert.match(metadataOnlyPdf.content, /metadata-only/i);
+
+  const metadataOnlyImage = await trelloSanitizer.processImage({
+    name: "diagram.png",
+    bytes: 1024
+  });
+  assert.equal(metadataOnlyImage.processed, false);
+  assert.equal(metadataOnlyImage.extractionStatus, "metadata-only");
+  assert.match(metadataOnlyImage.content, /metadata-only/i);
+
   const connectorText = fs.readFileSync(path.join(__dirname, "connector.js"), "utf8");
   let registeredPowerUp = null;
   new Function("TrelloPowerUp", connectorText)({
@@ -1636,6 +1753,16 @@ async function runAsyncTests() {
       card(field) {
         assert.equal(field, "id");
         return Promise.resolve({ id: cardId });
+      },
+      getRestApi() {
+        return {
+          getToken() {
+            if (options.rejectToken) {
+              return Promise.reject(new Error("not authorized"));
+            }
+            return Promise.resolve(options.token || "");
+          }
+        };
       }
     };
     const badges = await registeredPowerUp["card-detail-badges"](fakeT);
@@ -1650,18 +1777,25 @@ async function runAsyncTests() {
   assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }), {
     badgeText: "Summary ready",
     badgeColor: "green",
-    authorized: true
+    authorized: false
   });
   assert.deepEqual(await connectorStatusFor({ apiKeys: { openai: "sk-test-value" } }), {
     badgeText: "Summary ready",
     badgeColor: "green",
-    authorized: true
+    authorized: false
   });
   assert.deepEqual(await connectorStatusFor({
     proxy: {
       enabled: true,
       endpoint: "https://proxy.example.com/summarize"
     }
+  }), {
+    badgeText: "Summary ready",
+    badgeColor: "green",
+    authorized: false
+  });
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }, {
+    token: "member-token"
   }), {
     badgeText: "Summary ready",
     badgeColor: "green",
@@ -1678,7 +1812,8 @@ async function runAsyncTests() {
           }
         }
       }]
-    }
+    },
+    token: "member-token"
   }), {
     badgeText: "84% confidence",
     badgeColor: "green",
@@ -1695,7 +1830,8 @@ async function runAsyncTests() {
           }
         }
       }]
-    }
+    },
+    token: "member-token"
   }), {
     badgeText: "Review needed",
     badgeColor: "yellow",
@@ -1712,7 +1848,8 @@ async function runAsyncTests() {
           }
         }
       }]
-    }
+    },
+    token: "member-token"
   }), {
     badgeText: "Analysis failed",
     badgeColor: "red",
@@ -1723,6 +1860,29 @@ async function runAsyncTests() {
     badgeColor: "yellow",
     authorized: false
   });
+
+  const previousConfig = globalThis.SummarizeThisTrelloConfig;
+  globalThis.SummarizeThisTrelloConfig = {
+    appKey: "",
+    appName: "Summarize This"
+  };
+  assert.deepEqual(await connectorStatusFor({ analysisMode: "local" }, {
+    token: "member-token"
+  }), {
+    badgeText: "Summary ready",
+    badgeColor: "green",
+    authorized: false
+  });
+  globalThis.SummarizeThisTrelloConfig = previousConfig;
+
+  const connectorHtmlText = fs.readFileSync(path.join(__dirname, "connector.html"), "utf8");
+  assert.match(connectorHtmlText, /trello-config\.js/);
+  const authorizeText = fs.readFileSync(path.join(__dirname, "authorize.html"), "utf8");
+  assert.match(authorizeText, /trello-config\.js/);
+  assert.doesNotMatch(authorizeText, /api\.trello\.com\/1\/client\.js\?key=87f50d5376d860dfac3dfbb42f5c7e79/);
+  assert.match(authorizeText, /loadAuthorizationClient/);
+  assert.match(authorizeText, /Add your Trello app key in trello-config\.js first/);
+  assert.doesNotMatch(connectorText, /87f50d5376d860dfac3dfbb42f5c7e79/);
 
   const trelloSourceRead = new TrelloIntegration();
   trelloSourceRead.isInTrello = true;
@@ -2062,12 +2222,22 @@ async function runAsyncTests() {
   const processor = new AttachmentProcessor();
   assert.equal(processor.isTextLikeAttachment({ name: "notes.txt", mimeType: "text/plain" }), true);
   assert.equal(processor.isTextLikeAttachment({ name: "invoice.pdf", mimeType: "application/pdf" }), false);
+  assert.equal(processor.isSafeExtractableAttachment({ name: "invoice.pdf", mimeType: "application/pdf" }), true);
 
   const originalFetch = global.fetch;
   global.fetch = async function (url, options) {
-    assert.equal(url, "https://attachments.example.com/notes.txt");
     assert.equal(options.credentials, "omit");
     assert.equal(options.referrerPolicy, "no-referrer");
+    if (url === "https://attachments.example.com/invoice.pdf") {
+      return {
+        ok: true,
+        blob: async function () {
+          const pdfText = "%PDF-1.4\n1 0 obj\n<<>>\nstream\nBT\n(Invoice total 1450 due Friday) Tj\nET\nendstream\nendobj\n%%EOF";
+          return new Blob([pdfText], { type: "application/pdf" });
+        }
+      };
+    }
+    assert.equal(url, "https://attachments.example.com/notes.txt");
     return {
       ok: true,
       blob: async function () {
@@ -2099,27 +2269,33 @@ async function runAsyncTests() {
       timeoutMs: 1000
     });
 
-    assert.equal(processed.status.extracted, 1);
+    assert.equal(processed.status.extracted, 2);
     assert.equal(processed.status.failed, 0);
     assert.equal(processed.attachments[0].processed, true);
-    assert.equal(processed.attachments[0].extractionStatus, "text-extracted");
+    assert.equal(processed.attachments[0].extractionStatus, "truncated");
     assert.equal(processed.attachments[0].extractedText.length, 500);
     assert.equal(processed.attachments[0].metadata.truncated, true);
-    assert.equal(processed.attachments[1].extractionStatus, "not-text-like");
+    assert.equal(processed.attachments[1].processed, true);
+    assert.equal(processed.attachments[1].extractionStatus, "pdf-text-extracted");
+    assert.match(processed.attachments[1].extractedText, /Invoice total 1450 due Friday/);
 
     const extractedCard = Object.assign({}, sample, {
       attachments: processed.attachments
     });
     const promptWithAttachmentText = JSON.parse(SummarizeThis.buildAIPrompt(extractedCard).slice(SummarizeThis.buildAIPrompt(extractedCard).lastIndexOf("\n{") + 1));
     assert.ok(promptWithAttachmentText.attachments.some(item => item.name === "notes.txt" && item.textPreview.includes("Line one")));
+    assert.ok(promptWithAttachmentText.attachments.some(item => item.name === "invoice.pdf" && item.textPreview.includes("Invoice total 1450 due Friday")));
     const extractedRun = CardIntelligenceLedger.createAnalysisRun(extractedCard, local);
     assert.ok(extractedRun.result.evidence.some(item => item.type === "attachment" && item.excerpt.includes("Line one")));
+    assert.ok(extractedRun.result.evidence.some(item => item.type === "attachment" && item.excerpt.includes("Invoice total 1450 due Friday")));
     const extractedFacts = CardIntelligenceLedger.createAttachmentFacts(extractedCard);
-    assert.equal(extractedFacts.extracted, 1);
-    assert.equal(extractedFacts.metadataOnly, 1);
+    assert.equal(extractedFacts.extracted, 2);
+    assert.equal(extractedFacts.metadataOnly, 0);
     assert.ok(extractedFacts.facts.some(item => item.name === "notes.txt" && item.detail.includes("Line one")));
+    assert.ok(extractedFacts.facts.some(item => item.name === "invoice.pdf" && item.detail.includes("Invoice total 1450 due Friday")));
   } finally {
     global.fetch = originalFetch;
+    globalThis.SummarizeThisTrelloConfig = previousTrelloConfig;
   }
 
   assert.throws(() => processor.validateAttachmentUrl("https://2130706433/private.txt"), /Private or local/);

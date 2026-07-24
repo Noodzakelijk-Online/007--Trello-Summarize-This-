@@ -7,7 +7,8 @@ The Power-Up sends the bounded prompt produced by `summarizer-core.js` to this W
 ## What It Protects
 
 - Provider API keys are not stored in Trello, local preview, or the browser when proxy mode is enabled.
-- The Worker validates request size, schema, provider choice, prompt length, content type, and allowed origin before calling a provider.
+- The Worker requires exact configured browser origins, validates request size, schema, provider choice, prompt length, content type, and allowed origin before calling a provider.
+- The Worker uses its configured provider model by default. A browser-requested model is honored only when it is explicitly listed in that provider's allowed-models setting.
 - The Worker applies a lightweight per-origin/per-client request limit before reading or forwarding the prompt.
 - Provider errors are redacted before being returned.
 - Responses use `Cache-Control: no-store`.
@@ -15,13 +16,13 @@ The Power-Up sends the bounded prompt produced by `summarizer-core.js` to this W
 ## What It Does Not Replace
 
 - Sensitive-card approval in the popup still controls whether card context may leave the browser.
-- Cloudflare WAF or managed rate limiting is still recommended for durable global quotas on a public endpoint.
+- Cloudflare WAF, Access, or managed rate limiting is still recommended for durable global quotas on a public endpoint. Origin checks are a browser control, not user authentication.
 - This proxy does not store analysis history. The Power-Up ledger remains member-private/client-side.
 
 ## Deploy
 
 1. Copy `wrangler.example.jsonc` to `wrangler.jsonc`.
-2. Set `ALLOWED_ORIGINS` in `wrangler.jsonc` to the exact HTTPS origin that hosts the Power-Up static files.
+2. Set `ALLOWED_ORIGINS` in `wrangler.jsonc` to the exact HTTPS origin that hosts the Power-Up static files. Wildcards are rejected and the Worker stays unavailable until at least one exact origin is configured.
 3. Set `RATE_LIMIT_PER_MINUTE` to the maximum number of proxy requests one client/origin pair may make per minute. Use `0` only for trusted local testing.
 4. Add provider secrets with Wrangler:
 
@@ -31,7 +32,7 @@ wrangler secret put GOOGLE_API_KEY
 wrangler secret put ANTHROPIC_API_KEY
 ```
 
-Only one provider secret is required. Set `DEFAULT_PROVIDER` to the provider you want `auto` mode to prefer.
+Only one provider secret is required. Set `DEFAULT_PROVIDER` to the provider you want `auto` mode to prefer. Set `OPENAI_MODEL`, `GOOGLE_MODEL`, or `ANTHROPIC_MODEL` to the approved default. To allow a user-selected proxy model, set the corresponding comma-separated allowlist, for example `OPENAI_ALLOWED_MODELS=gpt-4o-mini,gpt-4.1-mini`. Without an allowlist, the Worker always uses its configured default model.
 
 5. Deploy:
 

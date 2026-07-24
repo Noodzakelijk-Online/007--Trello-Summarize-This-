@@ -7,7 +7,7 @@
 ## Phase 1: Core Functionality & Trello Integration (High Priority)
 
 ### 1.1 Implement Real AI API Calls
-- [✅] Connect the frontend to actual AI provider APIs (OpenAI, Anthropic, Google, Cohere, Perplexity).
+- [✅] Connect the frontend to actual AI provider APIs (OpenAI, Anthropic, Google, Cohere, fPerplexity).
 - [✅] Implement logic to handle API key authentication for each provider.
 - [✅] Create functions to send requests and receive responses from all integrated AI models.
 - [✅] Ensure proper error handling for API call failures (e.g., invalid key, network issues).

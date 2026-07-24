@@ -1,5 +1,7 @@
 # Summarize This - Enhanced Version Summary
 
+> Historical note: this document describes an earlier enhancement pass and should not be used as the current production-truth reference. Use the audit and verification documents under `docs/` for the active shipped scope.
+
 ## 🎯 Quality Improvements Implemented
 
 This enhanced version ensures **accurate, correct, and complete AI analysis** through comprehensive improvements across all aspects of the Power-Up.

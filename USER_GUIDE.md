@@ -37,9 +37,9 @@ Welcome to Summarize This, the AI-powered Trello card analysis tool that helps y
 **Windows Setup Assistant:**
 1. Open **Configure Trello Power-Up** from the Start Menu after installing.
 2. Choose the hosting preset or enter the public HTTPS URL where the static files are deployed.
-3. Use the deployment guide to copy host-specific steps and verify `connector.js` and `manifest.json` load publicly.
+3. Use the deployment guide and **Check public files** to verify `connector.html`, `connector.js`, and `manifest.json` load publicly.
 4. Copy the connector URL, admin checklist, or setup package JSON.
-5. Use the autofill helper only on Trello's Power-Up admin page to populate matching fields; review its filled/missing report and save manually in Trello.
+5. On Trello's **New App** form, select the owning Workspace yourself, then use the autofill helper to populate the visible text fields. Create manually after review, open the app edit page, and run the helper again for matching metadata and capabilities. It never saves or submits either form.
 
 ### First-Time Setup
 

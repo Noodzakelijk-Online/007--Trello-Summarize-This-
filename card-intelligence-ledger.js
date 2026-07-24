@@ -1510,6 +1510,48 @@
     return history.slice(0, limit || 25);
   }
 
+  function pruneLedgerHistory(historyByCard, options) {
+    var source = historyByCard && typeof historyByCard === "object" ? historyByCard : {};
+    var settings = options || {};
+    var keepCardId = String(settings.keepCardId || "");
+    var maxCards = Math.max(1, Math.min(200, Number(settings.maxCards) || 40));
+    var maxRuns = Math.max(1, Math.min(1000, Number(settings.maxRuns) || 120));
+    var cards = Object.keys(source).map(function (cardId) {
+      var runs = Array.isArray(source[cardId]) ? source[cardId].filter(Boolean) : [];
+      var latest = runs[0] || {};
+      return {
+        cardId: cardId,
+        runs: runs,
+        latestAt: String(latest.finishedAt || latest.createdAt || latest.updatedAt || "")
+      };
+    }).filter(function (entry) {
+      return entry.runs.length > 0;
+    }).sort(function (left, right) {
+      return right.latestAt.localeCompare(left.latestAt);
+    });
+
+    if (keepCardId) {
+      cards.sort(function (left, right) {
+        if (left.cardId === keepCardId) return -1;
+        if (right.cardId === keepCardId) return 1;
+        return right.latestAt.localeCompare(left.latestAt);
+      });
+    }
+
+    var retained = {};
+    var runCount = 0;
+    for (var i = 0; i < cards.length && Object.keys(retained).length < maxCards; i += 1) {
+      var entry = cards[i];
+      if (runCount >= maxRuns && entry.cardId !== keepCardId) continue;
+      var available = Math.max(1, maxRuns - runCount);
+      var runs = entry.runs.slice(0, available);
+      if (!runs.length) continue;
+      retained[entry.cardId] = runs;
+      runCount += runs.length;
+    }
+    return retained;
+  }
+
   function summarizeRunChange(currentRun, previousRun) {
     if (!currentRun) {
       return {
@@ -2517,6 +2559,7 @@
     jsonForLedgerRun: jsonForLedgerRun,
     markdownForLedgerRun: markdownForLedgerRun,
     mergeLedgerHistory: mergeLedgerHistory,
+    pruneLedgerHistory: pruneLedgerHistory,
     modeBriefForLedgerRun: modeBriefForLedgerRun,
     normalizeCard: normalizeCard,
     operationalDigestForLedgerRun: operationalDigestForLedgerRun,

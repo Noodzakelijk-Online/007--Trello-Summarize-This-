@@ -10,6 +10,8 @@ $OutputExe = Join-Path $DistDir "SummarizeThisSetup.exe"
 
 $RuntimeFiles = @(
   "manifest.json",
+  "connector.html",
+  "trello-runtime-config.js",
   "connector.js",
   "popup.html",
   "settings-powerup.html",
@@ -82,6 +84,7 @@ try {
   Compress-Archive -Path (Join-Path $StagingDir "*") -DestinationPath $PayloadZip -Force
 
   $payloadBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($PayloadZip))
+  $payloadHash = (Get-FileHash -LiteralPath $PayloadZip -Algorithm SHA256).Hash
   $chunks = New-Object System.Collections.Generic.List[string]
   for ($i = 0; $i -lt $payloadBase64.Length; $i += 3000) {
     $length = [Math]::Min(3000, $payloadBase64.Length - $i)
@@ -94,6 +97,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace SummarizeThisInstaller
 {
@@ -103,6 +107,8 @@ namespace SummarizeThisInstaller
     {
 $chunkSource
     };
+
+    private const string PayloadSha256 = "$payloadHash";
 
     [STAThread]
     private static int Main()
@@ -114,6 +120,15 @@ $chunkSource
       {
         string payloadPath = Path.Combine(installRoot, "payload.zip");
         File.WriteAllBytes(payloadPath, Convert.FromBase64String(string.Concat(PayloadChunks)));
+        using (SHA256 sha256 = SHA256.Create())
+        using (FileStream payloadStream = File.OpenRead(payloadPath))
+        {
+          string actualHash = BitConverter.ToString(sha256.ComputeHash(payloadStream)).Replace("-", "");
+          if (!string.Equals(actualHash, PayloadSha256, StringComparison.OrdinalIgnoreCase))
+          {
+            throw new InvalidDataException("Installer payload integrity check failed.");
+          }
+        }
         ZipFile.ExtractToDirectory(payloadPath, installRoot);
 
         string powershell = Path.Combine(

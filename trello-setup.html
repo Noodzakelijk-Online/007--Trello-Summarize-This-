@@ -349,13 +349,25 @@
           </div>
           <div class="actions">
             <button id="copyConnectorButton" class="primary" type="button">Copy connector URL</button>
+            <button id="checkHostedFilesButton" class="secondary" type="button">Check public files</button>
             <a class="button secondary" id="testConnectorLink" href="#" target="_blank" rel="noopener noreferrer">Open connector</a>
           </div>
+          <ul id="hostedFileChecks" class="checklist"></ul>
           <p class="message" id="message"></p>
         </div>
 
         <div class="panel">
           <h2>Admin values</h2>
+          <div class="field">
+            <label for="developerEmail">Developer contact Email</label>
+            <input id="developerEmail" type="email" autocomplete="email" placeholder="you@example.com">
+            <p class="help">Trello requires a monitored email for questions about this Power-Up. This value is used only in the setup package and bookmarklet until you save it in Trello.</p>
+          </div>
+          <div class="field">
+            <label for="supportContact">Support contact</label>
+            <input id="supportContact" type="text" autocomplete="email" placeholder="support@example.com or https://example.com/support">
+            <p class="help">Use a monitored email address or public HTTPS support page. It can match the developer email.</p>
+          </div>
           <div class="copybox">
             <strong>App name</strong>
             <code id="appName"></code>
@@ -363,6 +375,14 @@
           <div class="copybox">
             <strong>Author</strong>
             <code id="author"></code>
+          </div>
+          <div class="copybox">
+            <strong>Developer contact Email</strong>
+            <code id="authorEmail"></code>
+          </div>
+          <div class="copybox">
+            <strong>Support contact</strong>
+            <code id="supportContactValue"></code>
           </div>
           <div class="copybox">
             <strong>Details</strong>
@@ -408,14 +428,16 @@
 
         <div class="panel">
           <h2>Admin autofill helper</h2>
-          <p class="help">Drag the helper to your bookmarks bar, open Trello Power-Up admin, then click the bookmark. It runs only on Trello's Power-Up admin page, fills matching fields and capability checkboxes, reports any missing fields, and does not save or submit the page.</p>
+          <p class="help">Trello creates a new app in two stages. Drag the helper to your bookmarks bar, open the New App form, select the Workspace yourself, then click the helper to fill the visible text fields. After manually creating the app, open its edit page and run the helper again for matching metadata and capability checkboxes. It never saves or submits either page.</p>
           <div class="actions">
             <a id="adminBookmarkletLink" class="bookmarklet" href="#">Summarize This admin autofill</a>
             <button id="copyAutofillButton" class="secondary" type="button">Copy helper bookmarklet</button>
           </div>
           <ul class="checklist">
             <li>Review every populated Trello admin field before saving.</li>
-            <li>If the helper reports missing fields, copy those values manually from the admin values section.</li>
+            <li>Select the owning Trello Workspace manually; the helper never changes Workspace ownership.</li>
+            <li>Enter a monitored Email and Support contact before creating the app.</li>
+            <li>If the helper reports missing fields, run it again from the app edit page or copy those values manually from the admin values section.</li>
             <li>Use the generated HTTPS connector URL, not a local Windows address.</li>
             <li>If Trello changes its admin page labels, use the copied admin values manually.</li>
           </ul>
@@ -487,13 +509,18 @@
         githubRepo: "007--Trello-Summarize-This-"
       });
       var activePresetId = "github-pages";
+      var hostedCheckState = { baseUrl: "", status: "idle", results: [] };
 
       var fields = {
         deploymentPresets: document.getElementById("deploymentPresets"),
         presetHelp: document.getElementById("presetHelp"),
         hostedBaseUrl: document.getElementById("hostedBaseUrl"),
+        developerEmail: document.getElementById("developerEmail"),
+        supportContact: document.getElementById("supportContact"),
         connectorUrl: document.getElementById("connectorUrl"),
         testConnectorLink: document.getElementById("testConnectorLink"),
+        checkHostedFilesButton: document.getElementById("checkHostedFilesButton"),
+        hostedFileChecks: document.getElementById("hostedFileChecks"),
         adminBookmarkletLink: document.getElementById("adminBookmarkletLink"),
         message: document.getElementById("message"),
         localNotice: document.getElementById("localNotice"),
@@ -513,6 +540,7 @@
       document.getElementById("copyConnectorButton").addEventListener("click", function () {
         copyText(fields.connectorUrl.value, "Connector URL copied.");
       });
+      fields.checkHostedFilesButton.addEventListener("click", checkHostedFiles);
       document.getElementById("copyAllButton").addEventListener("click", copyAllValues);
       document.getElementById("copyAutofillButton").addEventListener("click", copyAutofillBookmarklet);
       document.getElementById("copyRunbookButton").addEventListener("click", copyAdminRunbook);
@@ -524,6 +552,8 @@
         updatePresetButtons();
         updateComputedValues();
       });
+      fields.developerEmail.addEventListener("input", updateComputedValues);
+      fields.supportContact.addEventListener("input", updateComputedValues);
 
       loadManifest().then(updateComputedValues);
 
@@ -590,11 +620,21 @@
         document.getElementById("author").textContent = manifest.author || "Summarize This Team";
         document.getElementById("details").textContent = manifest.details || "";
         document.getElementById("capabilities").textContent = (manifest.capabilities || []).join(", ");
+        if (!fields.developerEmail.value) fields.developerEmail.value = manifest.author_email || "";
+        if (!fields.supportContact.value) fields.supportContact.value = manifest.support_contact || manifest.author_email || "";
       }
 
       function updateComputedValues() {
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
-        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var normalizedBaseUrl = TrelloAdminConfig.normalizeBaseUrl(baseUrl);
+        if (hostedCheckState.baseUrl !== normalizedBaseUrl) {
+          hostedCheckState = { baseUrl: normalizedBaseUrl, status: "idle", results: [] };
+        }
+        var setupManifest = Object.assign({}, manifest, {
+          author_email: fields.developerEmail.value.trim(),
+          support_contact: fields.supportContact.value.trim()
+        });
+        var adminConfig = TrelloAdminConfig.createAdminConfig(setupManifest, baseUrl);
         var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
         var connectorUrl = adminConfig.connectorUrl;
         var iconUrl = adminConfig.iconUrl;
@@ -603,6 +643,8 @@
         fields.testConnectorLink.href = connectorUrl || "#";
         fields.adminBookmarkletLink.href = TrelloAdminConfig.createAdminBookmarklet(adminConfig);
         document.getElementById("manifestUrl").textContent = adminConfig.manifestUrl;
+        document.getElementById("authorEmail").textContent = adminConfig.authorEmail || "Enter a monitored email above";
+        document.getElementById("supportContactValue").textContent = adminConfig.supportContact || "Enter a monitored email or HTTPS support URL above";
         document.getElementById("privacyUrl").textContent = adminConfig.privacyUrl;
         document.getElementById("termsUrl").textContent = adminConfig.termsUrl;
         document.getElementById("iconUrl").textContent = iconUrl;
@@ -610,16 +652,95 @@
         renderReadinessChecklist(adminConfig, validation);
         renderAdminFieldMap(adminConfig);
         renderDeploymentGuide(baseUrl);
+        renderHostedFileChecks();
 
         if (validation.isReadyForTrello) {
-          fields.urlStatusDot.className = "dot ok";
-          fields.urlStatusTitle.textContent = "Ready for Trello admin";
-          fields.urlStatusText.textContent = validation.message + " Copy the iframe Connector URL into Trello admin.";
+          if (hostedCheckState.status === "ready") {
+            fields.urlStatusDot.className = "dot ok";
+            fields.urlStatusTitle.textContent = "Public files verified";
+            fields.urlStatusText.textContent = "The connector page and logic, manifest, policy pages, and icon responded successfully. You can continue to Trello admin.";
+          } else if (hostedCheckState.status === "failed") {
+            fields.urlStatusDot.className = "dot warn";
+            fields.urlStatusTitle.textContent = "Public files need attention";
+            fields.urlStatusText.textContent = "One or more required public files could not be reached. Fix the deployment, then check again before creating the Trello app.";
+          } else {
+            fields.urlStatusDot.className = "dot warn";
+            fields.urlStatusTitle.textContent = "Hosted URL format ready";
+            fields.urlStatusText.textContent = validation.message + " Use Check public files before continuing to Trello admin.";
+          }
         } else {
           fields.urlStatusDot.className = "dot warn";
           fields.urlStatusTitle.textContent = "Hosted HTTPS URL required";
           fields.urlStatusText.textContent = validation.message;
         }
+      }
+
+      async function checkHostedFiles() {
+        var adminConfig = currentAdminConfig();
+        var validation = TrelloAdminConfig.validateHostedBaseUrl(fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        if (!validation.isReadyForTrello) {
+          fields.message.textContent = validation.message;
+          return;
+        }
+
+        hostedCheckState = { baseUrl: validation.baseUrl, status: "checking", results: [] };
+        fields.checkHostedFilesButton.disabled = true;
+        fields.checkHostedFilesButton.textContent = "Checking public files";
+        renderHostedFileChecks();
+        updateComputedValues();
+
+        var checks = TrelloAdminConfig.createHostedFileChecks(adminConfig);
+        var results = await Promise.all(checks.map(async function (item) {
+          try {
+            var response = await fetch(item.url, { cache: "no-store" });
+            return {
+              key: item.key,
+              label: item.label,
+              url: item.url,
+              ok: response.ok,
+              detail: response.ok ? "HTTP " + response.status : "HTTP " + response.status
+            };
+          } catch (error) {
+            return {
+              key: item.key,
+              label: item.label,
+              url: item.url,
+              ok: false,
+              detail: "Could not fetch this public URL from the browser"
+            };
+          }
+        }));
+        hostedCheckState = {
+          baseUrl: validation.baseUrl,
+          status: results.every(function (item) { return item.ok; }) ? "ready" : "failed",
+          results: results
+        };
+        fields.checkHostedFilesButton.disabled = false;
+        fields.checkHostedFilesButton.textContent = "Check public files";
+        fields.message.textContent = hostedCheckState.status === "ready" ? "All required public files are reachable." : "Some public files need deployment fixes.";
+        updateComputedValues();
+      }
+
+      function renderHostedFileChecks() {
+        fields.hostedFileChecks.innerHTML = "";
+        if (hostedCheckState.status === "idle") {
+          var idle = document.createElement("li");
+          idle.textContent = "Review: Check the public connector page and logic, manifest, policy pages, and icon before using this URL in Trello.";
+          fields.hostedFileChecks.appendChild(idle);
+          return;
+        }
+        if (hostedCheckState.status === "checking") {
+          var checking = document.createElement("li");
+          checking.textContent = "Checking public files from this browser...";
+          fields.hostedFileChecks.appendChild(checking);
+          return;
+        }
+        hostedCheckState.results.forEach(function (item) {
+          var li = document.createElement("li");
+          li.className = item.ok ? "ok" : "warn";
+          li.textContent = (item.ok ? "Ready: " : "Review: ") + item.label + " - " + item.detail;
+          fields.hostedFileChecks.appendChild(li);
+        });
       }
 
       function renderReadinessChecklist(adminConfig, validation) {
@@ -645,7 +766,7 @@
           value.textContent = item.value;
           var help = document.createElement("p");
           help.className = "help";
-          help.textContent = "Helper matches: " + item.aliases.join(", ");
+          help.textContent = item.type === "manual" ? "Manual in Trello: " + item.value : "Helper matches: " + item.aliases.join(", ") + ". Stage: " + (item.stage || "edit") + ".";
           row.appendChild(title);
           row.appendChild(value);
           row.appendChild(help);
@@ -681,31 +802,31 @@
       }
 
       function copyAllValues() {
-        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        var adminConfig = currentAdminConfig();
         copyText(TrelloAdminConfig.makeAdminValuesText(adminConfig), "Setup values copied.");
       }
 
       function copyAutofillBookmarklet() {
-        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, fields.hostedBaseUrl.value.trim() || guessBaseUrl());
+        var adminConfig = currentAdminConfig();
         copyText(TrelloAdminConfig.createAdminBookmarklet(adminConfig), "Admin autofill helper copied.");
       }
 
       function copyAdminRunbook() {
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
-        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var adminConfig = currentAdminConfig();
         var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
         copyText(TrelloAdminConfig.makeAdminRunbookText(adminConfig, validation), "Admin checklist copied.");
       }
 
       function copyAdminFieldMap() {
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
-        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var adminConfig = currentAdminConfig();
         copyText(TrelloAdminConfig.makeAdminFieldMapText(adminConfig), "Admin field map copied.");
       }
 
       function copySetupPackage() {
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
-        var adminConfig = TrelloAdminConfig.createAdminConfig(manifest, baseUrl);
+        var adminConfig = currentAdminConfig();
         var validation = TrelloAdminConfig.validateHostedBaseUrl(baseUrl);
         copyText(JSON.stringify(TrelloAdminConfig.createAdminSetupPackage(adminConfig, validation, {
           deploymentPresetId: activePresetId,
@@ -717,6 +838,13 @@
         var baseUrl = fields.hostedBaseUrl.value.trim() || guessBaseUrl();
         var guide = TrelloAdminConfig.createDeploymentGuide(activePresetId, baseUrl, deploymentPresets);
         copyText(TrelloAdminConfig.makeDeploymentGuideText(guide), "Deployment guide copied.");
+      }
+
+      function currentAdminConfig() {
+        return TrelloAdminConfig.createAdminConfig(Object.assign({}, manifest, {
+          author_email: fields.developerEmail.value.trim(),
+          support_contact: fields.supportContact.value.trim()
+        }), fields.hostedBaseUrl.value.trim() || guessBaseUrl());
       }
 
       async function copyText(value, successMessage) {

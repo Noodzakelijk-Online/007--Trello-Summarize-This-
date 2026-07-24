@@ -41,23 +41,25 @@ Complete guide for deploying the Summarize This Trello Power-Up to production.
    ls -la summarize-this-v2/
    ```
 
-3. **Update manifest.json**
+3. **Verify manifest.json**
    ```json
    {
      "name": "Summarize This",
-     "details": "AI-powered card analysis",
+     "details": "AI-assisted Trello card summarization with a local fallback summary when no AI provider is configured.",
      "icon": {
-       "url": "https://your-domain.com/icon.png"
+       "url": "./icon.svg"
      },
      "author": "Your Name",
      "capabilities": [
        "card-buttons",
-       "card-badges",
-       "show-settings"
+       "card-detail-badges",
+       "show-settings",
+       "authorization-status",
+       "show-authorization"
      ],
      "connectors": {
        "iframe": {
-         "url": "https://your-domain.com/index.html"
+         "url": "./connector.html"
        }
      }
    }
@@ -126,9 +128,6 @@ Complete guide for deploying the Summarize This Trello Power-Up to production.
            try_files $uri $uri/ =404;
        }
        
-       # CORS headers for Trello
-       add_header Access-Control-Allow-Origin "https://trello.com";
-       add_header Access-Control-Allow-Methods "GET, POST, OPTIONS";
    }
    ```
 
@@ -172,7 +171,7 @@ Complete guide for deploying the Summarize This Trello Power-Up to production.
 3. Fill in details:
    - **Name:** Summarize This
    - **Workspace:** Select your workspace
-   - **Iframe connector URL:** https://your-domain.com/index.html
+   - **Iframe connector URL:** https://your-domain.com/connector.html
    - **Description:** AI-powered card analysis with multiple AI providers
    - **Support contact:** your-email@example.com
 
@@ -180,9 +179,10 @@ Complete guide for deploying the Summarize This Trello Power-Up to production.
 
 Enable the following capabilities:
 - ✅ Card Buttons
-- ✅ Card Badges
+- ✅ Card Detail Badges
 - ✅ Show Settings
 - ✅ Authorization Status
+- ✅ Show Authorization
 
 ### 3. Add Icon and Images
 
@@ -191,14 +191,7 @@ Upload:
 - Cover image (1280x720px PNG)
 - Screenshots (optional)
 
-### 4. Set Permissions
-
-Configure:
-- **Visibility:** Private (for testing) or Public (for distribution)
-- **Allowed domains:** Your hosting domain
-- **CORS origins:** https://trello.com
-
-### 5. Test Installation
+### 4. Test Installation
 
 1. Go to any Trello board
 2. Click "Power-Ups" → "Custom"

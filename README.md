@@ -1,17 +1,21 @@
-# 🧠 Summarize This - AI-Powered Trello Card Analysis
+# Summarize This - Evidence-Backed Trello Card Analysis
 
 [![Confidence](https://img.shields.io/badge/Confidence-Evidence--based-blue)](https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Trello Power-Up](https://img.shields.io/badge/Trello-Power--Up-0079BF)](https://trello.com/power-ups)
 [![AI Powered](https://img.shields.io/badge/AI-Powered-purple)](https://github.com/Noodzakelijk-Online/007--Trello-Summarize-This-)
 
-> Transform your Trello cards into actionable, evidence-backed insights with confidence scoring, review controls, and safe export workflows.
+> Transform Trello cards into evidence-backed operational summaries with confidence signals, review controls, and safe export workflows.
 
 ---
 
 ## 🎯 What is Summarize This?
 
-**Summarize This** is an advanced Trello Power-Up that adds an AI-powered "Summarize This" button to every card on your boards. Click the button to get instant, comprehensive analysis with:
+**Summarize This** is a static Trello Power-Up that adds a "Summarize This" button to Trello cards.
+
+The current shipped product is the browser-based Power-Up flow in `connector.js`, `popup.html`, `settings-powerup.html`, `summarizer-core.js`, `attachment-processor.js`, `ai-providers.js`, `trello-integration.js`, and `card-intelligence-ledger.js`.
+
+The active product currently provides:
 
 - 📊 **Evidence-Based Confidence** - Multi-layer validation explains when analysis needs review
 - 🎯 **Confidence Scoring** - Know exactly when to trust the analysis
@@ -19,7 +23,9 @@
 - 👥 **Human Review** - Smart review system for low-confidence analyses
 - 📈 **Continuous Learning** - System improves from every interaction
 - ⚡ **Real-Time Analysis** - Results in 10-30 seconds
-- 🌐 **Multi-AI Support** - OpenAI, Anthropic, Google, and more
+- 🌐 **Multi-AI Support** - Direct-provider mode and optional proxy mode
+
+The repository also contains experimental, legacy, or disconnected backend/admin files. Those are not part of the shipped Power-Up unless the audit documents in `docs/` explicitly mark them active.
 
 ---
 
@@ -29,8 +35,8 @@
 
 - **One-Click Analysis** - Button on every Trello card
 - **Comprehensive Summaries** - What, why, status, next steps, insights
-- **Smart Context** - Analyzes descriptions, checklists, comments, attachments
-- **Multiple AI Providers** - Choose from 5 providers, 16 models
+- **Smart Context** - Analyzes descriptions, checklists, comments, activity, and attachment metadata
+- **Multiple AI Providers** - Choose configured direct providers or the optional proxy
 - **Export Options** - Markdown, PDF, JSON, Text, Clipboard
 - **Mobile Responsive** - Works on all devices
 - **Dark Mode Ready** - Professional, modern UI
@@ -44,17 +50,13 @@
 - **Accuracy Dashboard** - Track metrics and trends
 - **Quality Indicators** - Visual confidence bars and alerts
 
-### 🚀 Advanced Features
+### Current Product Limits
 
-- **Chain-of-Thought Reasoning** - Step-by-step AI analysis
-- **Board Type Detection** - Scrum, Kanban, GTD, Project-specific insights
-- **Sentiment Analysis** - Detect team morale from comments
-- **Pattern Recognition** - Identify systemic issues
-- **Predictive Analytics** - Forecast completion dates and risks
-- **Multi-Model Consensus** - Combine multiple AI models for robustness
-- **Batch Processing** - Analyze multiple cards at once
-- **Custom Prompts** - Create your own analysis templates
-- **Attachment Processing** - Honest attachment metadata plus optional bounded text/CSV extraction
+- **Attachment Processing** - Honest attachment metadata plus optional bounded text/CSV extraction only
+- **Binary attachments remain partial** - PDF, Word, Excel, and image OCR are not fully extracted in the shipped flow
+- **Batch support is manual-first** - The popup prepares and reviews queue items, but does not run unattended full-card batch analysis
+- **Confidence is a review signal** - It is not a measured guarantee of correctness
+- **Trello writeback is gated** - Comment posting requires explicit review and approval; card description writeback is not implemented
 
 ---
 
@@ -160,7 +162,13 @@ vercel
 
 ### Technical Documentation
 - [**Confidence and Validation System**](999_ACCURACY_IMPLEMENTATION.md) - How confidence and review signals work
-- [**All Improvements**](ALL_IMPROVEMENTS_IMPLEMENTED.md) - 20 advanced features
+- [**Technical Audit**](docs/TECHNICAL_AUDIT.md) - Current repo truth and inactive areas
+- [**Critical Path**](docs/CRITICAL_PATH.md) - Verified active user flow
+- [**Acceptance Tests**](docs/ACCEPTANCE_TESTS.md) - Automated and manual verification
+- [**Goal Completion Matrix**](docs/GOAL_COMPLETION_MATRIX.md) - Implemented vs partial vs missing
+- [**Phase Status Ledger**](docs/PHASE_STATUS_LEDGER.md) - Phase-by-phase status from 000 to 115
+- [**Final Verification Report**](docs/FINAL_VERIFICATION_REPORT.md) - Current evidence and open gaps
+- [**Roadmap and Blocked Items**](docs/ROADMAP_AND_BLOCKED_ITEMS.md) - Best next steps and current blockers
 - [**Improvement Roadmap**](NEXT_LEVEL_IMPROVEMENTS.md) - Future enhancements
 - [**Power-Up README**](POWERUP_README.md) - Power-Up specific docs
 
@@ -230,7 +238,7 @@ vercel
 | **Connector** | `connector.js` | Trello Power-Up initialization |
 | **Main UI** | `popup.html` | Card intelligence analysis interface |
 | **Legacy popup redirects** | `popup-999-accuracy.html`, `popup-enhanced.html`, `popup-nextgen.html`, `popup-original.html` | Compatibility redirects to the active popup |
-| **Accuracy** | `accuracy-system.js` | Confidence, validation, errors |
+| **Accuracy** | `accuracy-system.js` | Legacy confidence/reference module alongside active popup evidence and ledger logic |
 | **AI Integration** | `ai-providers.js` | Multi-AI provider support |
 | **Trello API** | `trello-integration.js` | Card data fetching |
 | **Settings** | `settings-powerup.html` | AI access configuration |
@@ -283,7 +291,7 @@ Overall Confidence =
 - Optional bounded text/CSV extraction for small HTTPS attachments
 - Sensitive-card signals keep optional text extraction metadata-only until approval
 - Binary document and image attachments stay metadata-only in the active Power-Up
-- Tesseract.js - Image OCR
+- OCR/PDF/Office extraction libraries are not active in the shipped Power-Up
 
 ---
 
@@ -306,6 +314,12 @@ Overall Confidence =
 - Review needed: shown for low-confidence or high-risk analyses
 - Attachment limits: shown when files are metadata-only or extraction failed
 - Human feedback: stored privately for later reanalysis guidance
+
+## Verification Status
+
+- `npm test` verifies the shared summarizer, popup contract text, ledger helpers, attachment rules, and documentation truth checks.
+- Manual Trello runtime verification is still required for badge refresh, Trello comment posting, and member-private storage behavior.
+- Completion claims for this repository should follow the audit documents in `docs/`, not older historical summaries.
 
 ---
 

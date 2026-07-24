@@ -1,5 +1,7 @@
 # Summarize This - Phase 2 Implementation Summary
 
+> Historical note: this document describes an earlier milestone snapshot and should not be treated as the current source of truth for shipped scope or completion status. Use the audit and verification documents under `docs/`.
+
 ## Overview
 This document summarizes the Phase 2 feature implementations for the Summarize This Trello Power-Up, building upon the Phase 1 foundation with enhanced user experience, attachment processing, mobile optimization, and export capabilities.
 

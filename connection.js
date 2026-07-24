@@ -5,10 +5,15 @@
  * and database migrations for the Summarize This application.
  */
 
-const { Pool } = require('pg');
+let Pool = null;
+try {
+  ({ Pool } = require('pg'));
+} catch (_error) {
+  Pool = null;
+}
 const fs = require('fs').promises;
 const path = require('path');
-const { logger } = require('../middleware/errorHandler');
+const { logger } = require('./middleware/errorHandler');
 
 class DatabaseManager {
   constructor() {
@@ -23,6 +28,10 @@ class DatabaseManager {
    */
   async initialize() {
     try {
+      if (!Pool) {
+        throw new Error('PostgreSQL driver is not installed. Add the "pg" package before enabling the database runtime.');
+      }
+
       // Create connection pool
       this.pool = new Pool({
         host: process.env.DB_HOST || 'localhost',
@@ -439,4 +448,3 @@ class DatabaseManager {
 
 // Export singleton instance
 module.exports = DatabaseManager.getInstance();
-

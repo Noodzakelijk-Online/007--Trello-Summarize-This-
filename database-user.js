@@ -5,17 +5,32 @@
  * using PostgreSQL for robust user data management, credit tracking, and usage logging.
  */
 
-const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const db = require('../database/connection');
-const { logger } = require('../middleware/errorHandler');
-const { DatabaseError, ValidationError, NotFoundError, ConflictError } = require('../middleware/errorHandler');
+let bcrypt = null;
+try {
+  bcrypt = require('bcrypt');
+} catch (_error) {
+  bcrypt = null;
+}
+
+let stripeFactory = null;
+try {
+  stripeFactory = require('stripe');
+} catch (_error) {
+  stripeFactory = null;
+}
+
+const db = require('./database/connection');
+const { logger } = require('./middleware/errorHandler');
+const { DatabaseError, ValidationError, NotFoundError, ConflictError } = require('./middleware/errorHandler');
 
 class DatabaseUserService {
   constructor() {
     this.saltRounds = 12;
     this.encryptionKey = process.env.ENCRYPTION_KEY || crypto.randomBytes(32);
+    this.stripe = stripeFactory && process.env.STRIPE_SECRET_KEY
+      ? stripeFactory(process.env.STRIPE_SECRET_KEY)
+      : null;
   }
 
   /**
@@ -47,6 +62,9 @@ class DatabaseUserService {
       // Hash password if provided
       let passwordHash = null;
       if (password) {
+        if (!bcrypt) {
+          throw new ValidationError('bcrypt dependency is required before password-based auth can be enabled');
+        }
         passwordHash = await bcrypt.hash(password, this.saltRounds);
       }
 
@@ -138,6 +156,10 @@ class DatabaseUserService {
       const user = await this.findUserByEmail(email);
       if (!user || !user.password_hash) {
         return null;
+      }
+
+      if (!bcrypt) {
+        throw new ValidationError('bcrypt dependency is required before password-based auth can be enabled');
       }
 
       const isValid = await bcrypt.compare(password, user.password_hash);
@@ -641,8 +663,12 @@ class DatabaseUserService {
 
       const package = packageResult.rows[0];
 
+      if (!this.stripe) {
+        throw new ValidationError('Stripe is not configured. Set STRIPE_SECRET_KEY and install the stripe package before creating payment intents.');
+      }
+
       // Create Stripe payment intent
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await this.stripe.paymentIntents.create({
         amount: Math.round(package.price * 100), // Convert to cents
         currency: package.currency.toLowerCase(),
         payment_method_types: [paymentMethod],
@@ -684,8 +710,12 @@ class DatabaseUserService {
    */
   async verifyPayment(userId, paymentIntentId) {
     try {
+      if (!this.stripe) {
+        throw new ValidationError('Stripe is not configured. Set STRIPE_SECRET_KEY and install the stripe package before verifying payments.');
+      }
+
       // Get payment intent from Stripe
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
       if (paymentIntent.status !== 'succeeded') {
         throw new ValidationError('Payment not completed');
@@ -800,11 +830,13 @@ class DatabaseUserService {
    */
   encrypt(text) {
     if (!text) return null;
-    
-    const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return encrypted;
+
+    const key = this.normalizeEncryptionKey();
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encrypted = cipher.update(String(text), 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+    return iv.toString('base64') + ':' + encrypted;
   }
 
   /**
@@ -812,16 +844,46 @@ class DatabaseUserService {
    */
   decrypt(encryptedText) {
     if (!encryptedText) return null;
-    
+
     try {
-      const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
-      let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+      const value = String(encryptedText);
+      if (value.indexOf(':') === -1) {
+        return null;
+      }
+
+      const parts = value.split(':');
+      const iv = Buffer.from(parts.shift(), 'base64');
+      const payload = parts.join(':');
+      const decipher = crypto.createDecipheriv('aes-256-cbc', this.normalizeEncryptionKey(), iv);
+      let decrypted = decipher.update(payload, 'base64', 'utf8');
       decrypted += decipher.final('utf8');
       return decrypted;
     } catch (error) {
       logger.error('Failed to decrypt data:', error);
       return null;
     }
+  }
+
+  normalizeEncryptionKey() {
+    const source = this.encryptionKey;
+    if (Buffer.isBuffer(source)) {
+      return source.length === 32 ? source : crypto.createHash('sha256').update(source).digest();
+    }
+
+    const value = String(source || '');
+    const base64Pattern = /^[A-Za-z0-9+/]+={0,2}$/;
+    if (base64Pattern.test(value) && value.length >= 43) {
+      try {
+        const decoded = Buffer.from(value, 'base64');
+        if (decoded.length === 32) {
+          return decoded;
+        }
+      } catch (_error) {
+        // Fall back to hashing the original value.
+      }
+    }
+
+    return crypto.createHash('sha256').update(value).digest();
   }
 
   /**
@@ -883,4 +945,3 @@ class DatabaseUserService {
 }
 
 module.exports = DatabaseUserService;
-

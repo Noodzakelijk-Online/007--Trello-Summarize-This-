@@ -1,5 +1,7 @@
 # Summarize This - Phase 3 Complete Implementation Summary
 
+> Historical note: this document describes an earlier milestone summary and should not be treated as the current source of truth for shipped scope or production readiness. Use the audit and verification documents under `docs/`.
+
 ## 🎯 Executive Summary
 
 Phase 3 development has been successfully completed, transforming Summarize This from a functional prototype into an **enterprise-grade, production-ready Trello Power-Up** with advanced features, comprehensive testing, and deployment readiness.

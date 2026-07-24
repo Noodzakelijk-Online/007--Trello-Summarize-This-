@@ -5,25 +5,42 @@
  * user-friendly messages, and detailed logging for debugging.
  */
 
-const winston = require('winston');
+let winston = null;
+try {
+  winston = require('winston');
+} catch (_error) {
+  winston = null;
+}
 
 // Configure logger
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.errors({ stack: true }),
-    winston.format.json()
-  ),
-  defaultMeta: { service: 'summarize-this' },
-  transports: [
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new winston.transports.File({ filename: 'logs/combined.log' }),
-    new winston.transports.Console({
-      format: winston.format.simple()
+const logger = winston
+  ? winston.createLogger({
+      level: process.env.LOG_LEVEL || 'info',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.errors({ stack: true }),
+        winston.format.json()
+      ),
+      defaultMeta: { service: 'summarize-this' },
+      transports: [
+        new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+        new winston.transports.File({ filename: 'logs/combined.log' }),
+        new winston.transports.Console({
+          format: winston.format.simple()
+        })
+      ]
     })
-  ]
-});
+  : ['error', 'warn', 'info', 'debug'].reduce((fallback, level) => {
+      fallback[level] = function () {
+        const method = level === 'debug' ? 'log' : level;
+        const values = Array.prototype.slice.call(arguments);
+        const prefix = `[summarize-this:${level}]`;
+        if (typeof console !== 'undefined' && typeof console[method] === 'function') {
+          console[method].apply(console, [prefix].concat(values));
+        }
+      };
+      return fallback;
+    }, {});
 
 // Custom Error Classes
 class AppError extends Error {
@@ -254,4 +271,3 @@ module.exports = {
   TimeoutError,
   DatabaseError
 };
-

@@ -1,0 +1,89 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run core tests
+        run: node test.js
+
+      - name: Run backend contract tests
+        run: node backend.test.js
+
+      - name: Run adversarial tests
+        run: node adversarial.test.js
+
+      - name: Run doctor diagnostics
+        run: node doctor.js
+
+  lint-docs:
+    name: Docs integrity check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+
+      - name: Verify required docs exist
+        run: |
+          for f in \
+            docs/TECHNICAL_AUDIT.md \
+            docs/CRITICAL_PATH.md \
+            docs/ACCEPTANCE_TESTS.md \
+            docs/GOAL_COMPLETION_MATRIX.md \
+            docs/FINAL_VERIFICATION_REPORT.md \
+            docs/OPERATOR_RUNBOOK.md \
+            docs/SECURITY.md \
+            docs/PHASE_STATUS_LEDGER.md \
+            docs/UI_ACTION_AUDIT.md \
+            docs/API_USAGE_AUDIT.md \
+            docs/CODEX_WORKLOG.md \
+            docs/CODEX_CHECKPOINTS.md \
+            docs/TASK_GRAPH.md \
+            docs/FINAL_NO_EXCUSES_SEARCH.md; do
+            [ -f "$f" ] || (echo "MISSING: $f" && exit 1)
+          done
+          echo "All required docs present."
+
+      - name: No overclaiming in key docs
+        run: |
+          node -e "
+          const fs = require('node:fs');
+          const files = ['README.md', 'FINAL_DEPLOYMENT_GUIDE.md', '999_ACCURACY_IMPLEMENTATION.md'];
+          files.forEach(f => {
+            if (!fs.existsSync(f)) return;
+            const t = fs.readFileSync(f, 'utf8');
+            if (/99\.9|Est\. Accuracy|Overall Accuracy|Accuracy: 99|accurate AI-powered|accuracy through/i.test(t)) {
+              console.error('Overclaiming found in: ' + f);
+              process.exit(1);
+            }
+          });
+          console.log('No overclaiming found.');
+          "
