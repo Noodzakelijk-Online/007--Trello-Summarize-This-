@@ -178,6 +178,7 @@ async function main() {
 
     const batchCreated = await requestJson(baseUrl, "POST", "/api/batch/jobs", {
       aiHandoffApproved: true,
+      listName: "Contract test list",
       cards: [
         { id: "card-1", name: "Card one" },
         { id: "card-2", name: "Card two" }
@@ -188,6 +189,57 @@ async function main() {
     });
     assert.equal(batchCreated.status, 201);
     assert.equal(batchCreated.data.job.cards.length, 2);
+    assert.equal(batchCreated.data.job.listName, "Contract test list");
+
+    const batchList = await requestJson(baseUrl, "GET", "/api/batch/jobs", undefined, {
+      Authorization: `Bearer ${token}`
+    });
+    assert.equal(batchList.status, 200);
+    assert.ok(batchList.data.jobs.some((item) => item.id === batchCreated.data.job.id));
+
+    const batchGet = await requestJson(baseUrl, "GET", `/api/batch/jobs/${batchCreated.data.job.id}`, undefined, {
+      Authorization: `Bearer ${token}`
+    });
+    assert.equal(batchGet.status, 200);
+    assert.equal(batchGet.data.job.id, batchCreated.data.job.id);
+
+    const batchStart = await requestJson(baseUrl, "POST", `/api/batch/jobs/${batchCreated.data.job.id}/start`, {}, {
+      Authorization: `Bearer ${token}`
+    });
+    assert.equal(batchStart.status, 200);
+    assert.equal(batchStart.data.job.status, "running");
+
+    const batchCardOpened = await requestJson(baseUrl, "POST", `/api/batch/jobs/${batchCreated.data.job.id}/cards/card-1`, {
+      status: "opened",
+      attemptsDelta: 1
+    }, {
+      Authorization: `Bearer ${token}`
+    });
+    assert.equal(batchCardOpened.status, 200);
+    assert.equal(batchCardOpened.data.card.status, "opened");
+    assert.equal(batchCardOpened.data.card.attempts, 1);
+
+    const batchCardAnalyzed = await requestJson(baseUrl, "POST", `/api/batch/jobs/${batchCreated.data.job.id}/cards/card-1`, {
+      status: "analyzed",
+      result: {
+        summary: "Reviewed card one",
+        confidence: 0.81
+      }
+    }, {
+      Authorization: `Bearer ${token}`
+    });
+    assert.equal(batchCardAnalyzed.status, 200);
+    assert.equal(batchCardAnalyzed.data.card.status, "analyzed");
+    assert.equal(batchCardAnalyzed.data.card.result.summary, "Reviewed card one");
+
+    const batchMarkedPartial = await requestJson(baseUrl, "POST", `/api/batch/jobs/${batchCreated.data.job.id}/status`, {
+      status: "running",
+      summary: "Manual popup runner in progress"
+    }, {
+      Authorization: `Bearer ${token}`
+    });
+    assert.equal(batchMarkedPartial.status, 200);
+    assert.equal(batchMarkedPartial.data.job.summary, "Manual popup runner in progress");
 
     const batchRun = await requestJson(baseUrl, "POST", `/api/batch/jobs/${batchCreated.data.job.id}/run`, {}, {
       Authorization: `Bearer ${token}`

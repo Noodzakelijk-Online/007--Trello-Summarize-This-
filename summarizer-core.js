@@ -2130,6 +2130,49 @@
     };
   }
 
+  function normalizeBackendApiBase(value) {
+    var input = String(value || "").trim();
+    if (!input) return "";
+    try {
+      var parsed = new URL(input);
+      if (parsed.username || parsed.password) return "";
+      if (parsed.protocol !== "https:" && !isAllowedLocalProxyUrl(parsed)) return "";
+      parsed.search = "";
+      parsed.hash = "";
+      parsed.pathname = (parsed.pathname || "/api").replace(/\/+$/, "") || "/api";
+      return parsed.toString().replace(/\/$/, "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function deriveBackendApiBaseFromProxy(proxy) {
+    var proxySettings = normalizeProxySettings(proxy);
+    if (!proxySettings.endpoint) return "";
+    try {
+      var parsed = new URL(proxySettings.endpoint);
+      parsed.search = "";
+      parsed.hash = "";
+      parsed.pathname = "/api";
+      return parsed.toString().replace(/\/$/, "");
+    } catch (_error) {
+      return "";
+    }
+  }
+
+  function normalizeBackendSettings(input, proxy) {
+    var source = input || {};
+    var explicit = normalizeBackendApiBase(source.apiBase || source.endpoint || source.baseUrl || source.url);
+    var derived = explicit ? "" : deriveBackendApiBaseFromProxy(proxy);
+    var apiBase = explicit || derived;
+    return {
+      apiBase: apiBase,
+      valid: Boolean(apiBase),
+      derivedFromProxy: !explicit && Boolean(derived),
+      source: explicit ? "explicit" : (derived ? "derived-from-proxy" : "none")
+    };
+  }
+
   function stripApiKeysForLocalPreview(settings) {
     var source = settings && typeof settings === "object" ? settings : {};
     return Object.assign({}, source, {
@@ -2373,6 +2416,7 @@
     normalizeGenerationSettings: normalizeGenerationSettings,
     normalizeProviderMode: normalizeProviderMode,
     normalizeProxySettings: normalizeProxySettings,
+    normalizeBackendSettings: normalizeBackendSettings,
     normalizePromptTemplates: normalizePromptTemplates,
     normalizePromptTemplateSettings: normalizePromptTemplateSettings,
     normalizeProviderKey: normalizeProviderKey,

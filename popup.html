@@ -1102,6 +1102,7 @@
       var lastBatchExecutionReview = null;
       var lastBatchProgressScope = "";
       var lastBatchProgressState = {};
+      var lastBackendBatchJobId = "";
       var batchExecutionRunning = false;
       var inTrello = Boolean(
         window.TrelloPowerUp &&
@@ -1562,6 +1563,7 @@
           requireSensitiveAiApproval: true,
           extractTextAttachments: false,
           proxy: SummarizeThis.normalizeProxySettings(),
+          backend: SummarizeThis.normalizeBackendSettings(),
           promptContext: {
             descriptionCharacters: 2500,
             commentLimit: 12,
@@ -1577,6 +1579,7 @@
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
             safeLocalSettings.providerMode = SummarizeThis.normalizeProviderMode(safeLocalSettings.providerMode);
             safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
+            safeLocalSettings.backend = SummarizeThis.normalizeBackendSettings(safeLocalSettings.backend, safeLocalSettings.proxy);
             safeLocalSettings.exportPreferences = SummarizeThis.normalizeExportPreferences(safeLocalSettings.exportPreferences || safeLocalSettings);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
               localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
@@ -1611,7 +1614,8 @@
           strategy: settings.strategy || legacyStrategy || fallback.strategy,
           providerMode: SummarizeThis.normalizeProviderMode(settings.providerMode),
           exportPreferences: SummarizeThis.normalizeExportPreferences(settings.exportPreferences || settings),
-          proxy: SummarizeThis.normalizeProxySettings(settings.proxy)
+          proxy: SummarizeThis.normalizeProxySettings(settings.proxy),
+          backend: SummarizeThis.normalizeBackendSettings(settings.backend, settings.proxy)
         });
         var promptProfile = SummarizeThis.normalizePromptTemplateSettings(merged);
         return Object.assign({}, merged, {
@@ -3940,6 +3944,16 @@
           var promptProfile = SummarizeThis.normalizePromptTemplateSettings(settings);
           var loaded = await loadBatchProgress(review);
           var snapshot = SummarizeThis.createBatchProgressSnapshot(review, loaded.progress);
+          var backend = backendBatchSettings(settings);
+          var backendToken = backend.valid ? await readBackendSessionToken() : "";
+          var backendJob = null;
+          var backendActive = false;
+          if (backend.valid && backendToken) {
+            backendJob = await ensureBackendBatchJob(review, settings);
+            backendJob = await startBackendBatchJob(backendJob.id, settings);
+            backendActive = true;
+            status.textContent = "Starting reviewed batch run with backend persistence. Trello posting remains off.";
+          }
           var pendingQueue = snapshot.queue.filter(function (item) {
             return ["pending", "opened", "blocked"].indexOf(item.status) !== -1;
           });
@@ -3956,6 +3970,13 @@
             await saveBatchProgress(loaded.scope, nextState);
             await renderBatchProgress(review);
             status.textContent = "Running reviewed batch card " + (index + 1) + " of " + pendingQueue.length + ": " + item.name + ".";
+            if (backendActive && backendJob) {
+              await syncBackendBatchCard(backendJob.id, item, {
+                status: "opened",
+                attemptsDelta: 1,
+                queuePosition: item.queuePosition
+              }, settings);
+            }
 
             try {
               var cardData = await fetchBatchCardData(item, settings, review);
@@ -3975,11 +3996,27 @@
               nextState[item.key] = "analyzed";
               await saveBatchProgress(loaded.scope, nextState);
               await renderBatchProgress(review);
+              if (backendActive && backendJob) {
+                await syncBackendBatchCard(backendJob.id, item, {
+                  status: "analyzed",
+                  result: {
+                    summary: analyzed.analysis.summary,
+                    confidence: analyzed.analysis.qualityScore || 0,
+                    outputMode: settings.outputMode || "operational-ledger"
+                  }
+                }, settings);
+              }
             } catch (error) {
               nextState = Object.assign({}, lastBatchProgressState);
               nextState[item.key] = "blocked";
               await saveBatchProgress(loaded.scope, nextState);
               await renderBatchProgress(review);
+              if (backendActive && backendJob) {
+                await syncBackendBatchCard(backendJob.id, item, {
+                  status: "blocked",
+                  error: sanitizeUserVisibleError(error)
+                }, settings);
+              }
               status.textContent = "Batch card blocked for " + item.name + ": " + sanitizeUserVisibleError(error);
             }
 
@@ -3988,7 +4025,16 @@
             }
           }
 
-          status.textContent = "Reviewed batch run finished. Selected cards were analyzed and stored privately; no Trello card was changed.";
+          if (backendActive && backendJob) {
+            await syncBackendBatchStatus(backendJob.id, {
+              status: "completed",
+              finishedAt: new Date().toISOString(),
+              summary: "Reviewed batch run completed from the popup. Trello write actions remained off."
+            }, settings);
+            status.textContent = "Reviewed batch run finished. Selected cards were analyzed, stored privately, and mirrored to the backend job ledger; no Trello card was changed.";
+          } else {
+            status.textContent = "Reviewed batch run finished. Selected cards were analyzed and stored privately; no Trello card was changed.";
+          }
         } finally {
           batchExecutionRunning = false;
           renderBatchExecutionReview(lastBatchPlan, false);
@@ -4403,6 +4449,98 @@
         await safe(function () {
           return t.set("member", "private", key, value);
         }, null);
+      }
+
+      async function readBackendSessionToken() {
+        var token = await readPrivateObject("summarizeThisBackendSessionToken", "");
+        return String(token || "").trim();
+      }
+
+      function backendBatchSettings(settings) {
+        return SummarizeThis.normalizeBackendSettings(settings && settings.backend, settings && settings.proxy);
+      }
+
+      async function fetchBackendJson(path, options, settings) {
+        var backend = backendBatchSettings(settings);
+        if (!backend.valid) {
+          throw new Error("Backend batch persistence is not configured.");
+        }
+        var token = await readBackendSessionToken();
+        if (!token) {
+          throw new Error("Backend batch persistence requires a saved backend session token.");
+        }
+
+        var response = await fetch(backend.apiBase + path, Object.assign({
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          }
+        }, options || {}, {
+          headers: Object.assign({
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+          }, options && options.headers ? options.headers : {})
+        }));
+
+        var data = await response.json().catch(function () { return {}; });
+        if (!response.ok) {
+          throw new Error((data && data.error) || ("Backend request failed with status " + response.status + "."));
+        }
+        return data;
+      }
+
+      async function ensureBackendBatchJob(review, settings) {
+        var payload = {
+          listName: review.listName || "",
+          aiHandoffApproved: review.aiHandoffApproved,
+          concurrency: review.concurrency,
+          delaySeconds: review.delaySeconds,
+          source: "popup-reviewed-batch",
+          cards: review.queue.map(function (item) {
+            return {
+              id: item.cardId,
+              name: item.name,
+              queuePosition: item.queuePosition
+            };
+          })
+        };
+        if (lastBackendBatchJobId) {
+          try {
+            var existing = await fetchBackendJson("/batch/jobs/" + encodeURIComponent(lastBackendBatchJobId), {
+              method: "GET"
+            }, settings);
+            return existing.job;
+          } catch (_error) {}
+        }
+        var created = await fetchBackendJson("/batch/jobs", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        }, settings);
+        lastBackendBatchJobId = created.job.id;
+        return created.job;
+      }
+
+      async function startBackendBatchJob(jobId, settings) {
+        var started = await fetchBackendJson("/batch/jobs/" + encodeURIComponent(jobId) + "/start", {
+          method: "POST",
+          body: JSON.stringify({})
+        }, settings);
+        lastBackendBatchJobId = started.job.id;
+        return started.job;
+      }
+
+      async function syncBackendBatchCard(jobId, item, payload, settings) {
+        return fetchBackendJson("/batch/jobs/" + encodeURIComponent(jobId) + "/cards/" + encodeURIComponent(item.cardId), {
+          method: "POST",
+          body: JSON.stringify(payload || {})
+        }, settings);
+      }
+
+      async function syncBackendBatchStatus(jobId, payload, settings) {
+        return fetchBackendJson("/batch/jobs/" + encodeURIComponent(jobId) + "/status", {
+          method: "POST",
+          body: JSON.stringify(payload || {})
+        }, settings);
       }
 
       function copySummary() {

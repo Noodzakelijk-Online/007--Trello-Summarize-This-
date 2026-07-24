@@ -282,11 +282,14 @@ function buildBatchJob(body) {
   const cards = Array.isArray(body.cards) ? body.cards : [];
   return {
     id: createId("batch"),
+    listName: String(body.listName || ""),
+    source: String(body.source || "popup-reviewed-batch"),
     status: "queued",
     cards: cards.map((item, index) => ({
       id: item.id || item.cardId || `card-${index + 1}`,
       name: item.name || `Card ${index + 1}`,
       status: "pending",
+      queuePosition: Number(item.queuePosition || index + 1),
       attempts: 0,
       result: null,
       error: null
@@ -301,31 +304,50 @@ function buildBatchJob(body) {
   };
 }
 
-async function executeBatchJob(store, jobId) {
+function computeBatchJobStatus(job) {
+  const cards = Array.isArray(job.cards) ? job.cards : [];
+  if (!cards.length) return "queued";
+  if (cards.every((item) => item.status === "completed" || item.status === "copied" || item.status === "skipped")) {
+    return "completed";
+  }
+  if (cards.some((item) => item.status === "blocked" || item.status === "failed")) {
+    return cards.some((item) => item.status === "running" || item.status === "opened") ? "partial" : "needs-attention";
+  }
+  if (cards.some((item) => item.status === "running" || item.status === "opened" || item.status === "analyzed")) {
+    return "running";
+  }
+  return job.status || "queued";
+}
+
+async function updateBatchJob(store, jobId, userId, updater) {
   const jobs = await store.list("batchJobs");
-  const job = jobs.find((item) => item.id === jobId);
+  const job = jobs.find((item) => item.id === jobId && (!userId || item.userId === userId));
   if (!job) return null;
-  if (!job.aiHandoffApproved) {
-    job.status = "blocked";
-    job.updatedAt = nowIso();
-    await store.replace("batchJobs", jobs);
-    return clone(job);
-  }
-  job.status = "running";
-  for (const card of job.cards) {
-    if (card.status === "completed") continue;
-    card.status = "running";
-    card.attempts += 1;
-    card.result = {
-      summary: `Reviewed ${card.name}`,
-      confidence: 0.65
-    };
-    card.status = "completed";
-    job.updatedAt = nowIso();
-  }
-  job.status = job.cards.every((item) => item.status === "completed") ? "completed" : "partial";
+  updater(job);
+  job.updatedAt = nowIso();
+  job.status = computeBatchJobStatus(job);
   await store.replace("batchJobs", jobs);
   return clone(job);
+}
+
+async function executeBatchJob(store, jobId) {
+  return updateBatchJob(store, jobId, null, (job) => {
+    if (!job.aiHandoffApproved) {
+      job.status = "blocked";
+      return;
+    }
+    job.status = "running";
+    for (const card of job.cards) {
+      if (card.status === "completed") continue;
+      card.status = "running";
+      card.attempts += 1;
+      card.result = {
+        summary: `Reviewed ${card.name}`,
+        confidence: 0.65
+      };
+      card.status = "completed";
+    }
+  });
 }
 
 async function route(req, res, store) {
@@ -575,6 +597,45 @@ async function route(req, res, store) {
     return;
   }
 
+  if (req.method === "GET" && pathname === "/api/batch/jobs") {
+    const context = await requireSession(store, req, res, "user");
+    if (!context) return;
+    const jobs = (await store.list("batchJobs")).filter((item) => item.userId === context.user.id);
+    json(res, 200, { success: true, jobs });
+    return;
+  }
+
+  const batchJobDetailMatch = pathname.match(/^\/api\/batch\/jobs\/([^/]+)$/);
+  if (req.method === "GET" && batchJobDetailMatch) {
+    const context = await requireSession(store, req, res, "user");
+    if (!context) return;
+    const jobs = await store.list("batchJobs");
+    const job = jobs.find((item) => item.id === batchJobDetailMatch[1] && item.userId === context.user.id);
+    if (!job) {
+      json(res, 404, { success: false, error: "Batch job not found" });
+      return;
+    }
+    json(res, 200, { success: true, job });
+    return;
+  }
+
+  const batchJobStartMatch = pathname.match(/^\/api\/batch\/jobs\/([^/]+)\/start$/);
+  if (req.method === "POST" && batchJobStartMatch) {
+    const context = await requireSession(store, req, res, "user");
+    if (!context) return;
+    const job = await updateBatchJob(store, batchJobStartMatch[1], context.user.id, (item) => {
+      item.status = item.aiHandoffApproved ? "running" : "blocked";
+      item.startedAt = item.startedAt || nowIso();
+    });
+    if (!job) {
+      json(res, 404, { success: false, error: "Batch job not found" });
+      return;
+    }
+    await appendEvent(store, "batch.started", { userId: context.user.id, jobId: job.id });
+    json(res, 200, { success: true, job });
+    return;
+  }
+
   const batchJobMatch = pathname.match(/^\/api\/batch\/jobs\/([^/]+)\/run$/);
   if (req.method === "POST" && batchJobMatch) {
     const context = await requireSession(store, req, res, "user");
@@ -586,6 +647,58 @@ async function route(req, res, store) {
     }
     await appendEvent(store, "batch.completed", { userId: context.user.id, jobId: job.id, status: job.status });
     json(res, 200, { success: true, job });
+    return;
+  }
+
+  const batchJobStatusMatch = pathname.match(/^\/api\/batch\/jobs\/([^/]+)\/status$/);
+  if (req.method === "POST" && batchJobStatusMatch) {
+    const context = await requireSession(store, req, res, "user");
+    if (!context) return;
+    const body = await readBody(req);
+    const job = await updateBatchJob(store, batchJobStatusMatch[1], context.user.id, (item) => {
+      item.status = String(body.status || item.status || "running");
+      if (body.summary) item.summary = String(body.summary);
+      if (body.finishedAt) item.finishedAt = String(body.finishedAt);
+    });
+    if (!job) {
+      json(res, 404, { success: false, error: "Batch job not found" });
+      return;
+    }
+    json(res, 200, { success: true, job });
+    return;
+  }
+
+  const batchJobCardMatch = pathname.match(/^\/api\/batch\/jobs\/([^/]+)\/cards\/([^/]+)$/);
+  if (req.method === "POST" && batchJobCardMatch) {
+    const context = await requireSession(store, req, res, "user");
+    if (!context) return;
+    const body = await readBody(req);
+    const job = await updateBatchJob(store, batchJobCardMatch[1], context.user.id, (item) => {
+      const card = (item.cards || []).find((entry) => entry.id === batchJobCardMatch[2]);
+      if (!card) return;
+      if (body.status !== undefined) card.status = String(body.status);
+      if (body.error !== undefined) card.error = body.error ? String(body.error) : null;
+      if (body.result !== undefined) card.result = clone(body.result);
+      if (body.attemptsDelta !== undefined) card.attempts = Math.max(0, Number(card.attempts || 0) + Number(body.attemptsDelta || 0));
+      if (body.queuePosition !== undefined) card.queuePosition = Number(body.queuePosition || card.queuePosition || 0);
+      card.updatedAt = nowIso();
+    });
+    if (!job) {
+      json(res, 404, { success: false, error: "Batch job not found" });
+      return;
+    }
+    const card = job.cards.find((entry) => entry.id === batchJobCardMatch[2]);
+    if (!card) {
+      json(res, 404, { success: false, error: "Batch card not found" });
+      return;
+    }
+    await appendEvent(store, "batch.card_updated", {
+      userId: context.user.id,
+      jobId: job.id,
+      cardId: card.id,
+      status: card.status
+    });
+    json(res, 200, { success: true, job, card });
     return;
   }
 

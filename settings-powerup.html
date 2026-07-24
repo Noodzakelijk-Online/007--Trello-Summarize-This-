@@ -432,6 +432,18 @@
         <input id="proxyEndpoint" type="url" autocomplete="off" placeholder="https://your-domain.example/summarize-this/ai">
         <p class="warning">Use HTTPS for Trello. Local development may use localhost or 127.0.0.1. Query strings and fragments are stripped before saving.</p>
       </div>
+
+      <div class="group">
+        <label for="backendApiBase">Backend API base</label>
+        <input id="backendApiBase" type="url" autocomplete="off" placeholder="https://your-domain.example/api">
+        <p class="help">Optional. Used for persisted batch jobs and authenticated backend review state. Leave blank to derive from the proxy host when possible.</p>
+      </div>
+
+      <div class="group">
+        <label for="backendSessionToken">Backend session token</label>
+        <input id="backendSessionToken" type="password" autocomplete="off" placeholder="st_...">
+        <p class="help">Optional. Stored in member-private Power-Up storage and used only for authenticated backend batch execution.</p>
+      </div>
     </section>
 
     <section class="panel">
@@ -573,6 +585,8 @@
         requireSensitiveAiApproval: document.getElementById("requireSensitiveAiApproval"),
         useProxy: document.getElementById("useProxy"),
         proxyEndpoint: document.getElementById("proxyEndpoint"),
+        backendApiBase: document.getElementById("backendApiBase"),
+        backendSessionToken: document.getElementById("backendSessionToken"),
         budgetWarningPercent: document.getElementById("budgetWarningPercent"),
         openaiMonthlyLimit: document.getElementById("openaiMonthlyLimit"),
         googleMonthlyLimit: document.getElementById("googleMonthlyLimit"),
@@ -635,6 +649,9 @@
         var proxySettings = SummarizeThis.normalizeProxySettings(settings.proxy);
         fields.useProxy.checked = proxySettings.enabled;
         fields.proxyEndpoint.value = proxySettings.endpoint;
+        var backendSettings = SummarizeThis.normalizeBackendSettings(settings.backend, settings.proxy);
+        fields.backendApiBase.value = backendSettings.derivedFromProxy ? "" : backendSettings.apiBase;
+        fields.backendSessionToken.value = await readBackendSessionToken();
         var budget = SummarizeThis.normalizeBudgetSettings(settings.budget);
         fields.budgetWarningPercent.value = String(budget.warningPercent);
         fields.openaiMonthlyLimit.value = budget.providerMonthlyLimits.openai ? String(budget.providerMonthlyLimits.openai) : "";
@@ -673,6 +690,7 @@
             var localSettings = Object.assign({}, fallback, JSON.parse(localStorage.getItem("summarizeThisSettings") || "{}"));
             var safeLocalSettings = SummarizeThis.stripApiKeysForLocalPreview(localSettings);
             safeLocalSettings.proxy = SummarizeThis.normalizeProxySettings(safeLocalSettings.proxy);
+            safeLocalSettings.backend = SummarizeThis.normalizeBackendSettings(safeLocalSettings.backend, safeLocalSettings.proxy);
             if (localSettings.apiKeys && Object.keys(localSettings.apiKeys).length) {
               localStorage.setItem("summarizeThisSettings", JSON.stringify(safeLocalSettings));
             }
@@ -699,6 +717,7 @@
           apiKeys: Object.assign({}, legacyKeys || {}, current && current.apiKeys ? current.apiKeys : {}),
           strategy: current && current.strategy ? current.strategy : strategy || fallback.strategy,
           proxy: SummarizeThis.normalizeProxySettings(current && current.proxy),
+          backend: SummarizeThis.normalizeBackendSettings(current && current.backend, current && current.proxy),
           promptTemplates: Array.isArray(storedPromptTemplates) ? storedPromptTemplates : []
         });
       }
@@ -727,6 +746,12 @@
           extractTextAttachments: fields.extractTextAttachments.checked,
           requireSensitiveAiApproval: fields.requireSensitiveAiApproval.checked,
           proxy: SummarizeThis.normalizeProxySettings({
+            enabled: fields.useProxy.checked,
+            endpoint: fields.proxyEndpoint.value
+          }),
+          backend: SummarizeThis.normalizeBackendSettings({
+            apiBase: fields.backendApiBase.value
+          }, {
             enabled: fields.useProxy.checked,
             endpoint: fields.proxyEndpoint.value
           }),
@@ -799,9 +824,11 @@
           console.log("[SummarizeThis DEBUG] taking LOCAL PREVIEW path (t is falsy)");
           var safePreviewSettings = SummarizeThis.stripApiKeysForLocalPreview(settings);
           localStorage.setItem("summarizeThisSettings", JSON.stringify(safePreviewSettings));
+          localStorage.setItem("summarizeThisBackendSessionToken", JSON.stringify(fields.backendSessionToken.value.trim()));
           fields.openaiKey.value = "";
           fields.googleKey.value = "";
           fields.anthropicKey.value = "";
+          fields.backendSessionToken.value = "";
           showMessage("Non-key settings saved for local preview. API keys are only stored in Trello member-private storage.", "success");
           return;
         }
@@ -828,7 +855,11 @@
           var result4 = await t.set("member", "private", "preferredStrategy", settings.strategy);
           console.log("[SummarizeThis DEBUG] t.set preferredStrategy result:", result4);
 
+          var result5 = await t.set("member", "private", "summarizeThisBackendSessionToken", fields.backendSessionToken.value.trim());
+          console.log("[SummarizeThis DEBUG] t.set summarizeThisBackendSessionToken result:", result5);
+
           console.log("[SummarizeThis DEBUG] all t.set() calls completed successfully, showing success message");
+          fields.backendSessionToken.value = "";
           showMessage(successMessage, "success");
         } catch (error) {
           console.log("[SummarizeThis DEBUG] CAUGHT ERROR during t.set():", error);
@@ -949,10 +980,24 @@
         fields.openaiKey.value = "";
         fields.googleKey.value = "";
         fields.anthropicKey.value = "";
+        fields.backendSessionToken.value = "";
         setProviderStatus("openai", "", "");
         setProviderStatus("google", "", "");
         setProviderStatus("anthropic", "", "");
         await saveSettings();
+      }
+
+      async function readBackendSessionToken() {
+        if (!t) {
+          try {
+            return JSON.parse(localStorage.getItem("summarizeThisBackendSessionToken") || "\"\"");
+          } catch (_error) {
+            return "";
+          }
+        }
+        return await safe(function () {
+          return t.get("member", "private", "summarizeThisBackendSessionToken");
+        }, "");
       }
 
       async function savePromptTemplate() {

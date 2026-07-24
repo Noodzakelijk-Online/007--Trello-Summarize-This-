@@ -420,6 +420,21 @@ const disabledProxySettings = SummarizeThis.normalizeProxySettings({
 assert.equal(disabledProxySettings.enabled, false);
 assert.equal(disabledProxySettings.endpoint, "https://proxy.example.com/ai");
 
+const explicitBackendSettings = SummarizeThis.normalizeBackendSettings({
+  apiBase: "https://powerup.example.com/api/"
+});
+assert.equal(explicitBackendSettings.apiBase, "https://powerup.example.com/api");
+assert.equal(explicitBackendSettings.valid, true);
+assert.equal(explicitBackendSettings.derivedFromProxy, false);
+
+const derivedBackendSettings = SummarizeThis.normalizeBackendSettings({}, {
+  enabled: true,
+  endpoint: "https://proxy.example.com/summarize-this/ai"
+});
+assert.equal(derivedBackendSettings.apiBase, "https://proxy.example.com/api");
+assert.equal(derivedBackendSettings.valid, true);
+assert.equal(derivedBackendSettings.derivedFromProxy, true);
+
 const defaultGenerationSettings = SummarizeThis.normalizeGenerationSettings();
 assert.equal(defaultGenerationSettings.maxOutputTokens, 900);
 assert.equal(SummarizeThis.normalizeGenerationSettings({ maxOutputTokens: "1200" }).maxOutputTokens, 1200);
